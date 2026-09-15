@@ -11,7 +11,7 @@ const WelcomeScreen = ({ navigation }) => {
   useEffect(() => {
     const temporizador = setTimeout(() => {
       navigation.replace('Login');
-    }, 2500);
+    }, 3200);
 
     return () => clearTimeout(temporizador);
   }, [navigation]);

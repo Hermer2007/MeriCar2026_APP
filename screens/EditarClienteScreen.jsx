@@ -17,17 +17,40 @@ import { useToast } from '../context/ToastContext';
 
 const DIAS = ['Lunes', 'Miércoles', 'Jueves', 'Domingo'];
 
-const ClienteRegistroScreen = ({ navigation }) => {
-  const { mostrarToast } = useToast();
-  const { agregarCliente } = useClientes();
+const EditarClienteScreen = ({ navigation, route }) => {
+  const { cliente } = route.params;
 
-  const [nombre, setNombre] = useState('');
-  const [cedula, setCedula] = useState('');
-  const [telefono, setTelefono] = useState('');
-  const [correo, setCorreo] = useState('');
-  const [direccion, setDireccion] = useState('');
-  const [diasTrabajo, setDiasTrabajo] = useState([]);
-  const [observaciones, setObservaciones] = useState('');
+  const { editarCliente } = useClientes();
+  const { mostrarToast } = useToast();
+
+  const [nombre, setNombre] = useState(
+    cliente.nombre ||
+      `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim()
+  );
+
+  const [cedula, setCedula] = useState(
+    cliente.cedula || ''
+  );
+
+  const [telefono, setTelefono] = useState(
+    cliente.telefono || ''
+  );
+
+  const [correo, setCorreo] = useState(
+    cliente.correo || ''
+  );
+
+  const [direccion, setDireccion] = useState(
+    cliente.direccion || ''
+  );
+
+  const [diasTrabajo, setDiasTrabajo] = useState(
+    cliente.diasTrabajo || []
+  );
+
+  const [observaciones, setObservaciones] = useState(
+    cliente.observaciones || ''
+  );
 
   const cambiarDia = (dia) => {
     setDiasTrabajo((actuales) =>
@@ -37,7 +60,7 @@ const ClienteRegistroScreen = ({ navigation }) => {
     );
   };
 
-  const guardarCliente = () => {
+  const guardarCambios = () => {
     const nombreLimpio = nombre.trim();
 
     if (!nombreLimpio) {
@@ -56,7 +79,8 @@ const ClienteRegistroScreen = ({ navigation }) => {
       return;
     }
 
-    const nuevoCliente = {
+    editarCliente({
+      id: cliente.id,
       nombre: nombreLimpio,
       cedula: cedula.trim(),
       telefono: telefono.trim(),
@@ -64,12 +88,10 @@ const ClienteRegistroScreen = ({ navigation }) => {
       direccion: direccion.trim(),
       diasTrabajo,
       observaciones: observaciones.trim(),
-    };
-
-    agregarCliente(nuevoCliente);
+    });
 
     mostrarToast(
-      'Cliente registrado correctamente.',
+      'Cliente actualizado correctamente.',
       'success'
     );
 
@@ -96,7 +118,7 @@ const ClienteRegistroScreen = ({ navigation }) => {
         </TouchableOpacity>
 
         <Text style={styles.tituloHeader}>
-          Agregar cliente
+          Editar cliente
         </Text>
       </View>
 
@@ -111,19 +133,18 @@ const ClienteRegistroScreen = ({ navigation }) => {
         >
           <View style={styles.icono}>
             <Ionicons
-              name="person-add"
+              name="person"
               size={58}
               color="#08752F"
             />
           </View>
 
           <Text style={styles.titulo}>
-            Nuevo cliente
+            Editar cliente
           </Text>
 
           <Text style={styles.subtitulo}>
-            Complete los datos para registrar
-            {'\n'}un nuevo cliente.
+            Modifique la información del cliente.
           </Text>
 
           <Text style={styles.label}>
@@ -313,16 +334,16 @@ const ClienteRegistroScreen = ({ navigation }) => {
 
           <TouchableOpacity
             style={styles.guardar}
-            onPress={guardarCliente}
+            onPress={guardarCambios}
           >
             <Ionicons
-              name="person-add"
+              name="save-outline"
               size={22}
               color="#FFFFFF"
             />
 
             <Text style={styles.textoGuardar}>
-              Guardar cliente
+              Guardar cambios
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -331,7 +352,7 @@ const ClienteRegistroScreen = ({ navigation }) => {
   );
 };
 
-export default ClienteRegistroScreen;
+export default EditarClienteScreen;
 
 const styles = StyleSheet.create({
   container: {

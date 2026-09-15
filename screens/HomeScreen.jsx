@@ -1,387 +1,910 @@
 import React from 'react';
+
 import {
-  Alert,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
   View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  StatusBar,
 } from 'react-native';
 
-import { Ionicons } from '@expo/vector-icons';
+import {
+  Ionicons,
+  MaterialCommunityIcons,
+} from '@expo/vector-icons';
 
-const MODULOS = [
-  {
-    id: 'clientes',
-    titulo: 'Clientes',
-    icono: 'people',
-  },
-  {
-    id: 'entregas',
-    titulo: 'Entregas',
-    icono: 'car',
-  },
-  {
-    id: 'registros',
-    titulo: 'Registros',
-    icono: 'person-add',
-    soloAdministrador: true,
-  },
-  {
-    id: 'inventario',
-    titulo: 'Inventario',
-    icono: 'cube',
-  },
-  {
-    id: 'productos',
-    titulo: 'Productos',
-    icono: 'basket',
-  },
-  {
-    id: 'reportes',
-    titulo: 'Reportes',
-    icono: 'bar-chart',
-  },
-];
+import { useUsuarios } from '../context/UsuariosContext';
+import { useToast } from '../context/ToastContext';
+import { useAlert } from '../context/AlertContext';
 
-const HomeScreen = ({ navigation, route }) => {
+const HomeScreen = ({
+  navigation,
+}) => {
+  const { mostrarToast } =
+    useToast();
+
+  const { mostrarAlert } =
+    useAlert();
+
+  const {
+    usuarioActual,
+    bloquearSesion,
+    obtenerNotificacionesUsuarios,
+  } = useUsuarios();
+
+  // ==========================================
+  // USUARIO ACTUAL
+  // ==========================================
+
   const nombreUsuario =
-    route.params?.nombreUsuario || 'Empleado';
+    usuarioActual?.nombre ||
+    'Usuario';
 
-  const rol = route.params?.rol || 'EMPLEADO';
+  const rol =
+    usuarioActual?.rol ||
+    '';
 
   const esAdministrador =
-    rol === 'ADMINISTRADOR';
+    rol ===
+    'ADMINISTRADOR';
 
-  const abrirModulo = (modulo) => {
+  // ==========================================
+  // NOTIFICACIONES
+  // ==========================================
+
+  const notificacionesUsuarios =
+    obtenerNotificacionesUsuarios();
+
+  // ==========================================
+  // NOMBRE DEL ROL
+  // ==========================================
+
+  const obtenerNombreRol =
+    () => {
+      if (
+        rol ===
+        'ADMINISTRADOR'
+      ) {
+        return 'Administrador';
+      }
+
+      if (
+        rol ===
+        'EMPLEADO'
+      ) {
+        return 'Empleado';
+      }
+
+      if (
+        rol ===
+        'CONTADOR'
+      ) {
+        return 'Contador';
+      }
+
+      return rol ||
+        'Usuario';
+    };
+
+  // ==========================================
+  // MÓDULOS
+  // ==========================================
+
+  const MODULOS = [
+    {
+      id: 'clientes',
+      titulo: 'Clientes',
+      tipoIcono:
+        'ionicons',
+      icono:
+        'people',
+      pantalla:
+        'Clientes',
+    },
+
+    {
+      id: 'entregas',
+      titulo: 'Entregas',
+      tipoIcono:
+        'material',
+      icono:
+        'truck',
+      pantalla:
+        'Entregas',
+    },
+
+    {
+      id: 'registros',
+      titulo: 'Usuarios',
+      tipoIcono:
+        'ionicons',
+      icono:
+        'person-add',
+      pantalla:
+        'Registros',
+      soloAdministrador:
+        true,
+    },
+
+    {
+      id: 'inventario',
+      titulo: 'Inventario',
+      tipoIcono:
+        'ionicons',
+      icono:
+        'cube',
+      pantalla:
+        'Inventario',
+    },
+
+    {
+      id: 'productos',
+      titulo: 'Productos',
+      tipoIcono:
+        'ionicons',
+      icono:
+        'basket',
+      pantalla:
+        'Productos',
+    },
+
+    {
+      id: 'reportes',
+      titulo: 'Reportes',
+      tipoIcono:
+        'ionicons',
+      icono:
+        'bar-chart',
+      pantalla:
+        'Reportes',
+    },
+  ];
+
+  // ==========================================
+  // ABRIR MÓDULO
+  // ==========================================
+
+  const abrirModulo = (
+    modulo
+  ) => {
     if (
       modulo.soloAdministrador &&
       !esAdministrador
     ) {
-      Alert.alert(
-        'Acceso restringido',
-        'Solo el administrador puede ingresar al apartado de Registros.'
+      mostrarToast(
+        'El apartado de Usuarios está restringido.',
+        'warning'
       );
+
       return;
     }
 
-    Alert.alert(
-      modulo.titulo,
-      `El módulo ${modulo.titulo} se conectará después.`
+    navigation.navigate(
+      modulo.pantalla
     );
   };
 
-  const cerrarSesion = () => {
-    Alert.alert(
-      'Cerrar sesión',
-      '¿Deseas salir de la aplicación?',
-      [
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-        },
-        {
-          text: 'Salir',
-          style: 'destructive',
-          onPress: () =>
-            navigation.replace('Login'),
-        },
-      ]
+  // ==========================================
+  // MOSTRAR ICONO
+  // ==========================================
+
+  const mostrarIcono = (
+    modulo,
+    bloqueado
+  ) => {
+    const color =
+      bloqueado
+        ? '#9CA3A0'
+        : '#08752F';
+
+    if (
+      modulo.tipoIcono ===
+      'material'
+    ) {
+      return (
+        <MaterialCommunityIcons
+          name={
+            modulo.icono
+          }
+          size={34}
+          color={color}
+        />
+      );
+    }
+
+    return (
+      <Ionicons
+        name={
+          modulo.icono
+        }
+        size={34}
+        color={color}
+      />
     );
   };
 
+  // ==========================================
+  // CERRAR SESIÓN
+  // ==========================================
+
+  const salir = () => {
+  mostrarAlert({
+    titulo: 'Cerrar sesión',
+    mensaje:
+      '¿Estás seguro de que deseas salir?',
+    tipo: 'question',
+    textoConfirmar: 'Salir',
+    textoCancelar: 'Cancelar',
+    mostrarCancelar: true,
+
+    onConfirmar: async () => {
+      await bloquearSesion();
+
+      navigation.reset({
+        index: 0,
+        routes: [
+          {
+            name: 'Login',
+          },
+        ],
+      });
+    },
+  });
+};
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.encabezado}>
-        <View style={styles.avatar}>
-          <Ionicons
-            name="person"
-            size={46}
-            color="#08752F"
-          />
-        </View>
+    <View
+      style={
+        styles.container
+      }
+    >
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor="#08752F"
+      />
 
-        <View style={styles.informacionUsuario}>
-          <Text style={styles.saludo}>
-            Hola, {nombreUsuario}
-          </Text>
+      {/* HEADER */}
 
-          <Text style={styles.subtitulo}>
-            {rol === 'ADMINISTRADOR'
-              ? 'Administrador'
-              : 'Bienvenido al sistema'}
-          </Text>
+      <View
+        style={
+          styles.header
+        }
+      >
+        <View
+          style={
+            styles.usuarioContainer
+          }
+        >
+          <View
+            style={
+              styles.avatar
+            }
+          >
+            <Ionicons
+              name="person"
+              size={37}
+              color="#08752F"
+            />
+          </View>
+
+          <View
+            style={
+              styles.usuarioInfo
+            }
+          >
+            <Text
+              style={
+                styles.saludo
+              }
+              numberOfLines={1}
+            >
+              Hola,{' '}
+              {nombreUsuario}
+            </Text>
+
+            <View
+              style={
+                styles.rolContainer
+              }
+            >
+              <Ionicons
+                name="shield-checkmark"
+                size={13}
+                color="#08752F"
+              />
+
+              <Text
+                style={
+                  styles.rolTexto
+                }
+              >
+                {obtenerNombreRol()}
+              </Text>
+            </View>
+          </View>
         </View>
       </View>
 
-      <View style={styles.curva} />
+      {/* CONTENIDO */}
 
-      <ScrollView
-        contentContainerStyle={styles.contenido}
-        showsVerticalScrollIndicator={false}
+      <View
+        style={
+          styles.contenido
+        }
       >
-        <View style={styles.cuadricula}>
-          {MODULOS.map((modulo) => {
-            const bloqueado =
-              modulo.soloAdministrador &&
-              !esAdministrador;
+        <View>
+          <Text
+            style={
+              styles.tituloPrincipal
+            }
+          >
+            Menú principal
+          </Text>
 
-            return (
-              <TouchableOpacity
-                key={modulo.id}
-                style={[
-                  styles.tarjeta,
-                  bloqueado && styles.tarjetaBloqueada,
-                ]}
-                activeOpacity={0.8}
-                onPress={() => abrirModulo(modulo)}
-              >
-                {bloqueado && (
-                  <Ionicons
-                    name="lock-closed"
-                    size={18}
-                    color="#8A8A8A"
-                    style={styles.candado}
-                  />
-                )}
-
-                <Ionicons
-                  name={modulo.icono}
-                  size={54}
-                  color={
-                    bloqueado
-                      ? '#A5A5A5'
-                      : '#08752F'
-                  }
-                />
-
-                <Text
-                  style={[
-                    styles.nombreModulo,
-                    bloqueado &&
-                      styles.nombreModuloBloqueado,
-                  ]}
-                >
-                  {modulo.titulo}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+          <Text
+            style={
+              styles.descripcion
+            }
+          >
+            Selecciona una opción para continuar
+          </Text>
         </View>
-      </ScrollView>
 
-      <View style={styles.navegacion}>
+        <View
+          style={
+            styles.grid
+          }
+        >
+          {MODULOS.map(
+            (modulo) => {
+              const bloqueado =
+                modulo.soloAdministrador &&
+                !esAdministrador;
+
+              const esUsuarios =
+                modulo.id ===
+                'registros';
+
+              return (
+                <TouchableOpacity
+                  key={
+                    modulo.id
+                  }
+                  style={[
+                    styles.tarjeta,
+
+                    bloqueado &&
+                      styles.tarjetaBloqueada,
+                  ]}
+                  activeOpacity={
+                    0.75
+                  }
+                  onPress={() =>
+                    abrirModulo(
+                      modulo
+                    )
+                  }
+                >
+                  {/* NOTIFICACIÓN */}
+
+                  {esUsuarios &&
+                    esAdministrador &&
+                    notificacionesUsuarios >
+                      0 && (
+                      <View
+                        style={
+                          styles.badgeNotificacion
+                        }
+                      >
+                        <Text
+                          style={
+                            styles.badgeNotificacionTexto
+                          }
+                        >
+                          {notificacionesUsuarios >
+                          99
+                            ? '99+'
+                            : notificacionesUsuarios}
+                        </Text>
+                      </View>
+                    )}
+
+                  {/* ICONO */}
+
+                  <View
+                    style={[
+                      styles.iconoContainer,
+
+                      bloqueado &&
+                        styles.iconoBloqueado,
+                    ]}
+                  >
+                    {mostrarIcono(
+                      modulo,
+                      bloqueado
+                    )}
+                  </View>
+
+                  {/* CANDADO */}
+
+                  {bloqueado && (
+                    <Ionicons
+                      name="lock-closed"
+                      size={15}
+                      color="#999999"
+                      style={
+                        styles.candado
+                      }
+                    />
+                  )}
+
+                  {/* TÍTULO */}
+
+                  <Text
+                    style={[
+                      styles.tituloModulo,
+
+                      bloqueado &&
+                        styles.textoBloqueado,
+                    ]}
+                  >
+                    {
+                      modulo.titulo
+                    }
+                  </Text>
+
+                  {/* FLECHA */}
+
+                  <View
+                    style={[
+                      styles.flechaContainer,
+
+                      bloqueado &&
+                        styles.flechaBloqueada,
+                    ]}
+                  >
+                    <Ionicons
+                      name="arrow-forward"
+                      size={20}
+                      color={
+                        bloqueado
+                          ? '#999999'
+                          : '#08752F'
+                      }
+                    />
+                  </View>
+                </TouchableOpacity>
+              );
+            }
+          )}
+        </View>
+      </View>
+
+      {/* BARRA INFERIOR */}
+
+      <View
+        style={
+          styles.bottomNavigation
+        }
+      >
         <TouchableOpacity
-          style={styles.opcionNavegacion}
+          style={
+            styles.navItem
+          }
         >
           <Ionicons
             name="home"
-            size={28}
+            size={27}
             color="#08752F"
           />
 
-          <Text style={styles.textoActivo}>
+          <Text
+            style={
+              styles.navActivo
+            }
+          >
             Inicio
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.opcionNavegacion}
+          style={
+            styles.navItem
+          }
           onPress={() =>
-            Alert.alert(
-              'Buscar',
-              'La búsqueda general se implementará después.'
+            navigation.navigate(
+              'Perfil'
             )
           }
         >
           <Ionicons
-            name="search"
-            size={28}
+            name="person-outline"
+            size={27}
             color="#222222"
           />
 
-          <Text style={styles.textoNavegacion}>
-            Buscar
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.opcionNavegacion}
-          onPress={() =>
-            Alert.alert(
-              'Perfil',
-              `Usuario: ${nombreUsuario}\nRol: ${rol}`
-            )
-          }
-        >
-          <Ionicons
-            name="person"
-            size={28}
-            color="#222222"
-          />
-
-          <Text style={styles.textoNavegacion}>
+          <Text
+            style={
+              styles.navTexto
+            }
+          >
             Perfil
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.opcionNavegacion}
-          onPress={cerrarSesion}
+          style={
+            styles.navItem
+          }
+          onPress={
+            salir
+          }
         >
           <Ionicons
             name="log-out-outline"
-            size={30}
+            size={29}
             color="#222222"
           />
 
-          <Text style={styles.textoNavegacion}>
+          <Text
+            style={
+              styles.navTexto
+            }
+          >
             Salir
           </Text>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
 export default HomeScreen;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-
-  encabezado: {
-    height: 190,
-    backgroundColor: '#08752F',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 28,
-    paddingTop: 20,
-  },
-
-  curva: {
-    position: 'absolute',
-    top: 152,
-    left: -25,
-    width: '115%',
-    height: 90,
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 55,
-    borderTopRightRadius: 55,
-    transform: [{ rotate: '-2deg' }],
-  },
-
-  avatar: {
-    width: 75,
-    height: 75,
-    borderRadius: 40,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 2,
-  },
-
-  informacionUsuario: {
-    marginLeft: 18,
-    zIndex: 2,
-  },
-
-  saludo: {
-    color: '#FFFFFF',
-    fontSize: 23,
-    fontWeight: '700',
-  },
-
-  subtitulo: {
-    color: '#E9F5EC',
-    fontSize: 16,
-    marginTop: 5,
-  },
-
-  contenido: {
-    paddingHorizontal: 20,
-    paddingTop: 50,
-    paddingBottom: 28,
-  },
-
-  cuadricula: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-
-  tarjeta: {
-    width: '48%',
-    height: 145,
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: '#E1E1E1',
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 17,
-
-    shadowColor: '#000000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
+const styles =
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor:
+        '#F7F8F9',
     },
-    shadowOpacity: 0.08,
-    shadowRadius: 5,
-    elevation: 3,
-  },
 
-  tarjetaBloqueada: {
-    backgroundColor: '#F2F2F2',
-  },
+    header: {
+      height: 165,
+      backgroundColor:
+        '#08752F',
 
-  candado: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-  },
+      paddingHorizontal: 18,
+      paddingTop: 28,
 
-  nombreModulo: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#08752F',
-    marginTop: 10,
-  },
+      justifyContent:
+        'center',
+    },
 
-  nombreModuloBloqueado: {
-    color: '#929292',
-  },
+    usuarioContainer: {
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+    },
 
-  navegacion: {
-    height: 82,
-    borderTopWidth: 1,
-    borderTopColor: '#E2E2E2',
-    backgroundColor: '#FFFFFF',
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    paddingBottom: 5,
-  },
+    avatar: {
+      width: 60,
+      height: 60,
 
-  opcionNavegacion: {
-    minWidth: 65,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+      borderRadius: 30,
 
-  textoActivo: {
-    fontSize: 12,
-    color: '#08752F',
-    fontWeight: '600',
-    marginTop: 4,
-  },
+      backgroundColor:
+        '#FFFFFF',
 
-  textoNavegacion: {
-    fontSize: 12,
-    color: '#333333',
-    marginTop: 4,
-  },
-});
+      justifyContent:
+        'center',
+      alignItems:
+        'center',
+    },
+
+    usuarioInfo: {
+      flex: 1,
+      marginLeft: 14,
+    },
+
+    saludo: {
+      color:
+        '#FFFFFF',
+
+      fontSize: 20,
+
+      fontWeight:
+        '700',
+    },
+
+    rolContainer: {
+      alignSelf:
+        'flex-start',
+
+      marginTop: 7,
+
+      minHeight: 23,
+
+      backgroundColor:
+        '#FFFFFF',
+
+      borderRadius: 13,
+
+      paddingHorizontal: 9,
+
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
+
+      gap: 4,
+    },
+
+    rolTexto: {
+      color:
+        '#08752F',
+
+      fontSize: 10,
+
+      fontWeight:
+        '700',
+    },
+
+    contenido: {
+      flex: 1,
+      backgroundColor:
+        '#F7F8F9',
+
+      borderTopLeftRadius: 22,
+      borderTopRightRadius: 22,
+
+      marginTop: -20,
+
+      paddingHorizontal: 14,
+
+      paddingTop: 27,
+      paddingBottom: 16,
+    },
+
+    tituloPrincipal: {
+      color:
+        '#202020',
+
+      fontSize: 22,
+
+      fontWeight:
+        '800',
+    },
+
+    descripcion: {
+      color:
+        '#888888',
+
+      fontSize: 12,
+
+      marginTop: 5,
+      marginBottom: 18,
+    },
+
+    grid: {
+      flex: 1,
+
+      flexDirection:
+        'row',
+
+      flexWrap:
+        'wrap',
+
+      justifyContent:
+        'space-between',
+
+      alignContent:
+        'space-between',
+    },
+
+    tarjeta: {
+      width: '48%',
+
+      height: '30.8%',
+
+      minHeight: 125,
+
+      backgroundColor:
+        '#FFFFFF',
+
+      borderWidth: 1,
+      borderColor:
+        '#E3E3E3',
+
+      borderRadius: 16,
+
+      paddingHorizontal: 15,
+      paddingVertical: 15,
+
+      shadowColor:
+        '#000000',
+
+      shadowOffset: {
+        width: 0,
+        height: 3,
+      },
+
+      shadowOpacity: 0.08,
+      shadowRadius: 5,
+
+      elevation: 4,
+    },
+
+    tarjetaBloqueada: {
+      backgroundColor:
+        '#F3F3F3',
+    },
+
+    badgeNotificacion: {
+      position:
+        'absolute',
+
+      top: 10,
+      right: 10,
+
+      minWidth: 24,
+      height: 24,
+
+      borderRadius: 12,
+
+      backgroundColor:
+        '#D93025',
+
+      justifyContent:
+        'center',
+
+      alignItems:
+        'center',
+
+      paddingHorizontal: 6,
+
+      zIndex: 10,
+
+      elevation: 6,
+
+      borderWidth: 2,
+      borderColor:
+        '#FFFFFF',
+    },
+
+    badgeNotificacionTexto: {
+      color:
+        '#FFFFFF',
+
+      fontSize: 10,
+
+      fontWeight:
+        '800',
+    },
+
+    iconoContainer: {
+      width: 55,
+      height: 55,
+
+      borderRadius: 14,
+
+      backgroundColor:
+        '#E8F6EC',
+
+      justifyContent:
+        'center',
+
+      alignItems:
+        'center',
+    },
+
+    iconoBloqueado: {
+      backgroundColor:
+        '#E5E5E5',
+    },
+
+    tituloModulo: {
+      color:
+        '#202020',
+
+      fontSize: 15,
+
+      fontWeight:
+        '700',
+
+      marginTop: 13,
+    },
+
+    textoBloqueado: {
+      color:
+        '#999999',
+    },
+
+    candado: {
+      position:
+        'absolute',
+
+      top: 14,
+      right: 14,
+    },
+
+    flechaContainer: {
+      position:
+        'absolute',
+
+      right: 13,
+      bottom: 13,
+
+      width: 33,
+      height: 33,
+
+      borderRadius: 17,
+
+      backgroundColor:
+        '#E8F6EC',
+
+      justifyContent:
+        'center',
+      alignItems:
+        'center',
+    },
+
+    flechaBloqueada: {
+      backgroundColor:
+        '#E5E5E5',
+    },
+
+    bottomNavigation: {
+      height: 76,
+
+      backgroundColor:
+        '#FFFFFF',
+
+      borderTopWidth: 1,
+      borderTopColor:
+        '#E5E5E5',
+
+      flexDirection:
+        'row',
+
+      justifyContent:
+        'space-around',
+
+      alignItems:
+        'center',
+    },
+
+    navItem: {
+      flex: 1,
+
+      height: '100%',
+
+      justifyContent:
+        'center',
+
+      alignItems:
+        'center',
+    },
+
+    navTexto: {
+      marginTop: 3,
+
+      fontSize: 10,
+
+      color:
+        '#333333',
+    },
+
+    navActivo: {
+      marginTop: 3,
+
+      fontSize: 10,
+
+      color:
+        '#08752F',
+
+      fontWeight:
+        '700',
+    },
+  });
