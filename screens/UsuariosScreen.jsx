@@ -31,9 +31,10 @@ export default function UsuariosScreen({
     rechazarSolicitud,
 
     cambiarEstadoUsuario,
-    borrarUsuario,
 
     atenderRestablecimiento,
+    aprobarHabilitacion,
+    rechazarHabilitacion,
 
     marcarNotificacionesUsuariosLeidas,
   } = useUsuarios();
@@ -56,6 +57,16 @@ export default function UsuariosScreen({
     setModalVisible,
   ] = useState(false);
 
+  const [
+    mostrarUsuariosActivos,
+    setMostrarUsuariosActivos,
+  ] = useState(true);
+
+  const [
+    mostrarUsuariosInhabilitados,
+    setMostrarUsuariosInhabilitados,
+  ] = useState(false);
+
   // ==========================================
   // MARCAR NOTIFICACIONES COMO VISTAS
   // ==========================================
@@ -76,7 +87,7 @@ export default function UsuariosScreen({
     );
 
   // ==========================================
-  // CONTADORES
+  // USUARIOS POR ESTADO
   // ==========================================
 
   const usuariosActivos =
@@ -84,7 +95,14 @@ export default function UsuariosScreen({
       (usuario) =>
         usuario.estado ===
         'ACTIVO'
-    ).length;
+    );
+
+  const usuariosInhabilitados =
+    usuarios.filter(
+      (usuario) =>
+        usuario.estado ===
+        'INHABILITADO'
+    );
 
   const restablecimientosPendientes =
     usuarios.filter(
@@ -92,6 +110,17 @@ export default function UsuariosScreen({
         usuario.solicitaRestablecimiento ===
         true
     ).length;
+
+  const habilitacionesPendientes =
+    usuarios.filter(
+      (usuario) =>
+        usuario.estado === 'INHABILITADO' &&
+        usuario.solicitaHabilitacion === true
+    ).length;
+
+  const totalSolicitudes =
+    solicitudesPendientes.length +
+    habilitacionesPendientes;
 
   // ==========================================
   // APROBAR
@@ -119,9 +148,9 @@ export default function UsuariosScreen({
       textoConfirmar:
         'Aprobar',
 
-      onConfirmar: () => {
+      onConfirmar: async () => {
         const resultado =
-          aprobarSolicitud(
+          await aprobarSolicitud(
             solicitud.id
           );
 
@@ -168,10 +197,20 @@ export default function UsuariosScreen({
       textoConfirmar:
         'Rechazar',
 
-      onConfirmar: () => {
-        rechazarSolicitud(
-          solicitud.id
-        );
+      onConfirmar: async () => {
+        const resultado =
+          await rechazarSolicitud(
+            solicitud.id
+          );
+
+        if (!resultado) {
+          mostrarToast(
+            'No se pudo rechazar la solicitud.',
+            'error'
+          );
+
+          return;
+        }
 
         mostrarToast(
           'Solicitud rechazada.',
@@ -182,7 +221,7 @@ export default function UsuariosScreen({
   };
 
   // ==========================================
-  // ABRIR OPCIONES USUARIO
+  // ABRIR OPCIONES
   // ==========================================
 
   const abrirOpciones = (
@@ -223,6 +262,34 @@ export default function UsuariosScreen({
       const usuario =
         usuarioSeleccionado;
 
+      if (
+        usuario.estado !==
+        'ACTIVO'
+      ) {
+        cerrarOpciones();
+
+        mostrarToast(
+          'El usuario debe estar activo para restablecer su contraseña.',
+          'warning'
+        );
+
+        return;
+      }
+
+      if (
+        usuario.solicitaRestablecimiento !==
+        true
+      ) {
+        cerrarOpciones();
+
+        mostrarToast(
+          'Este usuario no tiene una solicitud de recuperación pendiente.',
+          'warning'
+        );
+
+        return;
+      }
+
       setModalVisible(
         false
       );
@@ -232,7 +299,7 @@ export default function UsuariosScreen({
           'Restablecer contraseña',
 
         mensaje:
-          `¿Desea atender la solicitud de restablecimiento de ${usuario.nombre}?`,
+          `¿Desea autorizar el restablecimiento de contraseña de ${usuario.nombre}? Se enviará un correo a ${usuario.correo}.`,
 
         tipo:
           'question',
@@ -244,19 +311,33 @@ export default function UsuariosScreen({
           'Cancelar',
 
         textoConfirmar:
-          'Continuar',
+          'Enviar correo',
 
-        onConfirmar: () => {
-          atenderRestablecimiento(
-            usuario.id
-          );
+        onConfirmar: async () => {
+          const resultado =
+            await atenderRestablecimiento(
+              usuario.id
+            );
+
+          if (!resultado) {
+            setUsuarioSeleccionado(
+              null
+            );
+
+            mostrarToast(
+              'No se pudo enviar el correo de restablecimiento.',
+              'error'
+            );
+
+            return;
+          }
 
           setUsuarioSeleccionado(
             null
           );
 
           mostrarToast(
-            'Solicitud de restablecimiento atendida.',
+            'Correo de restablecimiento enviado correctamente.',
             'success'
           );
         },
@@ -337,10 +418,24 @@ export default function UsuariosScreen({
             ? 'Inhabilitar'
             : 'Habilitar',
 
-        onConfirmar: () => {
-          cambiarEstadoUsuario(
-            usuario.id
-          );
+        onConfirmar: async () => {
+          const resultado =
+            await cambiarEstadoUsuario(
+              usuario.id
+            );
+
+          if (!resultado) {
+            setUsuarioSeleccionado(
+              null
+            );
+
+            mostrarToast(
+              'No se pudo cambiar el estado del usuario.',
+              'error'
+            );
+
+            return;
+          }
 
           setUsuarioSeleccionado(
             null
@@ -363,80 +458,82 @@ export default function UsuariosScreen({
     };
 
   // ==========================================
-  // BORRAR USUARIO
+  // SOLICITUD DE HABILITACIÓN
   // ==========================================
 
-  const borrar =
-    () => {
-      if (
-        !usuarioSeleccionado
-      ) {
-        return;
-      }
+  const habilitarSolicitud = (usuario) => {
+    setModalVisible(false);
 
-      if (
-        String(
-          usuarioSeleccionado.id
-        ) ===
-        String(
-          usuarioActual?.id
-        )
-      ) {
-        cerrarOpciones();
+    mostrarAlert({
+      titulo: 'Habilitar usuario',
+      mensaje:
+        `¿Desea aprobar la solicitud de habilitación de ${usuario.nombre}?`,
+      tipo: 'question',
+      mostrarCancelar: true,
+      textoCancelar: 'Cancelar',
+      textoConfirmar: 'Habilitar',
+
+      onConfirmar: async () => {
+        const resultado =
+          await aprobarHabilitacion(usuario.id);
+
+        setUsuarioSeleccionado(null);
+
+        if (!resultado) {
+          mostrarToast(
+            'No se pudo habilitar al usuario.',
+            'error'
+          );
+          return;
+        }
 
         mostrarToast(
-          'No puede eliminar su propia cuenta mientras está conectado.',
-          'warning'
+          'Usuario habilitado correctamente.',
+          'success'
         );
+      },
 
-        return;
-      }
+      onCancelar: () => {
+        setUsuarioSeleccionado(null);
+      },
+    });
+  };
 
-      const usuario =
-        usuarioSeleccionado;
-
-      setModalVisible(
-        false
-      );
+  const rechazarSolicitudHabilitacion =
+    (usuario) => {
+      setModalVisible(false);
 
       mostrarAlert({
-        titulo:
-          'Eliminar usuario',
-
+        titulo: 'Rechazar habilitación',
         mensaje:
-          `¿Está seguro de que desea eliminar la cuenta de ${usuario.nombre}? Esta acción no se puede deshacer.`,
+          `¿Desea rechazar la solicitud de habilitación de ${usuario.nombre}? La cuenta continuará inhabilitada.`,
+        tipo: 'warning',
+        mostrarCancelar: true,
+        textoCancelar: 'Cancelar',
+        textoConfirmar: 'Rechazar',
 
-        tipo:
-          'danger',
+        onConfirmar: async () => {
+          const resultado =
+            await rechazarHabilitacion(usuario.id);
 
-        mostrarCancelar:
-          true,
+          setUsuarioSeleccionado(null);
 
-        textoCancelar:
-          'Cancelar',
-
-        textoConfirmar:
-          'Eliminar',
-
-        onConfirmar: () => {
-          borrarUsuario(
-            usuario.id
-          );
-
-          setUsuarioSeleccionado(
-            null
-          );
+          if (!resultado) {
+            mostrarToast(
+              'No se pudo rechazar la solicitud.',
+              'error'
+            );
+            return;
+          }
 
           mostrarToast(
-            'Usuario eliminado.',
+            'Solicitud de habilitación rechazada.',
             'success'
           );
         },
 
         onCancelar: () => {
-          setUsuarioSeleccionado(
-            null
-          );
+          setUsuarioSeleccionado(null);
         },
       });
     };
@@ -470,6 +567,321 @@ export default function UsuariosScreen({
     }
 
     return rol;
+  };
+
+  // ==========================================
+  // TARJETA USUARIO ACTIVO
+  // ==========================================
+
+  const renderUsuarioActivo = (
+    usuario
+  ) => {
+    const esActual =
+      String(usuario.id) ===
+      String(usuarioActual?.id);
+
+    return (
+      <View
+        key={usuario.id}
+        style={[
+          styles.usuarioCard,
+          styles.usuarioCardActivo,
+        ]}
+      >
+        <View
+          style={[
+            styles.avatarUsuario,
+            styles.avatarUsuarioActivo,
+          ]}
+        >
+          <Ionicons
+            name="person"
+            size={25}
+            color="#08752F"
+          />
+        </View>
+
+        <View
+          style={
+            styles.usuarioInfo
+          }
+        >
+          <View
+            style={
+              styles.nombreFila
+            }
+          >
+            <Text
+              style={
+                styles.nombreUsuario
+              }
+            >
+              {usuario.nombre}
+            </Text>
+
+            {esActual && (
+              <View
+                style={
+                  styles.badgeTu
+                }
+              >
+                <Text
+                  style={
+                    styles.badgeTuTexto
+                  }
+                >
+                  Tú
+                </Text>
+              </View>
+            )}
+          </View>
+
+          <Text
+            style={
+              styles.correoUsuario
+            }
+          >
+            {usuario.correo}
+          </Text>
+
+          <View
+            style={
+              styles.filaEtiquetas
+            }
+          >
+            <View
+              style={
+                styles.badgeRol
+              }
+            >
+              <Text
+                style={
+                  styles.badgeRolTexto
+                }
+              >
+                {obtenerRol(
+                  usuario.rol
+                )}
+              </Text>
+            </View>
+
+            <View
+              style={
+                styles.badgeActivo
+              }
+            >
+              <Ionicons
+                name="checkmark-circle"
+                size={11}
+                color="#08752F"
+              />
+
+              <Text
+                style={
+                  styles.badgeActivoTexto
+                }
+              >
+                ACTIVO
+              </Text>
+            </View>
+          </View>
+
+          {usuario.solicitaRestablecimiento && (
+            <View
+              style={
+                styles.alertaRecuperacion
+              }
+            >
+              <Ionicons
+                name="warning-outline"
+                size={18}
+                color="#B06C00"
+              />
+
+              <View
+                style={
+                  styles.alertaContenido
+                }
+              >
+                <Text
+                  style={
+                    styles.alertaTexto
+                  }
+                >
+                  Solicita restablecer contraseña
+                </Text>
+
+                {usuario.notaRestablecimiento ? (
+                  <Text
+                    style={
+                      styles.alertaNota
+                    }
+                  >
+                    Nota: {usuario.notaRestablecimiento}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+          )}
+        </View>
+
+        <TouchableOpacity
+          style={
+            styles.botonOpciones
+          }
+          onPress={() =>
+            abrirOpciones(
+              usuario
+            )
+          }
+        >
+          <Ionicons
+            name="ellipsis-vertical"
+            size={23}
+            color="#555555"
+          />
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  // ==========================================
+  // TARJETA USUARIO INHABILITADO
+  // ==========================================
+
+  const renderUsuarioInhabilitado = (
+    usuario
+  ) => {
+    const solicitaHabilitacion =
+      usuario.solicitaHabilitacion === true;
+
+    return (
+      <View
+        key={usuario.id}
+        style={[
+          styles.usuarioCard,
+          styles.usuarioCardInhabilitado,
+          solicitaHabilitacion &&
+            styles.usuarioCardSolicitaHabilitacion,
+        ]}
+      >
+        <View
+          style={[
+            styles.avatarUsuario,
+            styles.avatarUsuarioInhabilitado,
+          ]}
+        >
+          <Ionicons
+            name="person-outline"
+            size={25}
+            color="#777777"
+          />
+        </View>
+
+        <View
+          style={
+            styles.usuarioInfo
+          }
+        >
+          <Text
+            style={
+              styles.nombreUsuarioInhabilitado
+            }
+          >
+            {usuario.nombre}
+          </Text>
+
+          <Text
+            style={
+              styles.correoUsuarioInhabilitado
+            }
+          >
+            {usuario.correo}
+          </Text>
+
+          <View
+            style={
+              styles.filaEtiquetas
+            }
+          >
+            <View
+              style={
+                styles.badgeRolGris
+              }
+            >
+              <Text
+                style={
+                  styles.badgeRolGrisTexto
+                }
+              >
+                {obtenerRol(
+                  usuario.rol
+                )}
+              </Text>
+            </View>
+
+            <View
+              style={
+                styles.badgeInhabilitado
+              }
+            >
+              <Ionicons
+                name="ban-outline"
+                size={11}
+                color="#666666"
+              />
+
+              <Text
+                style={
+                  styles.badgeInhabilitadoTexto
+                }
+              >
+                INHABILITADO
+              </Text>
+            </View>
+          </View>
+
+          {solicitaHabilitacion && (
+            <View style={styles.alertaHabilitacion}>
+              <Ionicons
+                name="alert-circle-outline"
+                size={19}
+                color="#B06C00"
+              />
+
+              <View style={styles.alertaContenido}>
+                <Text style={styles.alertaHabilitacionTitulo}>
+                  Solicita habilitación de cuenta
+                </Text>
+
+                {usuario.notaHabilitacion ? (
+                  <Text style={styles.alertaNota}>
+                    Motivo: {usuario.notaHabilitacion}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+          )}
+        </View>
+
+        <TouchableOpacity
+          style={
+            styles.botonOpciones
+          }
+          onPress={() =>
+            abrirOpciones(
+              usuario
+            )
+          }
+        >
+          <Ionicons
+            name="ellipsis-vertical"
+            size={23}
+            color="#777777"
+          />
+        </TouchableOpacity>
+      </View>
+    );
   };
 
   return (
@@ -552,7 +964,7 @@ export default function UsuariosScreen({
               }
             >
               {
-                solicitudesPendientes.length
+                totalSolicitudes
               }
             </Text>
 
@@ -587,7 +999,9 @@ export default function UsuariosScreen({
                 styles.resumenNumero
               }
             >
-              {usuariosActivos}
+              {
+                usuariosActivos.length
+              }
             </Text>
 
             <Text
@@ -796,184 +1210,189 @@ export default function UsuariosScreen({
           )
         )}
 
-        {/* USUARIOS */}
+        {/* USUARIOS ACTIVOS */}
 
-        <Text
-          style={[
-            styles.tituloSeccion,
-            styles.seccionUsuarios,
-          ]}
-        >
-          Usuarios registrados
-        </Text>
-
-        {usuarios.map(
-          (usuario) => {
-            const esActual =
-              String(usuario.id) ===
-              String(usuarioActual?.id);
-
-            const estaActivo =
-              usuario.estado === 'ACTIVO';
-
-            const estaInhabilitado =
-              usuario.estado === 'INHABILITADO';
-
-            const estaRechazado =
-              usuario.estado === 'RECHAZADO';
-
-            const estaPendiente =
-              usuario.estado === 'PENDIENTE';
-
-            return (
-              <View
-                key={usuario.id}
-                style={[
-                  styles.usuarioCard,
-                  estaActivo && styles.usuarioCardActivo,
-                  estaInhabilitado && styles.usuarioCardInhabilitado,
-                  estaRechazado && styles.usuarioCardRechazado,
-                  estaPendiente && styles.usuarioCardPendiente,
-                ]}
-              >
-                <View
-                  style={[
-                    styles.avatarUsuario,
-                    estaActivo && styles.avatarUsuarioActivo,
-                    estaInhabilitado && styles.avatarUsuarioInhabilitado,
-                    estaRechazado && styles.avatarUsuarioRechazado,
-                    estaPendiente && styles.avatarUsuarioPendiente,
-                  ]}
-                >
-                  <Ionicons
-                    name={
-                      estaRechazado
-                        ? 'person-remove'
-                        : estaInhabilitado
-                        ? 'person-outline'
-                        : estaPendiente
-                        ? 'time-outline'
-                        : 'person'
-                    }
-                    size={25}
-                    color={
-                      estaRechazado
-                        ? '#D93025'
-                        : estaInhabilitado
-                        ? '#B06C00'
-                        : estaPendiente
-                        ? '#B06C00'
-                        : '#08752F'
-                    }
-                  />
-                </View>
-
-                <View style={styles.usuarioInfo}>
-                  <View style={styles.nombreFila}>
-                    <Text style={styles.nombreUsuario}>
-                      {usuario.nombre}
-                    </Text>
-
-                    {esActual && (
-                      <View style={styles.badgeTu}>
-                        <Text style={styles.badgeTuTexto}>
-                          Tú
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-
-                  <Text style={styles.correoUsuario}>
-                    {usuario.correo}
-                  </Text>
-
-                  <View style={styles.filaEtiquetas}>
-                    <View style={styles.badgeRol}>
-                      <Text style={styles.badgeRolTexto}>
-                        {obtenerRol(usuario.rol)}
-                      </Text>
-                    </View>
-
-                    {estaActivo && (
-                      <View style={styles.badgeActivo}>
-                        <Ionicons
-                          name="checkmark-circle"
-                          size={11}
-                          color="#08752F"
-                        />
-                        <Text style={styles.badgeActivoTexto}>
-                          ACTIVO
-                        </Text>
-                      </View>
-                    )}
-
-                    {estaInhabilitado && (
-                      <View style={styles.badgeInhabilitado}>
-                        <Ionicons
-                          name="ban-outline"
-                          size={11}
-                          color="#B06C00"
-                        />
-                        <Text style={styles.badgeInhabilitadoTexto}>
-                          INHABILITADO
-                        </Text>
-                      </View>
-                    )}
-
-                    {estaRechazado && (
-                      <View style={styles.badgeRechazado}>
-                        <Ionicons
-                          name="close-circle"
-                          size={11}
-                          color="#D93025"
-                        />
-                        <Text style={styles.badgeRechazadoTexto}>
-                          RECHAZADO
-                        </Text>
-                      </View>
-                    )}
-
-                    {estaPendiente && (
-                      <View style={styles.badgeEstadoPendiente}>
-                        <Ionicons
-                          name="time-outline"
-                          size={11}
-                          color="#B06C00"
-                        />
-                        <Text style={styles.badgeEstadoPendienteTexto}>
-                          PENDIENTE
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-
-                  {usuario.solicitaRestablecimiento && (
-                    <View style={styles.alertaRecuperacion}>
-                      <Ionicons
-                        name="warning-outline"
-                        size={18}
-                        color="#B06C00"
-                      />
-                      <Text style={styles.alertaTexto}>
-                        Solicita restablecer contraseña
-                      </Text>
-                    </View>
-                  )}
-                </View>
-
-                <TouchableOpacity
-                  style={styles.botonOpciones}
-                  onPress={() => abrirOpciones(usuario)}
-                >
-                  <Ionicons
-                    name="ellipsis-vertical"
-                    size={23}
-                    color="#555555"
-                  />
-                </TouchableOpacity>
-              </View>
-            );
+        <TouchableOpacity
+          style={
+            styles.encabezadoDesplegable
           }
+          activeOpacity={0.7}
+          onPress={() =>
+            setMostrarUsuariosActivos(
+              !mostrarUsuariosActivos
+            )
+          }
+        >
+          <View
+            style={
+              styles.encabezadoIzquierda
+            }
+          >
+            <View
+              style={
+                styles.iconoSeccionActivo
+              }
+            >
+              <Ionicons
+                name="people-outline"
+                size={20}
+                color="#08752F"
+              />
+            </View>
+
+            <View>
+              <Text
+                style={
+                  styles.tituloDesplegable
+                }
+              >
+                Usuarios registrados
+              </Text>
+
+              <Text
+                style={
+                  styles.subtituloDesplegable
+                }
+              >
+                {usuariosActivos.length}{' '}
+                {usuariosActivos.length === 1
+                  ? 'usuario activo'
+                  : 'usuarios activos'}
+              </Text>
+            </View>
+          </View>
+
+          <Ionicons
+            name={
+              mostrarUsuariosActivos
+                ? 'chevron-up'
+                : 'chevron-down'
+            }
+            size={22}
+            color="#555555"
+          />
+        </TouchableOpacity>
+
+        {mostrarUsuariosActivos && (
+          <View
+            style={
+              styles.contenidoDesplegable
+            }
+          >
+            {usuariosActivos.length ===
+            0 ? (
+              <View
+                style={
+                  styles.vacioPequeno
+                }
+              >
+                <Text
+                  style={
+                    styles.vacioTexto
+                  }
+                >
+                  No hay usuarios activos.
+                </Text>
+              </View>
+            ) : (
+              usuariosActivos.map(
+                renderUsuarioActivo
+              )
+            )}
+          </View>
+        )}
+
+        {/* USUARIOS INHABILITADOS */}
+
+        <TouchableOpacity
+          style={[
+            styles.encabezadoDesplegable,
+            styles.encabezadoInhabilitados,
+          ]}
+          activeOpacity={0.7}
+          onPress={() =>
+            setMostrarUsuariosInhabilitados(
+              !mostrarUsuariosInhabilitados
+            )
+          }
+        >
+          <View
+            style={
+              styles.encabezadoIzquierda
+            }
+          >
+            <View
+              style={
+                styles.iconoSeccionInhabilitado
+              }
+            >
+              <Ionicons
+                name="person-remove-outline"
+                size={20}
+                color="#666666"
+              />
+            </View>
+
+            <View>
+              <Text
+                style={
+                  styles.tituloDesplegable
+                }
+              >
+                Usuarios inhabilitados
+              </Text>
+
+              <Text
+                style={
+                  styles.subtituloDesplegable
+                }
+              >
+                {usuariosInhabilitados.length}{' '}
+                {usuariosInhabilitados.length === 1
+                  ? 'usuario inhabilitado'
+                  : 'usuarios inhabilitados'}
+              </Text>
+            </View>
+          </View>
+
+          <Ionicons
+            name={
+              mostrarUsuariosInhabilitados
+                ? 'chevron-up'
+                : 'chevron-down'
+            }
+            size={22}
+            color="#666666"
+          />
+        </TouchableOpacity>
+
+        {mostrarUsuariosInhabilitados && (
+          <View
+            style={
+              styles.contenidoDesplegable
+            }
+          >
+            {usuariosInhabilitados.length ===
+            0 ? (
+              <View
+                style={
+                  styles.vacioPequeno
+                }
+              >
+                <Text
+                  style={
+                    styles.vacioTexto
+                  }
+                >
+                  No hay usuarios inhabilitados.
+                </Text>
+              </View>
+            ) : (
+              usuariosInhabilitados.map(
+                renderUsuarioInhabilitado
+              )
+            )}
+          </View>
         )}
       </ScrollView>
 
@@ -1022,85 +1441,129 @@ export default function UsuariosScreen({
               }
             </Text>
 
-            <TouchableOpacity
-              style={
-                styles.opcion
-              }
-              onPress={
-                restablecerPassword
-              }
-            >
-              <Ionicons
-                name="key-outline"
-                size={22}
-                color="#08752F"
-              />
-
-              <Text
+            {usuarioSeleccionado?.estado ===
+              'ACTIVO' && (
+              <TouchableOpacity
                 style={
-                  styles.opcionTexto
+                  styles.opcion
+                }
+                onPress={
+                  restablecerPassword
                 }
               >
-                Restablecer contraseña
-              </Text>
-            </TouchableOpacity>
+                <Ionicons
+                  name="key-outline"
+                  size={22}
+                  color="#08752F"
+                />
 
-            <TouchableOpacity
-              style={
-                styles.opcion
-              }
-              onPress={
-                cambiarEstado
-              }
-            >
-              <Ionicons
-                name={
-                  usuarioSeleccionado
-                    ?.estado ===
+                <Text
+                  style={
+                    styles.opcionTexto
+                  }
+                >
+                  Restablecer contraseña
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {usuarioSeleccionado?.estado ===
+              'INHABILITADO' &&
+              usuarioSeleccionado?.solicitaHabilitacion ===
+                true && (
+                <>
+                  <TouchableOpacity
+                    style={styles.opcion}
+                    onPress={() =>
+                      habilitarSolicitud(
+                        usuarioSeleccionado
+                      )
+                    }
+                  >
+                    <Ionicons
+                      name="checkmark-circle-outline"
+                      size={22}
+                      color="#08752F"
+                    />
+
+                    <Text style={styles.opcionTexto}>
+                      Aprobar habilitación
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.opcion,
+                      styles.ultimaOpcion,
+                    ]}
+                    onPress={() =>
+                      rechazarSolicitudHabilitacion(
+                        usuarioSeleccionado
+                      )
+                    }
+                  >
+                    <Ionicons
+                      name="close-circle-outline"
+                      size={22}
+                      color="#D93025"
+                    />
+
+                    <Text
+                      style={[
+                        styles.opcionTexto,
+                        styles.opcionRechazarTexto,
+                      ]}
+                    >
+                      Rechazar solicitud
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
+
+            {!(
+              usuarioSeleccionado?.estado ===
+                'INHABILITADO' &&
+              usuarioSeleccionado?.solicitaHabilitacion ===
+                true
+            ) && (
+              <TouchableOpacity
+                style={[
+                  styles.opcion,
+                  styles.ultimaOpcion,
+                ]}
+                onPress={cambiarEstado}
+              >
+                <Ionicons
+                  name={
+                    usuarioSeleccionado?.estado ===
+                    'ACTIVO'
+                      ? 'ban-outline'
+                      : 'checkmark-circle-outline'
+                  }
+                  size={22}
+                  color={
+                    usuarioSeleccionado?.estado ===
+                    'ACTIVO'
+                      ? '#B06C00'
+                      : '#08752F'
+                  }
+                />
+
+                <Text
+                  style={[
+                    styles.opcionTexto,
+                    usuarioSeleccionado?.estado ===
+                      'ACTIVO' &&
+                      styles.opcionInhabilitarTexto,
+                  ]}
+                >
+                  {usuarioSeleccionado?.estado ===
                   'ACTIVO'
-                    ? 'ban-outline'
-                    : 'checkmark-circle-outline'
-                }
-                size={22}
-                color="#08752F"
-              />
-
-              <Text
-                style={
-                  styles.opcionTexto
-                }
-              >
-                {usuarioSeleccionado
-                  ?.estado ===
-                'ACTIVO'
-                  ? 'Inhabilitar usuario'
-                  : 'Habilitar usuario'}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.opcion,
-                styles.opcionEliminar,
-              ]}
-              onPress={
-                borrar
-              }
-            >
-              <Ionicons
-                name="trash-outline"
-                size={22}
-                color="#D93025"
-              />
-
-              <Text
-                style={
-                  styles.opcionEliminarTexto
-                }
-              >
-                Borrar cuenta
-              </Text>
-            </TouchableOpacity>
+                    ? 'Inhabilitar usuario'
+                    : 'Habilitar usuario'}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -1150,7 +1613,7 @@ const styles =
 
     contenido: {
       padding: 16,
-      paddingBottom: 40,
+      paddingBottom: 45,
     },
 
     resumenContainer: {
@@ -1236,10 +1699,6 @@ const styles =
       marginBottom: 10,
     },
 
-    seccionUsuarios: {
-      marginTop: 27,
-    },
-
     vacio: {
       minHeight: 100,
       borderRadius: 13,
@@ -1252,6 +1711,21 @@ const styles =
         'center',
       justifyContent:
         'center',
+    },
+
+    vacioPequeno: {
+      minHeight: 70,
+      borderRadius: 13,
+      backgroundColor:
+        '#FFFFFF',
+      borderWidth: 1,
+      borderColor:
+        '#E5E5E5',
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+      marginBottom: 9,
     },
 
     vacioTexto: {
@@ -1378,6 +1852,94 @@ const styles =
         'center',
     },
 
+    // ==========================================
+    // SECCIONES DESPLEGABLES
+    // ==========================================
+
+    encabezadoDesplegable: {
+      minHeight: 72,
+      backgroundColor:
+        '#FFFFFF',
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor:
+        '#E3E3E3',
+      marginTop: 25,
+      marginBottom: 10,
+      paddingHorizontal: 14,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      justifyContent:
+        'space-between',
+    },
+
+    encabezadoInhabilitados: {
+      marginTop: 16,
+      backgroundColor:
+        '#F2F2F2',
+      borderColor:
+        '#DDDDDD',
+    },
+
+    encabezadoIzquierda: {
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      flex: 1,
+    },
+
+    iconoSeccionActivo: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      backgroundColor:
+        '#E8F6EC',
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+      marginRight: 11,
+    },
+
+    iconoSeccionInhabilitado: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      backgroundColor:
+        '#E2E2E2',
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+      marginRight: 11,
+    },
+
+    tituloDesplegable: {
+      fontSize: 15,
+      fontWeight:
+        '800',
+      color:
+        '#222222',
+    },
+
+    subtituloDesplegable: {
+      fontSize: 10,
+      color:
+        '#777777',
+      marginTop: 3,
+    },
+
+    contenidoDesplegable: {
+      width: '100%',
+    },
+
+    // ==========================================
+    // USUARIOS ACTIVOS
+    // ==========================================
+
     usuarioCard: {
       backgroundColor:
         '#FFFFFF',
@@ -1395,33 +1957,14 @@ const styles =
 
     usuarioCardActivo: {
       borderLeftWidth: 4,
-      borderLeftColor: '#08752F',
-    },
-
-    usuarioCardInhabilitado: {
-      borderLeftWidth: 4,
-      borderLeftColor: '#D98B00',
-      backgroundColor: '#FFFCF5',
-    },
-
-    usuarioCardRechazado: {
-      borderLeftWidth: 4,
-      borderLeftColor: '#D93025',
-      backgroundColor: '#FFF8F7',
-    },
-
-    usuarioCardPendiente: {
-      borderLeftWidth: 4,
-      borderLeftColor: '#D98B00',
-      backgroundColor: '#FFFCF5',
+      borderLeftColor:
+        '#08752F',
     },
 
     avatarUsuario: {
       width: 48,
       height: 48,
       borderRadius: 24,
-      backgroundColor:
-        '#E8F6EC',
       alignItems:
         'center',
       justifyContent:
@@ -1430,19 +1973,8 @@ const styles =
     },
 
     avatarUsuarioActivo: {
-      backgroundColor: '#E8F6EC',
-    },
-
-    avatarUsuarioInhabilitado: {
-      backgroundColor: '#FFF4DA',
-    },
-
-    avatarUsuarioRechazado: {
-      backgroundColor: '#FDEDEC',
-    },
-
-    avatarUsuarioPendiente: {
-      backgroundColor: '#FFF4DA',
+      backgroundColor:
+        '#E8F6EC',
     },
 
     usuarioInfo: {
@@ -1490,68 +2022,128 @@ const styles =
     },
 
     badgeActivo: {
-      backgroundColor: '#E8F6EC',
+      backgroundColor:
+        '#E8F6EC',
       paddingHorizontal: 8,
       paddingVertical: 4,
       borderRadius: 8,
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
       gap: 3,
     },
 
     badgeActivoTexto: {
-      color: '#08752F',
+      color:
+        '#08752F',
       fontSize: 8,
-      fontWeight: '700',
+      fontWeight:
+        '700',
     },
 
-    badgeInhabilitado: {
-      backgroundColor: '#FFF3D6',
+    // ==========================================
+    // USUARIOS INHABILITADOS
+    // ==========================================
+
+    usuarioCardInhabilitado: {
+      borderLeftWidth: 4,
+      borderLeftColor:
+        '#9A9A9A',
+      backgroundColor:
+        '#EEEEEE',
+      borderColor:
+        '#D7D7D7',
+    },
+
+    avatarUsuarioInhabilitado: {
+      backgroundColor:
+        '#DADADA',
+    },
+
+    nombreUsuarioInhabilitado: {
+      fontSize: 14,
+      fontWeight:
+        '700',
+      color:
+        '#555555',
+      flexShrink: 1,
+    },
+
+    correoUsuarioInhabilitado: {
+      fontSize: 10,
+      color:
+        '#888888',
+      marginTop: 3,
+    },
+
+    badgeRolGris: {
+      backgroundColor:
+        '#DDDDDD',
       paddingHorizontal: 8,
       paddingVertical: 4,
       borderRadius: 8,
-      flexDirection: 'row',
-      alignItems: 'center',
+    },
+
+    badgeRolGrisTexto: {
+      color:
+        '#666666',
+      fontSize: 8,
+      fontWeight:
+        '700',
+    },
+
+    badgeInhabilitado: {
+      backgroundColor:
+        '#DCDCDC',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 8,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
       gap: 3,
     },
 
     badgeInhabilitadoTexto: {
-      color: '#B06C00',
+      color:
+        '#666666',
       fontSize: 8,
+      fontWeight:
+        '700',
+    },
+
+    usuarioCardSolicitaHabilitacion: {
+      backgroundColor: '#FFF7DD',
+      borderColor: '#E3B341',
+      borderLeftColor: '#D99A00',
+    },
+
+    alertaHabilitacion: {
+      marginTop: 9,
+      minHeight: 40,
+      backgroundColor: '#FFF0BD',
+      borderRadius: 8,
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      paddingHorizontal: 9,
+      paddingVertical: 8,
+    },
+
+    alertaHabilitacionTitulo: {
+      color: '#8A5900',
+      fontSize: 9,
       fontWeight: '700',
     },
 
-    badgeRechazado: {
-      backgroundColor: '#FDEDEC',
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 8,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 3,
-    },
-
-    badgeRechazadoTexto: {
+    opcionRechazarTexto: {
       color: '#D93025',
-      fontSize: 8,
-      fontWeight: '700',
     },
 
-    badgeEstadoPendiente: {
-      backgroundColor: '#FFF3D6',
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 8,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 3,
-    },
-
-    badgeEstadoPendienteTexto: {
-      color: '#B06C00',
-      fontSize: 8,
-      fontWeight: '700',
-    },
+    // ==========================================
+    // RECUPERACIÓN
+    // ==========================================
 
     alertaRecuperacion: {
       marginTop: 9,
@@ -1562,18 +2154,30 @@ const styles =
       flexDirection:
         'row',
       alignItems:
-        'center',
+        'flex-start',
       paddingHorizontal: 9,
+      paddingVertical: 8,
+    },
+
+    alertaContenido: {
+      flex: 1,
+      marginLeft: 6,
     },
 
     alertaTexto: {
-      flex: 1,
-      marginLeft: 6,
       color:
         '#8A5900',
       fontSize: 9,
       fontWeight:
         '600',
+    },
+
+    alertaNota: {
+      color:
+        '#8A5900',
+      fontSize: 9,
+      marginTop: 4,
+      lineHeight: 13,
     },
 
     botonOpciones: {
@@ -1584,6 +2188,10 @@ const styles =
       alignItems:
         'center',
     },
+
+    // ==========================================
+    // MODAL
+    // ==========================================
 
     modalFondo: {
       flex: 1,
@@ -1629,6 +2237,10 @@ const styles =
         'center',
     },
 
+    ultimaOpcion: {
+      borderBottomWidth: 0,
+    },
+
     opcionTexto: {
       marginLeft: 11,
       fontSize: 13,
@@ -1638,16 +2250,8 @@ const styles =
         '#333333',
     },
 
-    opcionEliminar: {
-      borderBottomWidth: 0,
-    },
-
-    opcionEliminarTexto: {
-      marginLeft: 11,
-      fontSize: 13,
-      fontWeight:
-        '600',
+    opcionInhabilitarTexto: {
       color:
-        '#D93025',
+        '#8A5900',
     },
   });

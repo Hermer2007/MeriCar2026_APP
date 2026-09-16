@@ -2,7 +2,9 @@ import React from 'react';
 
 import {
   ActivityIndicator,
+  ImageBackground,
   StyleSheet,
+  Text,
   View,
 } from 'react-native';
 
@@ -50,8 +52,7 @@ import {
   useUsuarios,
 } from '../context/UsuariosContext';
 
-const Stack =
-  createNativeStackNavigator();
+const Stack = createNativeStackNavigator();
 
 export default function AppNavigator() {
   const {
@@ -65,16 +66,33 @@ export default function AppNavigator() {
 
   if (cargandoSesion) {
     return (
-      <View
-        style={
-          styles.cargandoContainer
-        }
+      <ImageBackground
+        source={require('../assets/images/fondo-modal.png')}
+        style={styles.fondoCarga}
+        resizeMode="cover"
       >
-        <ActivityIndicator
-          size="large"
-          color="#08752F"
-        />
-      </View>
+        <View style={styles.capaOscura}>
+
+          <View style={styles.cargandoCard}>
+
+            <Text style={styles.cargandoTitulo}>
+              MERICAR
+            </Text>
+
+            <ActivityIndicator
+              size="large"
+              color="#08752F"
+              style={styles.cargandoIndicador}
+            />
+
+            <Text style={styles.cargandoTexto}>
+              Iniciando sesión...
+            </Text>
+
+          </View>
+
+        </View>
+      </ImageBackground>
     );
   }
 
@@ -93,8 +111,7 @@ export default function AppNavigator() {
         }
         screenOptions={{
           headerShown: false,
-          animation:
-            'slide_from_right',
+          animation: 'slide_from_right',
         }}
       >
         <Stack.Screen
@@ -112,9 +129,7 @@ export default function AppNavigator() {
           component={HomeScreen}
         />
 
-        {/* =====================================
-            USUARIOS
-        ===================================== */}
+        {/* USUARIOS */}
 
         <Stack.Screen
           name="Registros"
@@ -123,23 +138,17 @@ export default function AppNavigator() {
 
         <Stack.Screen
           name="RegistroUsuario"
-          component={
-            RegistroUsuarioScreen
-          }
+          component={RegistroUsuarioScreen}
         />
 
-        {/* =====================================
-            PRODUCTOS
-        ===================================== */}
+        {/* PRODUCTOS */}
 
         <Stack.Screen
           name="Productos"
           component={ProductosScreen}
         />
 
-        {/* =====================================
-            INVENTARIO
-        ===================================== */}
+        {/* INVENTARIO */}
 
         <Stack.Screen
           name="Inventario"
@@ -148,14 +157,10 @@ export default function AppNavigator() {
 
         <Stack.Screen
           name="RegistrarStock"
-          component={
-            RegistrarStockScreen
-          }
+          component={RegistrarStockScreen}
         />
 
-        {/* =====================================
-            CLIENTES
-        ===================================== */}
+        {/* CLIENTES */}
 
         <Stack.Screen
           name="Clientes"
@@ -164,28 +169,20 @@ export default function AppNavigator() {
 
         <Stack.Screen
           name="ClienteRegistro"
-          component={
-            ClienteRegistroScreen
-          }
+          component={ClienteRegistroScreen}
         />
 
         <Stack.Screen
           name="EditarCliente"
-          component={
-            EditarClienteScreen
-          }
+          component={EditarClienteScreen}
         />
 
         <Stack.Screen
           name="ClienteDetalle"
-          component={
-            ClienteDetalleScreen
-          }
+          component={ClienteDetalleScreen}
         />
 
-        {/* =====================================
-            ENTREGAS
-        ===================================== */}
+        {/* ENTREGAS */}
 
         <Stack.Screen
           name="Entregas"
@@ -194,50 +191,36 @@ export default function AppNavigator() {
 
         <Stack.Screen
           name="EntregasDia"
-          component={
-            EntregasDiaScreen
-          }
+          component={EntregasDiaScreen}
         />
 
         <Stack.Screen
           name="NuevaEntrega"
-          component={
-            NuevaEntregaScreen
-          }
+          component={NuevaEntregaScreen}
         />
 
         <Stack.Screen
           name="EditarEntrega"
-          component={
-            EditarEntregaScreen
-          }
+          component={EditarEntregaScreen}
         />
 
         <Stack.Screen
           name="OtraEntrega"
-          component={
-            OtraEntregaScreen
-          }
+          component={OtraEntregaScreen}
         />
 
-        {/* =====================================
-            PERFIL
-        ===================================== */}
+        {/* PERFIL */}
 
         <Stack.Screen
           name="Perfil"
           component={PerfilScreen}
         />
 
-        {/* =====================================
-            REPORTES
-        ===================================== */}
+        {/* REPORTES */}
 
         <Stack.Screen
           name="Reportes"
-          component={
-            ReportesMenuScreen
-          }
+          component={ReportesMenuScreen}
         />
 
         <Stack.Screen
@@ -247,42 +230,77 @@ export default function AppNavigator() {
 
         <Stack.Screen
           name="ReporteDetalle"
-          component={
-            ReporteDetalleScreen
-          }
+          component={ReporteDetalleScreen}
         />
 
         <Stack.Screen
           name="ClientesEntregas"
-          component={
-            ClientesEntregasScreen
-          }
+          component={ClientesEntregasScreen}
         />
 
         <Stack.Screen
           name="CuentasCobrar"
-          component={
-            CuentasCobrarScreen
-          }
+          component={CuentasCobrarScreen}
         />
 
         <Stack.Screen
           name="ProductosVendidos"
-          component={
-            ProductosVendidosScreen
-          }
+          component={ProductosVendidosScreen}
         />
+
       </Stack.Navigator>
     </NavigationContainer>
   );
 }
 
-const styles =
-  StyleSheet.create({
-    cargandoContainer: {
-      flex: 1,
-      backgroundColor: '#F7F8F9',
-      alignItems: 'center',
-      justifyContent: 'center',
+const styles = StyleSheet.create({
+
+  fondoCarga: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+
+  capaOscura: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  cargandoCard: {
+    width: 230,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 28,
+    paddingHorizontal: 25,
+
+    shadowColor: '#000000',
+    shadowOffset: {
+      width: 0,
+      height: 3,
     },
-  });
+    shadowOpacity: 0.15,
+    shadowRadius: 7,
+
+    elevation: 6,
+  },
+
+  cargandoTitulo: {
+    color: '#08752F',
+    fontSize: 21,
+    fontWeight: '800',
+  },
+
+  cargandoIndicador: {
+    marginVertical: 20,
+  },
+
+  cargandoTexto: {
+    color: '#666666',
+    fontSize: 13,
+  },
+
+});

@@ -140,6 +140,7 @@ const ClienteRegistroScreen = ({ navigation }) => {
             <TextInput
               style={styles.input}
               placeholder="Ingrese el nombre del cliente"
+              placeholderTextColor="#999999"
               value={nombre}
               onChangeText={setNombre}
               autoCapitalize="words"
@@ -209,6 +210,7 @@ const ClienteRegistroScreen = ({ navigation }) => {
             <TextInput
               style={styles.input}
               placeholder="Ingrese la cédula"
+              placeholderTextColor="#999999"
               keyboardType="numeric"
               value={cedula}
               onChangeText={setCedula}
@@ -233,6 +235,7 @@ const ClienteRegistroScreen = ({ navigation }) => {
             <TextInput
               style={styles.input}
               placeholder="Ingrese el teléfono"
+              placeholderTextColor="#999999"
               keyboardType="phone-pad"
               value={telefono}
               onChangeText={setTelefono}
@@ -257,6 +260,7 @@ const ClienteRegistroScreen = ({ navigation }) => {
             <TextInput
               style={styles.input}
               placeholder="correo@ejemplo.com"
+              placeholderTextColor="#999999"
               keyboardType="email-address"
               autoCapitalize="none"
               value={correo}
@@ -282,6 +286,7 @@ const ClienteRegistroScreen = ({ navigation }) => {
             <TextInput
               style={styles.input}
               placeholder="Ingrese la dirección"
+              placeholderTextColor="#999999"
               value={direccion}
               onChangeText={setDireccion}
               selectTextOnFocus
@@ -305,6 +310,7 @@ const ClienteRegistroScreen = ({ navigation }) => {
             <TextInput
               style={styles.input}
               placeholder="Ingrese observaciones"
+              placeholderTextColor="#999999"
               value={observaciones}
               onChangeText={setObservaciones}
               selectTextOnFocus
@@ -421,6 +427,7 @@ const styles = StyleSheet.create({
     height: '100%',
     marginLeft: 8,
     fontSize: 14,
+    color: '#000000',
   },
 
   descripcionDias: {

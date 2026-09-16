@@ -651,12 +651,14 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 23,
     fontWeight: '700',
+    textAlign: 'center',
   },
 
   subtituloHeader: {
     color: '#E3F2E8',
     fontSize: 13,
     marginTop: 2,
+    textAlign: 'center',
   },
 
   buscadorContainer: {

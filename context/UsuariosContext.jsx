@@ -20,6 +20,7 @@ import {
 import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
 } from 'firebase/auth';
@@ -31,23 +32,46 @@ const UsuariosContext = createContext();
 
 const obtenerFechaActual = () => {
   const fecha = new Date();
-  const anio = fecha.getFullYear();
-  const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-  const dia = String(fecha.getDate()).padStart(2, '0');
+
+  const anio =
+    fecha.getFullYear();
+
+  const mes = String(
+    fecha.getMonth() + 1
+  ).padStart(2, '0');
+
+  const dia = String(
+    fecha.getDate()
+  ).padStart(2, '0');
 
   return `${anio}-${mes}-${dia}`;
 };
 
-export const UsuariosProvider = ({ children }) => {
-  const [usuarios, setUsuarios] = useState([]);
+export const UsuariosProvider = ({
+  children,
+}) => {
+  const [
+    usuarios,
+    setUsuarios,
+  ] = useState([]);
 
-  const [solicitudes, setSolicitudes] = useState([]);
+  const [
+    solicitudes,
+    setSolicitudes,
+  ] = useState([]);
 
-  const [usuarioActual, setUsuarioActual] = useState(null);
+  const [
+    usuarioActual,
+    setUsuarioActual,
+  ] = useState(null);
 
-  const [cargandoSesion, setCargandoSesion] = useState(true);
+  const [
+    cargandoSesion,
+    setCargandoSesion,
+  ] = useState(true);
 
-  const autenticandoManualRef = useRef(false);
+  const autenticandoManualRef =
+    useRef(false);
 
   const [
     notificacionesUsuariosVistas,
@@ -59,104 +83,135 @@ export const UsuariosProvider = ({ children }) => {
   // ==========================================
 
   useEffect(() => {
-    const cancelarEscucha = onAuthStateChanged(
-      auth,
-      async (firebaseUser) => {
-        try {
-          if (!firebaseUser) {
+    const cancelarEscucha =
+      onAuthStateChanged(
+        auth,
+        async (firebaseUser) => {
+          try {
+            if (!firebaseUser) {
+              setUsuarioActual(null);
+              setCargandoSesion(false);
+              return;
+            }
+
+            if (
+              autenticandoManualRef.current
+            ) {
+              setCargandoSesion(false);
+              return;
+            }
+
+            const fechaSesion =
+              await AsyncStorage.getItem(
+                'mericar_fecha_sesion'
+              );
+
+            const fechaActual =
+              obtenerFechaActual();
+
+            if (
+              !fechaSesion ||
+              fechaSesion !== fechaActual
+            ) {
+              await AsyncStorage.multiRemove(
+                [
+                  'mericar_fecha_sesion',
+                  'mericar_app_bloqueada',
+                ]
+              );
+
+              await signOut(auth);
+
+              setUsuarioActual(null);
+              setCargandoSesion(false);
+
+              return;
+            }
+
+            const referenciaUsuario =
+              doc(
+                db,
+                'usuarios',
+                firebaseUser.uid
+              );
+
+            const documentoUsuario =
+              await getDoc(
+                referenciaUsuario
+              );
+
+            if (
+              !documentoUsuario.exists()
+            ) {
+              await AsyncStorage.multiRemove(
+                [
+                  'mericar_fecha_sesion',
+                  'mericar_app_bloqueada',
+                ]
+              );
+
+              await signOut(auth);
+
+              setUsuarioActual(null);
+              setCargandoSesion(false);
+
+              return;
+            }
+
+            const datosUsuario = {
+              id: documentoUsuario.id,
+              ...documentoUsuario.data(),
+            };
+
+            if (
+              datosUsuario.estado !==
+              'ACTIVO'
+            ) {
+              await AsyncStorage.multiRemove(
+                [
+                  'mericar_fecha_sesion',
+                  'mericar_app_bloqueada',
+                ]
+              );
+
+              await signOut(auth);
+
+              setUsuarioActual(null);
+              setCargandoSesion(false);
+
+              return;
+            }
+
+            const appBloqueada =
+              await AsyncStorage.getItem(
+                'mericar_app_bloqueada'
+              );
+
+            if (
+              appBloqueada === 'true'
+            ) {
+              setUsuarioActual(null);
+              setCargandoSesion(false);
+
+              return;
+            }
+
+            setUsuarioActual(
+              datosUsuario
+            );
+
+            setCargandoSesion(false);
+          } catch (error) {
+            console.log(
+              'Error al restaurar sesión:',
+              error
+            );
+
             setUsuarioActual(null);
             setCargandoSesion(false);
-            return;
           }
-
-          // Durante un login manual, LoginScreen será quien
-          // coloque usuarioActual después de validar la cuenta.
-          if (autenticandoManualRef.current) {
-            setCargandoSesion(false);
-            return;
-          }
-
-          const fechaSesion = await AsyncStorage.getItem(
-            'mericar_fecha_sesion'
-          );
-
-          const fechaActual = obtenerFechaActual();
-
-          // La sesión solo sirve durante el mismo día.
-          if (!fechaSesion || fechaSesion !== fechaActual) {
-            await AsyncStorage.multiRemove([
-              'mericar_fecha_sesion',
-              'mericar_app_bloqueada',
-            ]);
-
-            await signOut(auth);
-            setUsuarioActual(null);
-            setCargandoSesion(false);
-            return;
-          }
-
-          const referenciaUsuario = doc(
-            db,
-            'usuarios',
-            firebaseUser.uid
-          );
-
-          const documentoUsuario = await getDoc(
-            referenciaUsuario
-          );
-
-          if (!documentoUsuario.exists()) {
-            await AsyncStorage.multiRemove([
-              'mericar_fecha_sesion',
-              'mericar_app_bloqueada',
-            ]);
-
-            await signOut(auth);
-            setUsuarioActual(null);
-            setCargandoSesion(false);
-            return;
-          }
-
-          const datosUsuario = {
-            id: documentoUsuario.id,
-            ...documentoUsuario.data(),
-          };
-
-          if (datosUsuario.estado !== 'ACTIVO') {
-            await AsyncStorage.multiRemove([
-              'mericar_fecha_sesion',
-              'mericar_app_bloqueada',
-            ]);
-
-            await signOut(auth);
-            setUsuarioActual(null);
-            setCargandoSesion(false);
-            return;
-          }
-
-          const appBloqueada = await AsyncStorage.getItem(
-            'mericar_app_bloqueada'
-          );
-
-          if (appBloqueada === 'true') {
-            setUsuarioActual(null);
-            setCargandoSesion(false);
-            return;
-          }
-
-          setUsuarioActual(datosUsuario);
-          setCargandoSesion(false);
-        } catch (error) {
-          console.log(
-            'Error al restaurar sesión:',
-            error
-          );
-
-          setUsuarioActual(null);
-          setCargandoSesion(false);
         }
-      }
-    );
+      );
 
     return () => {
       cancelarEscucha();
@@ -168,27 +223,33 @@ export const UsuariosProvider = ({ children }) => {
   // ==========================================
 
   useEffect(() => {
-    const referencia = collection(db, 'usuarios');
+    const referencia =
+      collection(
+        db,
+        'usuarios'
+      );
 
-    const cancelarEscucha = onSnapshot(
-      referencia,
-      (snapshot) => {
-        const datos = snapshot.docs.map(
-          (documento) => ({
-            id: documento.id,
-            ...documento.data(),
-          })
-        );
+    const cancelarEscucha =
+      onSnapshot(
+        referencia,
+        (snapshot) => {
+          const datos =
+            snapshot.docs.map(
+              (documento) => ({
+                id: documento.id,
+                ...documento.data(),
+              })
+            );
 
-        setUsuarios(datos);
-      },
-      (error) => {
-        console.log(
-          'Error al leer usuarios:',
-          error
-        );
-      }
-    );
+          setUsuarios(datos);
+        },
+        (error) => {
+          console.log(
+            'Error al leer usuarios:',
+            error
+          );
+        }
+      );
 
     return () => {
       cancelarEscucha();
@@ -200,42 +261,47 @@ export const UsuariosProvider = ({ children }) => {
   // ==========================================
 
   useEffect(() => {
-    const referencia = collection(
-      db,
-      'solicitudesUsuarios'
-    );
+    const referencia =
+      collection(
+        db,
+        'solicitudesUsuarios'
+      );
 
-    const cancelarEscucha = onSnapshot(
-      referencia,
-      (snapshot) => {
-        const datos = snapshot.docs.map(
-          (documento) => ({
-            id: documento.id,
-            ...documento.data(),
-          })
-        );
+    const cancelarEscucha =
+      onSnapshot(
+        referencia,
+        (snapshot) => {
+          const datos =
+            snapshot.docs.map(
+              (documento) => ({
+                id: documento.id,
+                ...documento.data(),
+              })
+            );
 
-        datos.sort((a, b) => {
-          const fechaA =
-            a.fechaSolicitud || '';
+          datos.sort(
+            (a, b) => {
+              const fechaA =
+                a.fechaSolicitud || '';
 
-          const fechaB =
-            b.fechaSolicitud || '';
+              const fechaB =
+                b.fechaSolicitud || '';
 
-          return fechaB.localeCompare(
-            fechaA
+              return fechaB.localeCompare(
+                fechaA
+              );
+            }
           );
-        });
 
-        setSolicitudes(datos);
-      },
-      (error) => {
-        console.log(
-          'Error al leer solicitudes:',
-          error
-        );
-      }
-    );
+          setSolicitudes(datos);
+        },
+        (error) => {
+          console.log(
+            'Error al leer solicitudes:',
+            error
+          );
+        }
+      );
 
     return () => {
       cancelarEscucha();
@@ -246,149 +312,144 @@ export const UsuariosProvider = ({ children }) => {
   // REGISTRAR NUEVA SOLICITUD
   // ==========================================
 
-  const registrarSolicitud = async ({
-    nombre,
-    correo,
-    password,
-    rol,
-  }) => {
-    try {
-      const nombreLimpio =
-        nombre.trim();
+  const registrarSolicitud =
+    async ({
+      nombre,
+      correo,
+      password,
+      rol,
+    }) => {
+      autenticandoManualRef.current =
+        true;
 
-      const correoLimpio = correo
-        .trim()
-        .toLowerCase();
+      try {
+        const nombreLimpio =
+          nombre.trim();
 
-      // ------------------------------------------
-      // 1. CREAR CUENTA EN FIREBASE AUTHENTICATION
-      // ------------------------------------------
+        const correoLimpio =
+          correo
+            .trim()
+            .toLowerCase();
 
-      const credencial =
-        await createUserWithEmailAndPassword(
-          auth,
-          correoLimpio,
-          password
+        const credencial =
+          await createUserWithEmailAndPassword(
+            auth,
+            correoLimpio,
+            password
+          );
+
+        const nuevoUsuario =
+          credencial.user;
+
+        const uid =
+          nuevoUsuario.uid;
+
+        await setDoc(
+          doc(
+            db,
+            'usuarios',
+            uid
+          ),
+          {
+            nombre:
+              nombreLimpio,
+
+            usuario:
+              correoLimpio,
+
+            correo:
+              correoLimpio,
+
+            rol,
+
+            estado:
+              'PENDIENTE',
+
+            solicitaRestablecimiento:
+              false,
+
+            solicitaHabilitacion:
+              false,
+
+            fechaRegistro:
+              new Date().toISOString(),
+          }
         );
 
-      const nuevoUsuario =
-        credencial.user;
+        await addDoc(
+          collection(
+            db,
+            'solicitudesUsuarios'
+          ),
+          {
+            uidUsuario:
+              uid,
 
-      const uid =
-        nuevoUsuario.uid;
+            nombre:
+              nombreLimpio,
 
-      // ------------------------------------------
-      // 2. CREAR USUARIO PENDIENTE EN FIRESTORE
-      // ------------------------------------------
+            usuario:
+              correoLimpio,
 
-      await setDoc(
-        doc(
-          db,
-          'usuarios',
-          uid
-        ),
-        {
-          nombre: nombreLimpio,
+            correo:
+              correoLimpio,
 
-          usuario: correoLimpio,
+            rol,
 
-          correo: correoLimpio,
+            estado:
+              'PENDIENTE',
 
-          rol,
+            fechaSolicitud:
+              new Date().toISOString(),
+          }
+        );
 
-          estado: 'PENDIENTE',
+        await signOut(auth);
 
-          solicitaRestablecimiento:
-            false,
+        return true;
+      } catch (error) {
+        console.log(
+          'Error al registrar solicitud:',
+          error.code,
+          error.message
+        );
 
-          fechaRegistro:
-            new Date().toISOString(),
+        if (
+          error.code ===
+          'auth/email-already-in-use'
+        ) {
+          return {
+            error:
+              'EMAIL_EN_USO',
+          };
         }
-      );
 
-      // ------------------------------------------
-      // 3. CREAR SOLICITUD PARA EL ADMINISTRADOR
-      // ------------------------------------------
-
-      await addDoc(
-        collection(
-          db,
-          'solicitudesUsuarios'
-        ),
-        {
-          uidUsuario: uid,
-
-          nombre: nombreLimpio,
-
-          usuario: correoLimpio,
-
-          correo: correoLimpio,
-
-          rol,
-
-          estado: 'PENDIENTE',
-
-          fechaSolicitud:
-            new Date().toISOString(),
+        if (
+          error.code ===
+          'auth/invalid-email'
+        ) {
+          return {
+            error:
+              'CORREO_INVALIDO',
+          };
         }
-      );
 
-      // ------------------------------------------
-      // 4. CERRAR SESIÓN DEL USUARIO RECIÉN CREADO
-      // ------------------------------------------
+        if (
+          error.code ===
+          'auth/weak-password'
+        ) {
+          return {
+            error:
+              'PASSWORD_DEBIL',
+          };
+        }
 
-      /*
-        createUserWithEmailAndPassword inicia
-        automáticamente sesión con la cuenta
-        que acaba de crear.
-
-        Como esa cuenta todavía está PENDIENTE,
-        cerramos inmediatamente esa sesión.
-      */
-
-      await signOut(auth);
-
-      return true;
-    } catch (error) {
-      console.log(
-        'Error al registrar solicitud:',
-        error.code,
-        error.message
-      );
-
-      if (
-        error.code ===
-        'auth/email-already-in-use'
-      ) {
-        return {
-          error:
-            'EMAIL_EN_USO',
-        };
+        return false;
+      } finally {
+        autenticandoManualRef.current =
+          false;
       }
-
-      if (
-        error.code ===
-        'auth/invalid-email'
-      ) {
-        return {
-          error:
-            'CORREO_INVALIDO',
-        };
-      }
-
-      if (
-        error.code ===
-        'auth/weak-password'
-      ) {
-        return {
-          error:
-            'PASSWORD_DEBIL',
-        };
-      }
-
-      return false;
-    }
-  };
+    };
 
   // ==========================================
   // EXISTE SOLICITUD
@@ -397,15 +458,18 @@ export const UsuariosProvider = ({ children }) => {
   const existeSolicitud = (
     correo
   ) => {
-    const correoLimpio = correo
-      .trim()
-      .toLowerCase();
+    const correoLimpio =
+      correo
+        .trim()
+        .toLowerCase();
 
     return solicitudes.some(
       (item) =>
-        item.correo?.toLowerCase() ===
+        item.correo
+          ?.toLowerCase() ===
           correoLimpio &&
-        item.estado === 'PENDIENTE'
+        item.estado ===
+          'PENDIENTE'
     );
   };
 
@@ -416,9 +480,10 @@ export const UsuariosProvider = ({ children }) => {
   const existeUsuario = (
     valor
   ) => {
-    const busqueda = valor
-      .trim()
-      .toLowerCase();
+    const busqueda =
+      valor
+        .trim()
+        .toLowerCase();
 
     return usuarios.some(
       (item) =>
@@ -435,104 +500,31 @@ export const UsuariosProvider = ({ children }) => {
   // APROBAR SOLICITUD
   // ==========================================
 
-  const aprobarSolicitud = async (
-    solicitudId
-  ) => {
-    try {
-      const solicitud =
-        solicitudes.find(
-          (item) =>
-            item.id === solicitudId
-        );
+  const aprobarSolicitud =
+    async (solicitudId) => {
+      try {
+        const solicitud =
+          solicitudes.find(
+            (item) =>
+              item.id ===
+              solicitudId
+          );
 
-      if (!solicitud) {
-        return false;
-      }
-
-      const uid =
-        solicitud.uidUsuario;
-
-      if (!uid) {
-        console.log(
-          'La solicitud no tiene uidUsuario'
-        );
-
-        return false;
-      }
-
-      // ------------------------------------------
-      // ACTIVAR USUARIO
-      // ------------------------------------------
-
-      await updateDoc(
-        doc(
-          db,
-          'usuarios',
-          uid
-        ),
-        {
-          estado: 'ACTIVO',
-
-          fechaAprobacion:
-            new Date().toISOString(),
+        if (!solicitud) {
+          return false;
         }
-      );
 
-      // ------------------------------------------
-      // MARCAR SOLICITUD COMO APROBADA
-      // ------------------------------------------
+        const uid =
+          solicitud.uidUsuario;
 
-      await updateDoc(
-        doc(
-          db,
-          'solicitudesUsuarios',
-          solicitudId
-        ),
-        {
-          estado: 'APROBADA',
+        if (!uid) {
+          console.log(
+            'La solicitud no tiene uidUsuario'
+          );
 
-          fechaAprobacion:
-            new Date().toISOString(),
+          return false;
         }
-      );
 
-      return true;
-    } catch (error) {
-      console.log(
-        'Error al aprobar solicitud:',
-        error
-      );
-
-      return false;
-    }
-  };
-
-  // ==========================================
-  // RECHAZAR SOLICITUD
-  // ==========================================
-
-  const rechazarSolicitud = async (
-    solicitudId
-  ) => {
-    try {
-      const solicitud =
-        solicitudes.find(
-          (item) =>
-            item.id === solicitudId
-        );
-
-      if (!solicitud) {
-        return false;
-      }
-
-      const uid =
-        solicitud.uidUsuario;
-
-      // ------------------------------------------
-      // MARCAR USUARIO COMO RECHAZADO
-      // ------------------------------------------
-
-      if (uid) {
         await updateDoc(
           doc(
             db,
@@ -540,141 +532,191 @@ export const UsuariosProvider = ({ children }) => {
             uid
           ),
           {
-            estado: 'RECHAZADO',
+            estado:
+              'ACTIVO',
+
+            fechaAprobacion:
+              new Date().toISOString(),
+          }
+        );
+
+        await updateDoc(
+          doc(
+            db,
+            'solicitudesUsuarios',
+            solicitudId
+          ),
+          {
+            estado:
+              'APROBADA',
+
+            fechaAprobacion:
+              new Date().toISOString(),
+          }
+        );
+
+        return true;
+      } catch (error) {
+        console.log(
+          'Error al aprobar solicitud:',
+          error
+        );
+
+        return false;
+      }
+    };
+
+  // ==========================================
+  // RECHAZAR SOLICITUD
+  // ==========================================
+
+  const rechazarSolicitud =
+    async (solicitudId) => {
+      try {
+        const solicitud =
+          solicitudes.find(
+            (item) =>
+              item.id ===
+              solicitudId
+          );
+
+        if (!solicitud) {
+          return false;
+        }
+
+        const uid =
+          solicitud.uidUsuario;
+
+        if (uid) {
+          await updateDoc(
+            doc(
+              db,
+              'usuarios',
+              uid
+            ),
+            {
+              estado:
+                'RECHAZADO',
+
+              fechaRechazo:
+                new Date().toISOString(),
+            }
+          );
+        }
+
+        await updateDoc(
+          doc(
+            db,
+            'solicitudesUsuarios',
+            solicitudId
+          ),
+          {
+            estado:
+              'RECHAZADA',
 
             fechaRechazo:
               new Date().toISOString(),
           }
         );
+
+        return true;
+      } catch (error) {
+        console.log(
+          'Error al rechazar solicitud:',
+          error
+        );
+
+        return false;
       }
-
-      // ------------------------------------------
-      // MARCAR SOLICITUD COMO RECHAZADA
-      // ------------------------------------------
-
-      await updateDoc(
-        doc(
-          db,
-          'solicitudesUsuarios',
-          solicitudId
-        ),
-        {
-          estado: 'RECHAZADA',
-
-          fechaRechazo:
-            new Date().toISOString(),
-        }
-      );
-
-      return true;
-    } catch (error) {
-      console.log(
-        'Error al rechazar solicitud:',
-        error
-      );
-
-      return false;
-    }
-  };
+    };
 
   // ==========================================
   // HABILITAR / INHABILITAR USUARIO
   // ==========================================
 
-  const cambiarEstadoUsuario = async (
-    usuarioId
-  ) => {
-    try {
-      const usuario =
-        usuarios.find(
-          (item) =>
-            item.id === usuarioId
+  const cambiarEstadoUsuario =
+    async (usuarioId) => {
+      try {
+        const usuario =
+          usuarios.find(
+            (item) =>
+              item.id ===
+              usuarioId
+          );
+
+        if (!usuario) {
+          return false;
+        }
+
+        const nuevoEstado =
+          usuario.estado ===
+          'ACTIVO'
+            ? 'INHABILITADO'
+            : 'ACTIVO';
+
+        await updateDoc(
+          doc(
+            db,
+            'usuarios',
+            usuarioId
+          ),
+          {
+            estado:
+              nuevoEstado,
+          }
         );
 
-      if (!usuario) {
+        return true;
+      } catch (error) {
+        console.log(
+          'Error al cambiar estado:',
+          error
+        );
+
         return false;
       }
-
-      const nuevoEstado =
-        usuario.estado === 'ACTIVO'
-          ? 'INHABILITADO'
-          : 'ACTIVO';
-
-      await updateDoc(
-        doc(
-          db,
-          'usuarios',
-          usuarioId
-        ),
-        {
-          estado: nuevoEstado,
-        }
-      );
-
-      return true;
-    } catch (error) {
-      console.log(
-        'Error al cambiar estado:',
-        error
-      );
-
-      return false;
-    }
-  };
+    };
 
   // ==========================================
   // BORRAR USUARIO
   // ==========================================
 
-  /*
-    IMPORTANTE:
+  const borrarUsuario =
+    async (usuarioId) => {
+      try {
+        await deleteDoc(
+          doc(
+            db,
+            'usuarios',
+            usuarioId
+          )
+        );
 
-    Por ahora esta función elimina el documento
-    de Firestore.
+        return true;
+      } catch (error) {
+        console.log(
+          'Error al borrar usuario:',
+          error
+        );
 
-    La cuenta de Firebase Authentication no
-    puede eliminarse de forma segura desde
-    una cuenta administradora usando solamente
-    el SDK cliente.
-
-    Más adelante podemos hacerlo mediante
-    Firebase Admin / Cloud Functions.
-  */
-
-  const borrarUsuario = async (
-    usuarioId
-  ) => {
-    try {
-      await deleteDoc(
-        doc(
-          db,
-          'usuarios',
-          usuarioId
-        )
-      );
-
-      return true;
-    } catch (error) {
-      console.log(
-        'Error al borrar usuario:',
-        error
-      );
-
-      return false;
-    }
-  };
+        return false;
+      }
+    };
 
   // ==========================================
   // SOLICITAR RESTABLECIMIENTO
   // ==========================================
 
   const solicitarRestablecimiento =
-    async (correo) => {
+    async (correo, nota) => {
       try {
         const correoLimpio =
           correo
             .trim()
             .toLowerCase();
+
+        const notaLimpia =
+          nota.trim();
 
         const usuario =
           usuarios.find(
@@ -700,6 +742,9 @@ export const UsuariosProvider = ({ children }) => {
 
             fechaSolicitudRestablecimiento:
               new Date().toISOString(),
+
+            notaRestablecimiento:
+              notaLimpia,
           }
         );
 
@@ -721,6 +766,45 @@ export const UsuariosProvider = ({ children }) => {
   const atenderRestablecimiento =
     async (usuarioId) => {
       try {
+        const usuario =
+          usuarios.find(
+            (item) =>
+              item.id ===
+              usuarioId
+          );
+
+        if (!usuario) {
+          console.log(
+            'Usuario no encontrado para restablecimiento.'
+          );
+
+          return false;
+        }
+
+        if (!usuario.correo) {
+          console.log(
+            'El usuario no tiene correo registrado.'
+          );
+
+          return false;
+        }
+
+        if (
+          usuario.solicitaRestablecimiento !==
+          true
+        ) {
+          console.log(
+            'El usuario no tiene una solicitud de restablecimiento pendiente.'
+          );
+
+          return false;
+        }
+
+        await sendPasswordResetEmail(
+          auth,
+          usuario.correo
+        );
+
         await updateDoc(
           doc(
             db,
@@ -733,6 +817,12 @@ export const UsuariosProvider = ({ children }) => {
 
             fechaSolicitudRestablecimiento:
               null,
+
+            notaRestablecimiento:
+              null,
+
+            fechaAtencionRestablecimiento:
+              new Date().toISOString(),
           }
         );
 
@@ -749,6 +839,228 @@ export const UsuariosProvider = ({ children }) => {
       } catch (error) {
         console.log(
           'Error al atender restablecimiento:',
+          error.code,
+          error.message
+        );
+
+        return false;
+      }
+    };
+
+  // ==========================================
+  // SOLICITAR HABILITACIÓN
+  // ==========================================
+
+  const solicitarHabilitacion =
+    async (correo, nota) => {
+      try {
+        const correoLimpio =
+          correo
+            .trim()
+            .toLowerCase();
+
+        const notaLimpia =
+          nota.trim();
+
+        const usuario =
+          usuarios.find(
+            (item) =>
+              item.correo
+                ?.toLowerCase() ===
+              correoLimpio
+          );
+
+        if (!usuario) {
+          return {
+            error:
+              'USUARIO_NO_ENCONTRADO',
+          };
+        }
+
+        if (
+          usuario.estado !==
+          'INHABILITADO'
+        ) {
+          return {
+            error:
+              'CUENTA_NO_INHABILITADA',
+          };
+        }
+
+        if (
+          usuario.solicitaHabilitacion ===
+          true
+        ) {
+          return {
+            error:
+              'SOLICITUD_EXISTENTE',
+          };
+        }
+
+        await updateDoc(
+          doc(
+            db,
+            'usuarios',
+            usuario.id
+          ),
+          {
+            solicitaHabilitacion:
+              true,
+
+            notaHabilitacion:
+              notaLimpia,
+
+            fechaSolicitudHabilitacion:
+              new Date().toISOString(),
+          }
+        );
+
+        return true;
+      } catch (error) {
+        console.log(
+          'Error al solicitar habilitación:',
+          error
+        );
+
+        return false;
+      }
+    };
+
+  // ==========================================
+  // APROBAR HABILITACIÓN
+  // ==========================================
+
+  const aprobarHabilitacion =
+    async (usuarioId) => {
+      try {
+        const usuario =
+          usuarios.find(
+            (item) =>
+              item.id ===
+              usuarioId
+          );
+
+        if (!usuario) {
+          return false;
+        }
+
+        if (
+          usuario.estado !==
+          'INHABILITADO'
+        ) {
+          return false;
+        }
+
+        if (
+          usuario.solicitaHabilitacion !==
+          true
+        ) {
+          return false;
+        }
+
+        await updateDoc(
+          doc(
+            db,
+            'usuarios',
+            usuarioId
+          ),
+          {
+            estado:
+              'ACTIVO',
+
+            solicitaHabilitacion:
+              false,
+
+            notaHabilitacion:
+              null,
+
+            fechaSolicitudHabilitacion:
+              null,
+
+            fechaHabilitacion:
+              new Date().toISOString(),
+          }
+        );
+
+        setNotificacionesUsuariosVistas(
+          (anteriores) =>
+            anteriores.filter(
+              (id) =>
+                id !==
+                `habilitacion_${usuarioId}`
+            )
+        );
+
+        return true;
+      } catch (error) {
+        console.log(
+          'Error al aprobar habilitación:',
+          error
+        );
+
+        return false;
+      }
+    };
+
+  // ==========================================
+  // RECHAZAR HABILITACIÓN
+  // ==========================================
+
+  const rechazarHabilitacion =
+    async (usuarioId) => {
+      try {
+        const usuario =
+          usuarios.find(
+            (item) =>
+              item.id ===
+              usuarioId
+          );
+
+        if (!usuario) {
+          return false;
+        }
+
+        if (
+          usuario.solicitaHabilitacion !==
+          true
+        ) {
+          return false;
+        }
+
+        await updateDoc(
+          doc(
+            db,
+            'usuarios',
+            usuarioId
+          ),
+          {
+            solicitaHabilitacion:
+              false,
+
+            notaHabilitacion:
+              null,
+
+            fechaSolicitudHabilitacion:
+              null,
+
+            fechaRechazoHabilitacion:
+              new Date().toISOString(),
+          }
+        );
+
+        setNotificacionesUsuariosVistas(
+          (anteriores) =>
+            anteriores.filter(
+              (id) =>
+                id !==
+                `habilitacion_${usuarioId}`
+            )
+        );
+
+        return true;
+      } catch (error) {
+        console.log(
+          'Error al rechazar habilitación:',
           error
         );
 
@@ -786,9 +1098,24 @@ export const UsuariosProvider = ({ children }) => {
               `restablecimiento_${usuario.id}`
           );
 
+      const habilitaciones =
+        usuarios
+          .filter(
+            (usuario) =>
+              usuario.estado ===
+                'INHABILITADO' &&
+              usuario.solicitaHabilitacion ===
+                true
+          )
+          .map(
+            (usuario) =>
+              `habilitacion_${usuario.id}`
+          );
+
       const notificacionesActuales = [
         ...solicitudesPendientes,
         ...restablecimientos,
+        ...habilitaciones,
       ];
 
       return notificacionesActuales.filter(
@@ -829,9 +1156,24 @@ export const UsuariosProvider = ({ children }) => {
               `restablecimiento_${usuario.id}`
           );
 
+      const habilitaciones =
+        usuarios
+          .filter(
+            (usuario) =>
+              usuario.estado ===
+                'INHABILITADO' &&
+              usuario.solicitaHabilitacion ===
+                true
+          )
+          .map(
+            (usuario) =>
+              `habilitacion_${usuario.id}`
+          );
+
       const notificacionesActuales = [
         ...solicitudesPendientes,
         ...restablecimientos,
+        ...habilitaciones,
       ];
 
       setNotificacionesUsuariosVistas(
@@ -848,148 +1190,150 @@ export const UsuariosProvider = ({ children }) => {
   // AUTENTICAR USUARIO
   // ==========================================
 
-  const autenticarUsuario = async (
-    username,
-    password
-  ) => {
-    try {
-      const valor = username
-        .trim()
-        .toLowerCase();
-
-      const usuarioEncontrado =
-        usuarios.find(
-          (item) =>
-            item.usuario
-              ?.toLowerCase() ===
-              valor ||
-            item.correo
-              ?.toLowerCase() ===
-              valor
-        );
-
-      if (!usuarioEncontrado) {
-        return null;
-      }
-
-      // ------------------------------------------
-      // CUENTA PENDIENTE
-      // ------------------------------------------
-
-      if (
-        usuarioEncontrado.estado ===
-        'PENDIENTE'
-      ) {
-        return {
-          error: 'PENDIENTE',
-        };
-      }
-
-      // ------------------------------------------
-      // CUENTA RECHAZADA
-      // ------------------------------------------
-
-      if (
-        usuarioEncontrado.estado ===
-        'RECHAZADO'
-      ) {
-        return {
-          error: 'RECHAZADO',
-        };
-      }
-
-      // ------------------------------------------
-      // CUENTA INHABILITADA
-      // ------------------------------------------
-
-      if (
-        usuarioEncontrado.estado ===
-        'INHABILITADO'
-      ) {
-        return {
-          error: 'INHABILITADO',
-        };
-      }
-
-      // ------------------------------------------
-      // CUALQUIER OTRO ESTADO NO ACTIVO
-      // ------------------------------------------
-
-      if (
-        usuarioEncontrado.estado !==
-        'ACTIVO'
-      ) {
-        return {
-          error: 'NO_ACTIVO',
-        };
-      }
-
-      const correo =
-        usuarioEncontrado.correo;
-
-      // ------------------------------------------
-      // FIREBASE VALIDA LA CONTRASEÑA
-      // ------------------------------------------
-
-      autenticandoManualRef.current = true;
-
+  const autenticarUsuario =
+    async (
+      username,
+      password
+    ) => {
       try {
-        const credencial = await signInWithEmailAndPassword(
-          auth,
-          correo,
-          password
-        );
+        const valor =
+          username
+            .trim()
+            .toLowerCase();
 
-        const referenciaUsuario = doc(
-          db,
-          'usuarios',
-          credencial.user.uid
-        );
+        const usuarioEncontrado =
+          usuarios.find(
+            (item) =>
+              item.usuario
+                ?.toLowerCase() ===
+                valor ||
+              item.correo
+                ?.toLowerCase() ===
+                valor
+          );
 
-        const documentoUsuario = await getDoc(
-          referenciaUsuario
-        );
-
-        if (!documentoUsuario.exists()) {
-          await signOut(auth);
-          return { error: 'NO_ACTIVO' };
+        if (!usuarioEncontrado) {
+          return null;
         }
 
-        const datosUsuario = {
-          id: documentoUsuario.id,
-          ...documentoUsuario.data(),
-        };
-
-        if (datosUsuario.estado !== 'ACTIVO') {
-          await signOut(auth);
-
+        if (
+          usuarioEncontrado.estado ===
+          'PENDIENTE'
+        ) {
           return {
-            error: datosUsuario.estado || 'NO_ACTIVO',
+            error:
+              'PENDIENTE',
           };
         }
 
-        await AsyncStorage.setItem(
-          'mericar_fecha_sesion',
-          obtenerFechaActual()
+        if (
+          usuarioEncontrado.estado ===
+          'RECHAZADO'
+        ) {
+          return {
+            error:
+              'RECHAZADO',
+          };
+        }
+
+        if (
+          usuarioEncontrado.estado ===
+          'INHABILITADO'
+        ) {
+          return {
+            error:
+              'INHABILITADO',
+          };
+        }
+
+        if (
+          usuarioEncontrado.estado !==
+          'ACTIVO'
+        ) {
+          return {
+            error:
+              'NO_ACTIVO',
+          };
+        }
+
+        const correo =
+          usuarioEncontrado.correo;
+
+        autenticandoManualRef.current =
+          true;
+
+        try {
+          const credencial =
+            await signInWithEmailAndPassword(
+              auth,
+              correo,
+              password
+            );
+
+          const referenciaUsuario =
+            doc(
+              db,
+              'usuarios',
+              credencial.user.uid
+            );
+
+          const documentoUsuario =
+            await getDoc(
+              referenciaUsuario
+            );
+
+          if (
+            !documentoUsuario.exists()
+          ) {
+            await signOut(auth);
+
+            return {
+              error:
+                'NO_ACTIVO',
+            };
+          }
+
+          const datosUsuario = {
+            id: documentoUsuario.id,
+            ...documentoUsuario.data(),
+          };
+
+          if (
+            datosUsuario.estado !==
+            'ACTIVO'
+          ) {
+            await signOut(auth);
+
+            return {
+              error:
+                datosUsuario.estado ||
+                'NO_ACTIVO',
+            };
+          }
+
+          await AsyncStorage.setItem(
+            'mericar_fecha_sesion',
+            obtenerFechaActual()
+          );
+
+          await AsyncStorage.removeItem(
+            'mericar_app_bloqueada'
+          );
+
+          return datosUsuario;
+        } finally {
+          autenticandoManualRef.current =
+            false;
+        }
+      } catch (error) {
+        console.log(
+          'Error al iniciar sesión:',
+          error.code
         );
 
-        await AsyncStorage.removeItem(
-          'mericar_app_bloqueada'
-        );
-
-        return datosUsuario;
-      } finally {
-        autenticandoManualRef.current = false;
+        return null;
       }
-    } catch (error) {
-      console.log(
-        'Error al iniciar sesión:',
-        error.code
-      );
-
-      return null;
-    }
-  };
+    };
 
   // ==========================================
   // INICIAR SESIÓN EN CONTEXT
@@ -998,116 +1342,177 @@ export const UsuariosProvider = ({ children }) => {
   const iniciarSesion = (
     usuario
   ) => {
-    setUsuarioActual(usuario);
+    setUsuarioActual(
+      usuario
+    );
   };
 
   // ==========================================
-  // CERRAR SESIÓN
+  // BLOQUEAR SESIÓN
   // ==========================================
 
-  const bloquearSesion = async () => {
-    try {
-      await AsyncStorage.setItem(
-        'mericar_app_bloqueada',
-        'true'
-      );
-    } catch (error) {
-      console.log(
-        'Error al bloquear sesión:',
-        error
-      );
-    }
-
-    setUsuarioActual(null);
-  };
-
-  const desbloquearSesionConPin = async (usuario) => {
-    try {
-      const firebaseUser = auth.currentUser;
-
-      if (!firebaseUser) {
-        return { error: 'SIN_SESION_FIREBASE' };
-      }
-
-      if (String(firebaseUser.uid) !== String(usuario.id)) {
-        return { error: 'USUARIO_DIFERENTE' };
-      }
-
-      const fechaSesion = await AsyncStorage.getItem(
-        'mericar_fecha_sesion'
-      );
-
-      if (fechaSesion !== obtenerFechaActual()) {
-        await AsyncStorage.multiRemove([
-          'mericar_fecha_sesion',
+  const bloquearSesion =
+    async () => {
+      try {
+        await AsyncStorage.setItem(
           'mericar_app_bloqueada',
-        ]);
-
-        await signOut(auth);
-        setUsuarioActual(null);
-
-        return { error: 'JORNADA_VENCIDA' };
+          'true'
+        );
+      } catch (error) {
+        console.log(
+          'Error al bloquear sesión:',
+          error
+        );
       }
 
-      const documentoUsuario = await getDoc(
-        doc(db, 'usuarios', firebaseUser.uid)
-      );
+      setUsuarioActual(null);
+    };
 
-      if (!documentoUsuario.exists()) {
-        return { error: 'USUARIO_NO_DISPONIBLE' };
-      }
+  // ==========================================
+  // DESBLOQUEAR CON PIN / HUELLA
+  // ==========================================
 
-      const datosUsuario = {
-        id: documentoUsuario.id,
-        ...documentoUsuario.data(),
-      };
+  const desbloquearSesionConPin =
+    async (usuario) => {
+      try {
+        const firebaseUser =
+          auth.currentUser;
 
-      if (datosUsuario.estado !== 'ACTIVO') {
-        await signOut(auth);
-        setUsuarioActual(null);
+        if (!firebaseUser) {
+          return {
+            error:
+              'SIN_SESION_FIREBASE',
+          };
+        }
+
+        if (
+          String(
+            firebaseUser.uid
+          ) !==
+          String(
+            usuario.id
+          )
+        ) {
+          return {
+            error:
+              'USUARIO_DIFERENTE',
+          };
+        }
+
+        const fechaSesion =
+          await AsyncStorage.getItem(
+            'mericar_fecha_sesion'
+          );
+
+        if (
+          fechaSesion !==
+          obtenerFechaActual()
+        ) {
+          await AsyncStorage.multiRemove(
+            [
+              'mericar_fecha_sesion',
+              'mericar_app_bloqueada',
+            ]
+          );
+
+          await signOut(auth);
+
+          setUsuarioActual(null);
+
+          return {
+            error:
+              'JORNADA_VENCIDA',
+          };
+        }
+
+        const documentoUsuario =
+          await getDoc(
+            doc(
+              db,
+              'usuarios',
+              firebaseUser.uid
+            )
+          );
+
+        if (
+          !documentoUsuario.exists()
+        ) {
+          return {
+            error:
+              'USUARIO_NO_DISPONIBLE',
+          };
+        }
+
+        const datosUsuario = {
+          id: documentoUsuario.id,
+          ...documentoUsuario.data(),
+        };
+
+        if (
+          datosUsuario.estado !==
+          'ACTIVO'
+        ) {
+          await signOut(auth);
+
+          setUsuarioActual(null);
+
+          return {
+            error:
+              datosUsuario.estado ||
+              'NO_ACTIVO',
+          };
+        }
+
+        await AsyncStorage.removeItem(
+          'mericar_app_bloqueada'
+        );
+
+        setUsuarioActual(
+          datosUsuario
+        );
 
         return {
-          error: datosUsuario.estado || 'NO_ACTIVO',
+          ok: true,
+          usuario:
+            datosUsuario,
+        };
+      } catch (error) {
+        console.log(
+          'Error al desbloquear con PIN:',
+          error
+        );
+
+        return {
+          error:
+            'ERROR_PIN',
         };
       }
+    };
 
-      await AsyncStorage.removeItem(
-        'mericar_app_bloqueada'
-      );
+  // ==========================================
+  // CERRAR SESIÓN COMPLETAMENTE
+  // ==========================================
 
-      setUsuarioActual(datosUsuario);
+  const cerrarSesion =
+    async () => {
+      try {
+        await AsyncStorage.multiRemove(
+          [
+            'mericar_fecha_sesion',
+            'mericar_app_bloqueada',
+          ]
+        );
 
-      return {
-        ok: true,
-        usuario: datosUsuario,
-      };
-    } catch (error) {
-      console.log(
-        'Error al desbloquear con PIN:',
-        error
-      );
+        await signOut(auth);
+      } catch (error) {
+        console.log(
+          'Error al cerrar sesión:',
+          error
+        );
+      }
 
-      return { error: 'ERROR_PIN' };
-    }
-  };
-
-  const cerrarSesion = async () => {
-    try {
-      await AsyncStorage.multiRemove([
-        'mericar_fecha_sesion',
-        'mericar_app_bloqueada',
-      ]);
-
-      await signOut(auth);
-    } catch (error) {
-      console.log(
-        'Error al cerrar sesión:',
-        error
-      );
-    }
-
-    setUsuarioActual(null);
-  };
+      setUsuarioActual(null);
+    };
 
   return (
     <UsuariosContext.Provider
@@ -1137,6 +1542,12 @@ export const UsuariosProvider = ({ children }) => {
         solicitarRestablecimiento,
 
         atenderRestablecimiento,
+
+        solicitarHabilitacion,
+
+        aprobarHabilitacion,
+
+        rechazarHabilitacion,
 
         obtenerNotificacionesUsuarios,
 

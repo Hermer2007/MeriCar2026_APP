@@ -30,6 +30,7 @@ export default function LoginScreen({ navigation }) {
     iniciarSesion,
     desbloquearSesionConPin,
     solicitarRestablecimiento,
+    solicitarHabilitacion,
   } = useUsuarios();
 
   const { mostrarToast } = useToast();
@@ -73,6 +74,21 @@ export default function LoginScreen({ navigation }) {
   const [
     modalRecuperacion,
     setModalRecuperacion,
+  ] = useState(false);
+
+  const [
+    correoHabilitacion,
+    setCorreoHabilitacion,
+  ] = useState('');
+
+  const [
+    notaHabilitacion,
+    setNotaHabilitacion,
+  ] = useState('');
+
+  const [
+    modalHabilitacion,
+    setModalHabilitacion,
   ] = useState(false);
 
   const login = async () => {
@@ -831,6 +847,100 @@ const cerrarRecuperacion =
       cerrarRecuperacion();
     };
 
+  const abrirHabilitacion = () => {
+    Keyboard.dismiss();
+    setCorreoHabilitacion('');
+    setNotaHabilitacion('');
+    setModalHabilitacion(true);
+  };
+
+  const cerrarHabilitacion = () => {
+    Keyboard.dismiss();
+    setCorreoHabilitacion('');
+    setNotaHabilitacion('');
+    setModalHabilitacion(false);
+  };
+
+  const enviarSolicitudHabilitacion = async () => {
+    Keyboard.dismiss();
+
+    const correoLimpio = correoHabilitacion
+      .trim()
+      .toLowerCase();
+
+    const notaLimpia = notaHabilitacion.trim();
+
+    if (!correoLimpio) {
+      mostrarToast(
+        'Ingrese su correo electrónico.',
+        'warning'
+      );
+      return;
+    }
+
+    const correoValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!correoValido.test(correoLimpio)) {
+      mostrarToast(
+        'Ingrese un correo electrónico válido.',
+        'warning'
+      );
+      return;
+    }
+
+    if (!notaLimpia) {
+      mostrarToast(
+        'Ingrese el motivo de la solicitud.',
+        'warning'
+      );
+      return;
+    }
+
+    const resultado = await solicitarHabilitacion(
+      correoLimpio,
+      notaLimpia
+    );
+
+    if (resultado?.error === 'USUARIO_NO_ENCONTRADO') {
+      mostrarToast(
+        'No existe una cuenta registrada con ese correo.',
+        'error'
+      );
+      return;
+    }
+
+    if (resultado?.error === 'CUENTA_NO_INHABILITADA') {
+      mostrarToast(
+        'Esta cuenta no se encuentra inhabilitada.',
+        'warning'
+      );
+      return;
+    }
+
+    if (resultado?.error === 'SOLICITUD_EXISTENTE') {
+      mostrarToast(
+        'Ya existe una solicitud de habilitación pendiente.',
+        'warning'
+      );
+      return;
+    }
+
+    if (!resultado) {
+      mostrarToast(
+        'No se pudo enviar la solicitud de habilitación.',
+        'error'
+      );
+      return;
+    }
+
+    mostrarToast(
+      'Solicitud de habilitación enviada al administrador.',
+      'success'
+    );
+
+    cerrarHabilitacion();
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -1082,6 +1192,15 @@ const cerrarRecuperacion =
                     }
                   >
                     ¿Olvidó su contraseña?
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.olvidoPassword}
+                  onPress={abrirHabilitacion}
+                >
+                  <Text style={styles.textoOlvidoPassword}>
+                    ¿Cuenta inhabilitada? Solicitar habilitación
                   </Text>
                 </TouchableOpacity>
 
@@ -1490,6 +1609,136 @@ const cerrarRecuperacion =
                           Enviar solicitud
                         </Text>
                       </TouchableOpacity>
+                    </View>
+                  </TouchableWithoutFeedback>
+                </View>
+              </TouchableWithoutFeedback>
+            </KeyboardAvoidingView>
+          </Modal>
+
+          <Modal
+            visible={modalHabilitacion}
+            transparent
+            animationType="fade"
+            onRequestClose={cerrarHabilitacion}
+          >
+            <KeyboardAvoidingView
+              style={styles.modalKeyboard}
+              behavior={
+                Platform.OS === 'ios'
+                  ? 'padding'
+                  : undefined
+              }
+            >
+              <TouchableWithoutFeedback
+                onPress={Keyboard.dismiss}
+                accessible={false}
+              >
+                <View style={styles.modalFondo}>
+                  <TouchableWithoutFeedback>
+                    <View style={styles.modalRecuperacion}>
+
+                      <View style={styles.modalHeader}>
+                        <View style={styles.modalTituloContainer}>
+                          <Text style={styles.modalTitulo}>
+                            Solicitar habilitación
+                          </Text>
+
+                          <Text style={styles.modalSubtitulo}>
+                            Ingrese el correo electrónico asociado a su cuenta inhabilitada.
+                          </Text>
+                        </View>
+
+                        <TouchableOpacity
+                          style={styles.botonCerrarModal}
+                          onPress={cerrarHabilitacion}
+                        >
+                          <Ionicons
+                            name="close"
+                            size={25}
+                            color="#555555"
+                          />
+                        </TouchableOpacity>
+                      </View>
+
+                      <View style={styles.iconoRecuperacion}>
+                        <Ionicons
+                          name="lock-open-outline"
+                          size={31}
+                          color="#08752F"
+                        />
+                      </View>
+
+                      <Text style={styles.labelRecuperacion}>
+                        Correo electrónico
+                      </Text>
+
+                      <View style={styles.inputRecuperacion}>
+                        <Ionicons
+                          name="mail-outline"
+                          size={20}
+                          color="#777777"
+                        />
+
+                        <TextInput
+                          style={styles.inputTextoRecuperacion}
+                          placeholder="Ingrese su correo electrónico"
+                          placeholderTextColor="#999999"
+                          value={correoHabilitacion}
+                          onChangeText={setCorreoHabilitacion}
+                          keyboardType="email-address"
+                          autoCapitalize="none"
+                          autoCorrect={false}
+                          returnKeyType="done"
+                          onSubmitEditing={Keyboard.dismiss}
+                        />
+                      </View>
+
+                      <Text style={styles.labelRecuperacion}>
+                        Motivo
+                      </Text>
+
+                      <View style={styles.inputNotaRecuperacion}>
+                        <TextInput
+                          style={styles.inputTextoNota}
+                          placeholder="Escriba el motivo de su solicitud..."
+                          placeholderTextColor="#999999"
+                          value={notaHabilitacion}
+                          onChangeText={setNotaHabilitacion}
+                          multiline
+                          maxLength={200}
+                          textAlignVertical="top"
+                        />
+                      </View>
+
+                      <View style={styles.infoRecuperacion}>
+                        <Ionicons
+                          name="information-circle-outline"
+                          size={19}
+                          color="#1672B8"
+                        />
+
+                        <Text style={styles.infoRecuperacionTexto}>
+                          El administrador recibirá una solicitud para gestionar la habilitación de su cuenta.
+                        </Text>
+                      </View>
+
+                      <TouchableOpacity
+                        style={styles.botonEnviarRecuperacion}
+                        activeOpacity={0.85}
+                        onPress={enviarSolicitudHabilitacion}
+                      >
+                        <Ionicons
+                          name="send-outline"
+                          size={20}
+                          color="#FFFFFF"
+                        />
+
+                        <Text style={styles.textoEnviarRecuperacion}>
+                          Enviar solicitud
+                        </Text>
+                      </TouchableOpacity>
+
                     </View>
                   </TouchableWithoutFeedback>
                 </View>
