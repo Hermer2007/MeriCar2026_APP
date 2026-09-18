@@ -389,6 +389,7 @@ export const EntregasProvider = ({
     entregaId = null,
     pagoEfectivo = 0,
     pagoTransferencia = 0,
+    fechaTrabajo = null,
   }) => {
 
     try {
@@ -712,8 +713,24 @@ export const EntregasProvider = ({
           // FECHA REAL DEL PAGO
           // ==================================
 
-          const ahora =
+          const ahoraReal =
             new Date();
+
+          const ahora =
+            fechaTrabajo instanceof Date &&
+            !Number.isNaN(
+              fechaTrabajo.getTime()
+            )
+              ? new Date(
+                  fechaTrabajo.getFullYear(),
+                  fechaTrabajo.getMonth(),
+                  fechaTrabajo.getDate(),
+                  ahoraReal.getHours(),
+                  ahoraReal.getMinutes(),
+                  ahoraReal.getSeconds(),
+                  0
+                )
+              : ahoraReal;
 
           const dia =
             String(
@@ -830,7 +847,14 @@ export const EntregasProvider = ({
                 horaPago,
 
               fechaCreacion:
-                serverTimestamp(),
+              fechaTrabajo instanceof Date &&
+              !Number.isNaN(
+                fechaTrabajo.getTime()
+              )
+                ? Timestamp.fromDate(
+                    ahora
+                  )
+                : serverTimestamp(),
 
               distribucion,
             }

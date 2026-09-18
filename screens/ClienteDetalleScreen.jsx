@@ -23,6 +23,7 @@ const ClienteDetalleScreen = ({
 
   const {
     obtenerEntregasCliente,
+    abonos,
   } = useEntregas();
 
   const historial =
@@ -31,6 +32,109 @@ const ClienteDetalleScreen = ({
           cliente.id
         )
       : [];
+
+  // ==========================================
+  // ABONOS POSTERIORES DE UNA ENTREGA
+  // ==========================================
+
+  const obtenerAbonosEntrega = (
+    entregaId
+  ) => {
+
+    const resultado = [];
+
+    (abonos || []).forEach(
+      (abono) => {
+
+        const distribucion =
+          Array.isArray(
+            abono.distribucion
+          )
+            ? abono.distribucion
+            : [];
+
+        distribucion.forEach(
+          (detalle) => {
+
+            if (
+              String(
+                detalle.entregaId
+              ) ===
+              String(entregaId)
+            ) {
+
+              const montoAplicado =
+                Number(
+                  detalle.montoAplicado ||
+                  0
+                );
+
+              if (
+                montoAplicado <= 0
+              ) {
+                return;
+              }
+
+              const totalAbono =
+                Number(
+                  abono.monto || 0
+                );
+
+              const efectivo =
+                Number(
+                  abono.pagoEfectivo ||
+                  0
+                );
+
+              const transferencia =
+                Number(
+                  abono.pagoTransferencia ||
+                  0
+                );
+
+              let efectivoAplicado = 0;
+              let transferenciaAplicada = 0;
+
+              if (
+                totalAbono > 0
+              ) {
+
+                efectivoAplicado =
+                  montoAplicado *
+                  (
+                    efectivo /
+                    totalAbono
+                  );
+
+                transferenciaAplicada =
+                  montoAplicado *
+                  (
+                    transferencia /
+                    totalAbono
+                  );
+              }
+
+              resultado.push({
+                id:
+                  `${abono.id}-${detalle.entregaId}`,
+
+                fecha:
+                  abono.fecha || '',
+
+                efectivo:
+                  efectivoAplicado,
+
+                transferencia:
+                  transferenciaAplicada,
+              });
+            }
+          }
+        );
+      }
+    );
+
+    return resultado;
+  };
 
   // ==========================================
   // CLIENTE
@@ -151,6 +255,11 @@ const ClienteDetalleScreen = ({
     item,
   }) => {
 
+    const abonosEntrega =
+      obtenerAbonosEntrega(
+        item.id
+      );
+
     const saldoCero =
       Number(
         item.saldoPendiente
@@ -168,7 +277,8 @@ const ClienteDetalleScreen = ({
         : [];
 
     const sinMetodoPago =
-      metodos.length === 0;
+      metodos.length === 0 &&
+      abonosEntrega.length === 0;
 
     return (
       <View
@@ -410,6 +520,8 @@ const ClienteDetalleScreen = ({
             }
           >
 
+            {/* SIN PAGO */}
+
             {sinMetodoPago && (
 
               <View
@@ -435,6 +547,8 @@ const ClienteDetalleScreen = ({
               </View>
 
             )}
+
+            {/* PAGO ORIGINAL EN EFECTIVO */}
 
             {metodos.includes(
               'Efectivo'
@@ -468,12 +582,12 @@ const ClienteDetalleScreen = ({
                   $
                   {Number(
                     item.pagoEfectivo ??
-                      (
-                        item.metodoPago ===
-                        'Efectivo'
-                          ? item.abona
-                          : 0
-                      )
+                    (
+                      item.metodoPago ===
+                      'Efectivo'
+                        ? item.abona
+                        : 0
+                    )
                   ).toFixed(
                     2
                   )}
@@ -482,6 +596,8 @@ const ClienteDetalleScreen = ({
               </View>
 
             )}
+
+            {/* PAGO ORIGINAL POR TRANSFERENCIA */}
 
             {metodos.includes(
               'Transferencia'
@@ -515,12 +631,12 @@ const ClienteDetalleScreen = ({
                   $
                   {Number(
                     item.pagoTransferencia ??
-                      (
-                        item.metodoPago ===
-                        'Transferencia'
-                          ? item.abona
-                          : 0
-                      )
+                    (
+                      item.metodoPago ===
+                      'Transferencia'
+                        ? item.abona
+                        : 0
+                    )
                   ).toFixed(
                     2
                   )}
@@ -528,6 +644,135 @@ const ClienteDetalleScreen = ({
 
               </View>
 
+            )}
+
+            {/* ABONOS POSTERIORES */}
+
+            {abonosEntrega.map(
+              (
+                abono,
+                index
+              ) => (
+
+                <React.Fragment
+                  key={`${abono.id}-${index}`}
+                >
+
+                  {abono.efectivo >
+                    0 && (
+
+                    <View
+                      style={
+                        styles.metodoItem
+                      }
+                    >
+
+                      <Ionicons
+                        name="cash-outline"
+                        size={17}
+                        color="#08752F"
+                      />
+
+                      <Text
+                        style={
+                          styles.metodoTexto
+                        }
+                      >
+                        Efectivo
+                      </Text>
+
+                      <Text
+                        style={
+                          styles.metodoMonto
+                        }
+                      >
+                        $
+                        {Number(
+                          abono.efectivo
+                        ).toFixed(
+                          2
+                        )}
+                      </Text>
+
+                      <View
+                        style={
+                          styles.badgeAbono
+                        }
+                      >
+
+                        <Text
+                          style={
+                            styles.badgeAbonoTexto
+                          }
+                        >
+                          Abono {abono.fecha}
+                        </Text>
+
+                      </View>
+
+                    </View>
+
+                  )}
+
+                  {abono.transferencia >
+                    0 && (
+
+                    <View
+                      style={
+                        styles.metodoItem
+                      }
+                    >
+
+                      <Ionicons
+                        name="card-outline"
+                        size={17}
+                        color="#08752F"
+                      />
+
+                      <Text
+                        style={
+                          styles.metodoTexto
+                        }
+                      >
+                        Transferencia
+                      </Text>
+
+                      <Text
+                        style={
+                          styles.metodoMonto
+                        }
+                      >
+                        $
+                        {Number(
+                          abono.transferencia
+                        ).toFixed(
+                          2
+                        )}
+                      </Text>
+
+                      <View
+                        style={
+                          styles.badgeAbono
+                        }
+                      >
+
+                        <Text
+                          style={
+                            styles.badgeAbonoTexto
+                          }
+                        >
+                          Abono {abono.fecha}
+                        </Text>
+
+                      </View>
+
+                    </View>
+
+                  )}
+
+                </React.Fragment>
+
+              )
             )}
 
           </View>
@@ -1230,6 +1475,23 @@ const styles =
         '700',
       color:
         '#D71920',
+    },
+
+    badgeAbono: {
+      backgroundColor:
+        '#E7F3EA',
+      borderRadius: 6,
+      paddingHorizontal: 7,
+      paddingVertical: 3,
+      marginLeft: 4,
+    },
+
+    badgeAbonoTexto: {
+      color:
+        '#08752F',
+      fontSize: 9,
+      fontWeight:
+        '700',
     },
 
     // ========================================

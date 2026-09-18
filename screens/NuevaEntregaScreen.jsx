@@ -17,7 +17,9 @@ import {
 
 import { Ionicons } from '@expo/vector-icons';
 
-import DateTimePicker from '@react-native-community/datetimepicker';
+import {
+  DateTimePickerAndroid,
+} from '@react-native-community/datetimepicker';
 
 import { useProductos } from '../context/ProductosContext';
 import { useEntregas } from '../context/EntregasContext';
@@ -212,6 +214,9 @@ export default function NuevaEntregaScreen({
         pagoEfectivo: efectivoAbonoNumerico,
         pagoTransferencia:
           transferenciaAbonoNumerico,
+
+        fechaTrabajo:
+          fechaSeleccionada,
       });
 
       if (!resultado?.ok) {
@@ -260,9 +265,6 @@ export default function NuevaEntregaScreen({
 
   const [fechaSeleccionada, setFechaSeleccionada] =
     useState(new Date());
-
-  const [mostrarCalendario, setMostrarCalendario] =
-    useState(false);
 
   const obtenerHoraActual = () => {
     const ahora = new Date();
@@ -315,65 +317,36 @@ export default function NuevaEntregaScreen({
     return `${dia}/${mes}/${anio}`;
   };
 
-  const seleccionarFecha = (
-  event,
-  fecha
-) => {
+  const abrirCalendario = () => {
+    DateTimePickerAndroid.open({
+      value: fechaSeleccionada,
+      mode: 'date',
+      maximumDate: new Date(),
+      onChange: (event, fecha) => {
+        if (
+          event.type !== 'set' ||
+          !fecha
+        ) {
+          return;
+        }
 
-  setMostrarCalendario(false);
+        const fechaElegida =
+          new Date(
+            fecha.getFullYear(),
+            fecha.getMonth(),
+            fecha.getDate(),
+            12,
+            0,
+            0,
+            0
+          );
 
-  if (
-    event.type === 'dismissed'
-  ) {
-    return;
-  }
-
-  if (!fecha) {
-    return;
-  }
-
-  const fechaElegida =
-    new Date(
-      fecha.getFullYear(),
-      fecha.getMonth(),
-      fecha.getDate(),
-      12,
-      0,
-      0,
-      0
-    );
-
-  const hoy =
-    new Date();
-
-  const fechaMaxima =
-    new Date(
-      hoy.getFullYear(),
-      hoy.getMonth(),
-      hoy.getDate(),
-      23,
-      59,
-      59,
-      999
-    );
-
-  if (
-    fechaElegida.getTime() >
-    fechaMaxima.getTime()
-  ) {
-
-    mostrarToast(
-      'No puede seleccionar una fecha futura.',
-      'warning'
-    );
-
-    return;
-  }
-
-  setFechaSeleccionada(
-    fechaElegida
-  );
-};
+        setFechaSeleccionada(
+          fechaElegida
+        );
+      },
+    });
+  };
 
   // ==========================================
   // PRODUCTOS
@@ -1007,11 +980,7 @@ const guardarEntrega = async (
             style={
               styles.fechaDato
             }
-            onPress={() =>
-              setMostrarCalendario(
-                true
-              )
-            }
+            onPress={abrirCalendario}
           >
 
             <Ionicons
@@ -1061,16 +1030,6 @@ const guardarEntrega = async (
           </View>
 
         </View>
-
-        {mostrarCalendario && (
-  <DateTimePicker
-    value={fechaSeleccionada}
-    mode="date"
-    display="default"
-    maximumDate={new Date()}
-    onChange={seleccionarFecha}
-  />
-)}
 
         <Text
           style={

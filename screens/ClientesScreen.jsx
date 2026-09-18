@@ -13,170 +13,398 @@ import {
 
 import { Ionicons } from '@expo/vector-icons';
 import { useClientes } from '../context/ClientesContext';
+import { useEntregas } from '../context/EntregasContext';
 import { useToast } from '../context/ToastContext';
 
-const DIAS = ['Lunes', 'Miércoles', 'Jueves', 'Domingo'];
+const DIAS = [
+  'Lunes',
+  'Miércoles',
+  'Jueves',
+  'Domingo',
+];
 
 const ClientesScreen = ({ navigation }) => {
   const { mostrarToast } = useToast();
   const { clientes } = useClientes();
 
-  const [busqueda, setBusqueda] = useState('');
-  const [modalFiltro, setModalFiltro] = useState(false);
+  const {
+    entregas,
+    obtenerSaldoCliente,
+  } = useEntregas();
 
-  const [diaFiltro, setDiaFiltro] = useState('Todos');
-  const [estadoFiltro, setEstadoFiltro] = useState('Todos');
-  const [orden, setOrden] = useState('Nombre');
+  const [busqueda, setBusqueda] =
+    useState('');
 
-  const clientesFiltrados = useMemo(() => {
-    let resultado = [...clientes];
+  const [modalFiltro, setModalFiltro] =
+    useState(false);
 
-    const texto = busqueda.trim().toLowerCase();
+  const [diaFiltro, setDiaFiltro] =
+    useState('Todos');
 
-    if (texto) {
-      resultado = resultado.filter((cliente) => {
-        const nombreCliente =
-          cliente.nombre ||
-          `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim();
+  const [estadoFiltro, setEstadoFiltro] =
+    useState('Todos');
 
-        return `${nombreCliente} ${cliente.telefono || ''}`
-          .toLowerCase()
-          .includes(texto);
-      });
+  const obtenerFechaEntrega = (entrega) => {
+    if (!entrega) {
+      return null;
     }
 
-    if (diaFiltro !== 'Todos') {
-      resultado = resultado.filter((cliente) =>
-        cliente.diasTrabajo.includes(diaFiltro)
+    const fechaSeleccionada =
+      entrega.fechaSeleccionada;
+
+    if (
+      fechaSeleccionada &&
+      typeof fechaSeleccionada.toDate ===
+        'function'
+    ) {
+      return fechaSeleccionada.toDate();
+    }
+
+    if (
+      fechaSeleccionada?.seconds
+    ) {
+      return new Date(
+        fechaSeleccionada.seconds * 1000
       );
     }
 
-    if (estadoFiltro === 'Con deuda') {
-      resultado = resultado.filter(
-        (cliente) => Number(cliente.saldoPendiente) > 0
+    if (
+      fechaSeleccionada instanceof Date
+    ) {
+      return fechaSeleccionada;
+    }
+
+    if (
+      typeof fechaSeleccionada === 'string'
+    ) {
+      const fecha =
+        new Date(fechaSeleccionada);
+
+      if (
+        !Number.isNaN(fecha.getTime())
+      ) {
+        return fecha;
+      }
+    }
+
+    if (entrega.fecha) {
+      const partes =
+        String(entrega.fecha).split('/');
+
+      if (partes.length === 3) {
+        const dia =
+          Number(partes[0]);
+
+        const mes =
+          Number(partes[1]) - 1;
+
+        const anio =
+          Number(partes[2]);
+
+        const fecha =
+          new Date(
+            anio,
+            mes,
+            dia,
+            12,
+            0,
+            0
+          );
+
+        if (
+          !Number.isNaN(fecha.getTime())
+        ) {
+          return fecha;
+        }
+      }
+
+      const fecha =
+        new Date(entrega.fecha);
+
+      if (
+        !Number.isNaN(fecha.getTime())
+      ) {
+        return fecha;
+      }
+    }
+
+    return null;
+  };
+
+  const obtenerUltimaEntregaCliente = (
+    clienteId
+  ) => {
+    const entregasCliente =
+      (entregas || []).filter(
+        (entrega) =>
+          entrega.clienteId === clienteId
       );
+
+    if (
+      entregasCliente.length === 0
+    ) {
+      return null;
     }
 
-    if (estadoFiltro === 'Sin deuda') {
-      resultado = resultado.filter(
-        (cliente) => Number(cliente.saldoPendiente) === 0
-      );
-    }
+    let fechaMasReciente = null;
 
-    if (orden === 'Nombre') {
-      resultado.sort((a, b) => {
-        const nombreA =
-          a.nombre ||
-          `${a.nombres || ''} ${a.apellidos || ''}`.trim();
+    entregasCliente.forEach(
+      (entrega) => {
+        const fecha =
+          obtenerFechaEntrega(entrega);
 
-        const nombreB =
-          b.nombre ||
-          `${b.nombres || ''} ${b.apellidos || ''}`.trim();
+        if (!fecha) {
+          return;
+        }
 
-        return nombreA.localeCompare(nombreB);
-      });
-    }
+        if (
+          !fechaMasReciente ||
+          fecha.getTime() >
+            fechaMasReciente.getTime()
+        ) {
+          fechaMasReciente = fecha;
+        }
+      }
+    );
 
-    if (orden === 'Día de entrega') {
-      resultado.sort((a, b) =>
-        (a.diasTrabajo[0] || '').localeCompare(
-          b.diasTrabajo[0] || ''
-        )
-      );
-    }
+    return fechaMasReciente;
+  };
 
-    if (orden === 'Saldo pendiente') {
-      resultado.sort(
-        (a, b) =>
-          Number(b.saldoPendiente) -
-          Number(a.saldoPendiente)
-      );
-    }
+  const clientesFiltrados = useMemo(
+    () => {
+      let resultado = [...clientes];
 
-    if (orden === 'Última entrega') {
-      resultado.sort((a, b) => {
-        if (!a.ultimaEntrega) return 1;
-        if (!b.ultimaEntrega) return -1;
+      const texto =
+        busqueda
+          .trim()
+          .toLowerCase();
 
-        return (
-          new Date(b.ultimaEntrega).getTime() -
-          new Date(a.ultimaEntrega).getTime()
+      if (texto) {
+        resultado =
+          resultado.filter(
+            (cliente) => {
+              const nombreCliente =
+                cliente.nombre ||
+                `${
+                  cliente.nombres || ''
+                } ${
+                  cliente.apellidos || ''
+                }`.trim();
+
+              return `${
+                nombreCliente
+              } ${
+                cliente.telefono || ''
+              }`
+                .toLowerCase()
+                .includes(texto);
+            }
+          );
+      }
+
+      if (
+        diaFiltro !== 'Todos'
+      ) {
+        resultado =
+          resultado.filter(
+            (cliente) =>
+              Array.isArray(
+                cliente.diasTrabajo
+              ) &&
+              cliente.diasTrabajo.includes(
+                diaFiltro
+              )
+          );
+      }
+
+      if (
+        estadoFiltro ===
+        'Con deuda'
+      ) {
+        resultado =
+          resultado.filter(
+            (cliente) => {
+              const saldo =
+                Number(
+                  obtenerSaldoCliente(
+                    cliente.id
+                  )
+                ) || 0;
+
+              return saldo > 0;
+            }
+          );
+      }
+
+      if (
+        estadoFiltro ===
+        'Sin deuda'
+      ) {
+        resultado =
+          resultado.filter(
+            (cliente) => {
+              const saldo =
+                Number(
+                  obtenerSaldoCliente(
+                    cliente.id
+                  )
+                ) || 0;
+
+              return saldo <= 0;
+            }
+          );
+      }
+
+      if (
+        estadoFiltro ===
+        'Última entrega'
+      ) {
+        resultado.sort(
+          (a, b) => {
+            const fechaA =
+              obtenerUltimaEntregaCliente(
+                a.id
+              );
+
+            const fechaB =
+              obtenerUltimaEntregaCliente(
+                b.id
+              );
+
+            if (
+              !fechaA &&
+              !fechaB
+            ) {
+              return 0;
+            }
+
+            if (!fechaA) {
+              return 1;
+            }
+
+            if (!fechaB) {
+              return -1;
+            }
+
+            return (
+              fechaB.getTime() -
+              fechaA.getTime()
+            );
+          }
         );
-      });
-    }
+      }
 
-    return resultado;
-  }, [
-    clientes,
-    busqueda,
-    diaFiltro,
-    estadoFiltro,
-    orden,
-  ]);
+      return resultado;
+    },
+    [
+      clientes,
+      entregas,
+      busqueda,
+      diaFiltro,
+      estadoFiltro,
+      obtenerSaldoCliente,
+    ]
+  );
 
   const iniciales = (cliente) => {
     const nombreCompleto =
       cliente.nombre ||
-      `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim();
+      `${
+        cliente.nombres || ''
+      } ${
+        cliente.apellidos || ''
+      }`.trim();
 
-    const partes = nombreCompleto
-      .trim()
-      .split(' ')
-      .filter(Boolean);
+    const partes =
+      nombreCompleto
+        .trim()
+        .split(' ')
+        .filter(Boolean);
 
     const primera =
       partes[0]?.charAt(0) || '';
 
     const segunda =
       partes.length > 1
-        ? partes[partes.length - 1]?.charAt(0)
+        ? partes[
+            partes.length - 1
+          ]?.charAt(0)
         : '';
 
-    return `${primera}${segunda}`.toUpperCase();
+    return `${primera}${segunda}`
+      .toUpperCase();
   };
 
   const limpiarFiltros = () => {
     setDiaFiltro('Todos');
     setEstadoFiltro('Todos');
-    setOrden('Nombre');
   };
 
-  const renderCliente = ({ item }) => (
+  const renderCliente = ({
+    item,
+  }) => (
     <TouchableOpacity
       style={styles.cliente}
       activeOpacity={0.7}
       onPress={() =>
-        navigation.navigate('EditarCliente', {
-          cliente: item,
-        })
+        navigation.navigate(
+          'EditarCliente',
+          {
+            cliente: item,
+          }
+        )
       }
     >
       <View style={styles.avatar}>
-        <Text style={styles.iniciales}>
+        <Text
+          style={styles.iniciales}
+        >
           {iniciales(item)}
         </Text>
       </View>
 
-      <View style={styles.infoCliente}>
-        <Text style={styles.nombre}>
+      <View
+        style={styles.infoCliente}
+      >
+        <Text
+          style={styles.nombre}
+        >
           {item.nombre ||
-            `${item.nombres || ''} ${
+            `${
+              item.nombres || ''
+            } ${
               item.apellidos || ''
             }`.trim()}
         </Text>
 
         {item.telefono ? (
-          <Text style={styles.telefono}>
+          <Text
+            style={styles.telefono}
+          >
             {item.telefono}
           </Text>
         ) : null}
 
-        <Text style={styles.diaCliente}>
-          {item.diasTrabajo?.join(', ')}
+        <Text
+          style={
+            styles.diaCliente
+          }
+        >
+          {Array.isArray(
+            item.diasTrabajo
+          )
+            ? item.diasTrabajo.join(
+                ', '
+              )
+            : ''}
         </Text>
       </View>
 
-      <View style={styles.flechaCliente}>
+      <View
+        style={
+          styles.flechaCliente
+        }
+      >
         <Ionicons
           name="chevron-forward"
           size={22}
@@ -246,15 +474,38 @@ const ClientesScreen = ({ navigation }) => {
           />
         </TouchableOpacity>
 
-        <Text style={styles.tituloHeader}>
-          Clientes
-        </Text>
+        <View
+          style={styles.headerCentro}
+        >
+          <Text
+            style={
+              styles.tituloHeader
+            }
+          >
+            Clientes
+          </Text>
+
+          <Text
+            style={
+              styles.totalClientes
+            }
+          >
+            {clientes.length}{' '}
+            {clientes.length === 1
+              ? 'cliente registrado'
+              : 'clientes registrados'}
+          </Text>
+        </View>
       </View>
 
       {/* BUSCADOR */}
-      <View style={styles.busquedaFila}>
+      <View
+        style={styles.busquedaFila}
+      >
         <View
-          style={styles.buscadorContainer}
+          style={
+            styles.buscadorContainer
+          }
         >
           <Ionicons
             name="search"
@@ -267,12 +518,16 @@ const ClientesScreen = ({ navigation }) => {
             placeholder="Buscar cliente..."
             placeholderTextColor="#8D8D8D"
             value={busqueda}
-            onChangeText={setBusqueda}
+            onChangeText={
+              setBusqueda
+            }
           />
         </View>
 
         <TouchableOpacity
-          style={styles.botonFiltro}
+          style={
+            styles.botonFiltro
+          }
           onPress={() =>
             setModalFiltro(true)
           }
@@ -288,7 +543,9 @@ const ClientesScreen = ({ navigation }) => {
       {/* LISTA */}
       <FlatList
         data={clientesFiltrados}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) =>
+          item.id
+        }
         renderItem={renderCliente}
         contentContainerStyle={
           styles.lista
@@ -297,9 +554,15 @@ const ClientesScreen = ({ navigation }) => {
           false
         }
         ListEmptyComponent={
-          <View style={styles.estadoVacio}>
+          <View
+            style={
+              styles.estadoVacio
+            }
+          >
             <View
-              style={styles.iconoVacio}
+              style={
+                styles.iconoVacio
+              }
             >
               <Ionicons
                 name="people-outline"
@@ -309,7 +572,9 @@ const ClientesScreen = ({ navigation }) => {
             </View>
 
             <Text
-              style={styles.sinResultados}
+              style={
+                styles.sinResultados
+              }
             >
               No se encontraron clientes
             </Text>
@@ -327,7 +592,9 @@ const ClientesScreen = ({ navigation }) => {
 
       {/* AGREGAR CLIENTE */}
       <TouchableOpacity
-        style={styles.botonAgregar}
+        style={
+          styles.botonAgregar
+        }
         onPress={() =>
           navigation.navigate(
             'ClienteRegistro'
@@ -351,13 +618,17 @@ const ClientesScreen = ({ navigation }) => {
         }
       >
         <Pressable
-          style={styles.modalFondo}
+          style={
+            styles.modalFondo
+          }
           onPress={() =>
             setModalFiltro(false)
           }
         >
           <Pressable
-            style={styles.modalContenido}
+            style={
+              styles.modalContenido
+            }
             onPress={() => {}}
           >
             <View
@@ -366,7 +637,9 @@ const ClientesScreen = ({ navigation }) => {
               }
             >
               <View
-                style={styles.iconoFiltro}
+                style={
+                  styles.iconoFiltro
+                }
               >
                 <Ionicons
                   name="filter-outline"
@@ -375,7 +648,9 @@ const ClientesScreen = ({ navigation }) => {
                 />
               </View>
 
-              <View style={{ flex: 1 }}>
+              <View
+                style={{ flex: 1 }}
+              >
                 <Text
                   style={
                     styles.modalTitulo
@@ -395,7 +670,9 @@ const ClientesScreen = ({ navigation }) => {
 
               <TouchableOpacity
                 onPress={() =>
-                  setModalFiltro(false)
+                  setModalFiltro(
+                    false
+                  )
                 }
               >
                 <Ionicons
@@ -424,15 +701,20 @@ const ClientesScreen = ({ navigation }) => {
             </Text>
 
             <View
-              style={styles.gridFiltros}
+              style={
+                styles.gridFiltros
+              }
             >
               <BotonFiltro
                 texto="Todos"
                 seleccionado={
-                  diaFiltro === 'Todos'
+                  diaFiltro ===
+                  'Todos'
                 }
                 onPress={() =>
-                  setDiaFiltro('Todos')
+                  setDiaFiltro(
+                    'Todos'
+                  )
                 }
                 icono="checkmark-circle"
               />
@@ -442,10 +724,13 @@ const ClientesScreen = ({ navigation }) => {
                   key={dia}
                   texto={dia}
                   seleccionado={
-                    diaFiltro === dia
+                    diaFiltro ===
+                    dia
                   }
                   onPress={() =>
-                    setDiaFiltro(dia)
+                    setDiaFiltro(
+                      dia
+                    )
                   }
                   icono="calendar-outline"
                 />
@@ -453,7 +738,9 @@ const ClientesScreen = ({ navigation }) => {
             </View>
 
             <View
-              style={styles.separador}
+              style={
+                styles.separador
+              }
             />
 
             {/* ESTADO */}
@@ -470,74 +757,69 @@ const ClientesScreen = ({ navigation }) => {
                 styles.seccionDescripcion
               }
             >
-              Filtra según la deuda del cliente
+              Filtra los clientes por su estado
             </Text>
 
             <View
-              style={styles.gridFiltros}
-            >
-              {[
-                'Todos',
-                'Con deuda',
-                'Sin deuda',
-              ].map((estado) => (
-                <BotonFiltro
-                  key={estado}
-                  texto={estado}
-                  seleccionado={
-                    estadoFiltro ===
-                    estado
-                  }
-                  onPress={() =>
-                    setEstadoFiltro(
-                      estado
-                    )
-                  }
-                />
-              ))}
-            </View>
-
-            <View
-              style={styles.separador}
-            />
-
-            {/* ORDEN */}
-            <Text
               style={
-                styles.seccionTitulo
+                styles.gridFiltros
               }
             >
-              Ordenar por
-            </Text>
+              <BotonFiltro
+                texto="Todos"
+                seleccionado={
+                  estadoFiltro ===
+                  'Todos'
+                }
+                onPress={() =>
+                  setEstadoFiltro(
+                    'Todos'
+                  )
+                }
+                icono="people-outline"
+              />
 
-            <Text
-              style={
-                styles.seccionDescripcion
-              }
-            >
-              Organiza la lista de resultados
-            </Text>
+              <BotonFiltro
+                texto="Con deuda"
+                seleccionado={
+                  estadoFiltro ===
+                  'Con deuda'
+                }
+                onPress={() =>
+                  setEstadoFiltro(
+                    'Con deuda'
+                  )
+                }
+                icono="alert-circle-outline"
+              />
 
-            <View
-              style={styles.gridFiltros}
-            >
-              {[
-                'Nombre',
-                'Día de entrega',
-                'Última entrega',
-                'Saldo pendiente',
-              ].map((item) => (
-                <BotonFiltro
-                  key={item}
-                  texto={item}
-                  seleccionado={
-                    orden === item
-                  }
-                  onPress={() =>
-                    setOrden(item)
-                  }
-                />
-              ))}
+              <BotonFiltro
+                texto="Sin deuda"
+                seleccionado={
+                  estadoFiltro ===
+                  'Sin deuda'
+                }
+                onPress={() =>
+                  setEstadoFiltro(
+                    'Sin deuda'
+                  )
+                }
+                icono="checkmark-circle-outline"
+              />
+
+              <BotonFiltro
+                texto="Última entrega"
+                seleccionado={
+                  estadoFiltro ===
+                  'Última entrega'
+                }
+                onPress={() =>
+                  setEstadoFiltro(
+                    'Última entrega'
+                  )
+                }
+                icono="time-outline"
+              />
             </View>
 
             <View
@@ -547,7 +829,9 @@ const ClientesScreen = ({ navigation }) => {
             >
               <TouchableOpacity
                 style={styles.limpiar}
-                onPress={limpiarFiltros}
+                onPress={
+                  limpiarFiltros
+                }
               >
                 <Ionicons
                   name="trash-outline"
@@ -567,7 +851,9 @@ const ClientesScreen = ({ navigation }) => {
               <TouchableOpacity
                 style={styles.aplicar}
                 onPress={() => {
-                  setModalFiltro(false);
+                  setModalFiltro(
+                    false
+                  );
 
                   mostrarToast(
                     'Filtros aplicados correctamente.',
@@ -606,11 +892,11 @@ const styles = StyleSheet.create({
   },
 
   header: {
-    height: 105,
+    height: 115,
     backgroundColor: '#08752F',
     justifyContent: 'flex-end',
     alignItems: 'center',
-    paddingBottom: 20,
+    paddingBottom: 15,
   },
 
   regresar: {
@@ -623,10 +909,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
+  headerCentro: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   tituloHeader: {
     color: '#FFFFFF',
     fontSize: 23,
     fontWeight: '700',
+    textAlign: 'center',
+  },
+
+  totalClientes: {
+    color: '#DDEEE2',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 3,
+    textAlign: 'center',
   },
 
   busquedaFila: {
@@ -651,6 +951,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 8,
     fontSize: 15,
+    color: '#000000',
   },
 
   botonFiltro: {
@@ -780,7 +1081,8 @@ const styles = StyleSheet.create({
 
   modalFondo: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor:
+      'rgba(0,0,0,0.45)',
     justifyContent: 'center',
     paddingHorizontal: 15,
   },
