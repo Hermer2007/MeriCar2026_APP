@@ -325,6 +325,16 @@ export default function EditarEntregaScreen({
       entrega,
     ]);
 
+    // ==========================================
+    // CENTAVOS
+    // ==========================================
+
+    const aCentavos = (valor) => {
+      return Math.round(
+        (Number(valor) || 0) * 100
+      );
+    };
+
   // ==========================================
   // NUEVO PAGO
   // ==========================================
@@ -549,16 +559,22 @@ export default function EditarEntregaScreen({
       : 0;
 
   const nuevoAbono =
-    efectivoNuevo +
-    transferenciaNueva;
+    (
+      aCentavos(efectivoNuevo) +
+      aCentavos(transferenciaNueva)
+    ) / 100;
 
   const abonoAcumulado =
-    abonoAnterior +
-    nuevoAbono;
+    (
+      aCentavos(abonoAnterior) +
+      aCentavos(nuevoAbono)
+    ) / 100;
 
   const saldoPendiente =
-    total -
-    abonoAcumulado;
+    (
+      aCentavos(total) -
+      aCentavos(abonoAcumulado)
+    ) / 100;
 
   // ==========================================
   // ACTUALIZAR
@@ -648,8 +664,8 @@ export default function EditarEntregaScreen({
       // ======================================
 
       if (
-        abonoAcumulado >
-        total
+        aCentavos(abonoAcumulado) >
+        aCentavos(total)
       ) {
         mostrarToast(
           'El total abonado no puede superar el total de la entrega.',

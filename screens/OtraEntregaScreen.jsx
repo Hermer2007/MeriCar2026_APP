@@ -5,6 +5,7 @@ import React, {
 } from 'react';
 
 import {
+  Modal,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -20,6 +21,7 @@ import { useProductos } from '../context/ProductosContext';
 import { useClientes } from '../context/ClientesContext';
 import { useEntregas } from '../context/EntregasContext';
 import { useToast } from '../context/ToastContext';
+import { useAlert } from '../context/AlertContext';
 
 export default function OtraEntregaScreen({
   navigation,
@@ -30,11 +32,18 @@ export default function OtraEntregaScreen({
   const { clientes } =
     useClientes();
 
-  const { agregarEntrega } =
-    useEntregas();
+  const {
+    agregarEntrega,
+    obtenerDeudasCliente,
+    obtenerSaldoCliente,
+    registrarAbono,
+  } = useEntregas();
 
   const { mostrarToast } =
     useToast();
+
+  const { mostrarAlert } =
+    useAlert();
 
   // ==========================================
   // CLIENTE OPCIONAL
@@ -55,14 +64,10 @@ export default function OtraEntregaScreen({
     setMostrarResultados,
   ] = useState(false);
 
-  const nombreCliente = (
-    cliente
-  ) =>
-    cliente?.nombre ||
-    `${cliente?.nombres || ''} ${
-      cliente?.apellidos || ''
-    }`.trim() ||
-    'Cliente';
+  const nombreCliente = (cliente) =>
+  cliente?.nombre ||
+  `${cliente?.nombres || ''} ${cliente?.apellidos || ''}`.trim() ||
+  'Cliente';
 
   const clientesFiltrados =
     useMemo(() => {
@@ -92,6 +97,200 @@ export default function OtraEntregaScreen({
       clientes,
       busqueda,
     ]);
+
+  // ==========================================
+  // ABONO DE SALDOS PENDIENTES
+  // ==========================================
+
+  const [modalAbonoVisible, setModalAbonoVisible] =
+    useState(false);
+
+  const [deudaSeleccionadaId, setDeudaSeleccionadaId] =
+    useState(null);
+
+  const [metodosAbono, setMetodosAbono] =
+    useState([]);
+
+  const [abonoEfectivo, setAbonoEfectivo] =
+    useState('');
+
+  const [abonoTransferencia, setAbonoTransferencia] =
+    useState('');
+
+  const [guardandoAbono, setGuardandoAbono] =
+    useState(false);
+
+  const deudasCliente = clienteSeleccionado?.id
+    ? obtenerDeudasCliente(clienteSeleccionado.id)
+    : [];
+
+  const saldoTotalCliente = clienteSeleccionado?.id
+    ? obtenerSaldoCliente(clienteSeleccionado.id)
+    : 0;
+
+  const usaEfectivoAbono =
+    metodosAbono.includes('Efectivo');
+
+  const usaTransferenciaAbono =
+    metodosAbono.includes('Transferencia');
+
+  const efectivoAbonoNumerico =
+    usaEfectivoAbono
+      ? Number(
+          String(abonoEfectivo).replace(',', '.')
+        ) || 0
+      : 0;
+
+  const transferenciaAbonoNumerico =
+    usaTransferenciaAbono
+      ? Number(
+          String(abonoTransferencia).replace(',', '.')
+        ) || 0
+      : 0;
+
+  const totalAbonoSaldo =
+    efectivoAbonoNumerico +
+    transferenciaAbonoNumerico;
+
+  const abrirModalAbono = () => {
+    setDeudaSeleccionadaId(null);
+    setMetodosAbono([]);
+    setAbonoEfectivo('');
+    setAbonoTransferencia('');
+    setModalAbonoVisible(true);
+  };
+
+  const cerrarModalAbono = () => {
+    if (guardandoAbono) {
+      return;
+    }
+
+    setModalAbonoVisible(false);
+    setDeudaSeleccionadaId(null);
+    setMetodosAbono([]);
+    setAbonoEfectivo('');
+    setAbonoTransferencia('');
+  };
+
+  const seleccionarDeudaAbono = (entregaId) => {
+    setDeudaSeleccionadaId((actual) =>
+      String(actual) === String(entregaId)
+        ? null
+        : entregaId
+    );
+  };
+
+  const seleccionarMetodoAbono = (metodo) => {
+    setMetodosAbono((actuales) => {
+      if (actuales.includes(metodo)) {
+        if (metodo === 'Efectivo') {
+          setAbonoEfectivo('');
+        }
+
+        if (metodo === 'Transferencia') {
+          setAbonoTransferencia('');
+        }
+
+        return actuales.filter(
+          (item) => item !== metodo
+        );
+      }
+
+      return [...actuales, metodo];
+    });
+  };
+
+  const guardarAbonoSaldo = async () => {
+    if (metodosAbono.length === 0) {
+      mostrarToast(
+        'Seleccione al menos un método de pago.',
+        'warning'
+      );
+      return;
+    }
+
+    if (totalAbonoSaldo <= 0) {
+      mostrarToast(
+        'Ingrese un valor para el abono.',
+        'warning'
+      );
+      return;
+    }
+
+    const deudaSeleccionada =
+      deudaSeleccionadaId
+        ? deudasCliente.find(
+            (entrega) =>
+              String(entrega.id) ===
+              String(deudaSeleccionadaId)
+          )
+        : null;
+
+    if (
+      deudaSeleccionada &&
+      aCentavos(totalAbonoSaldo) >
+        aCentavos(
+          deudaSeleccionada.saldoPendiente
+        )
+    ) {
+      mostrarToast(
+        'El abono no puede superar el saldo de la deuda seleccionada.',
+        'warning'
+      );
+      return;
+    }
+
+    if (
+      !deudaSeleccionada &&
+      aCentavos(totalAbonoSaldo) >
+        aCentavos(saldoTotalCliente)
+    ) {
+      mostrarToast(
+        'El abono no puede superar el saldo pendiente total.',
+        'warning'
+      );
+      return;
+    }
+
+    try {
+      setGuardandoAbono(true);
+
+      const resultado = await registrarAbono({
+        clienteId: clienteSeleccionado.id,
+        entregaId: deudaSeleccionadaId,
+        pagoEfectivo: efectivoAbonoNumerico,
+        pagoTransferencia:
+          transferenciaAbonoNumerico,
+      });
+
+      if (!resultado?.ok) {
+        mostrarToast(
+          resultado?.mensaje ||
+            'No se pudo registrar el abono.',
+          'warning'
+        );
+        return;
+      }
+
+      setModalAbonoVisible(false);
+      setDeudaSeleccionadaId(null);
+      setMetodosAbono([]);
+      setAbonoEfectivo('');
+      setAbonoTransferencia('');
+
+      mostrarToast(
+        'Abono registrado correctamente.',
+        'success'
+      );
+    } catch (error) {
+      mostrarToast(
+        'No se pudo registrar el abono.',
+        'error'
+      );
+    } finally {
+      setGuardandoAbono(false);
+    }
+  };
 
   // ==========================================
   // FECHA Y HORA
@@ -192,6 +391,16 @@ export default function OtraEntregaScreen({
   ] = useState(
     productosIniciales
   );
+
+  // ==========================================
+// CENTAVOS
+// ==========================================
+
+  const aCentavos = (valor) => {
+    return Math.round(
+      (Number(valor) || 0) * 100
+    );
+  };
 
   // ==========================================
   // PAGOS
@@ -413,18 +622,24 @@ export default function OtraEntregaScreen({
       : 0;
 
   const abonoNumerico =
-    efectivoNumerico +
-    transferenciaNumerica;
+    (
+      aCentavos(efectivoNumerico) +
+      aCentavos(transferenciaNumerica)
+    ) / 100;
 
   const saldoPendiente =
-    total -
-    abonoNumerico;
+    (
+      aCentavos(total) -
+      aCentavos(abonoNumerico)
+    ) / 100;
 
   // ==========================================
   // GUARDAR
   // ==========================================
 
-  const guardarEntrega = async () => {
+  const guardarEntrega = async (
+    confirmarSinPago = false
+  ) => {
       const productosSeleccionados =
         productosEntrega.filter(
           (producto) =>
@@ -479,13 +694,26 @@ export default function OtraEntregaScreen({
       }
 
       if (
-        metodosPago.length ===
-        0
+        metodosPago.length === 0 &&
+        !confirmarSinPago
       ) {
-        mostrarToast(
-          'Seleccione al menos un método de pago.',
-          'warning'
-        );
+        mostrarAlert({
+          titulo:
+            'Sin método de pago seleccionado',
+          mensaje:
+            'Esta entrega se registrará como no pagada.',
+          tipo:
+            'warning',
+          textoCancelar:
+            'Cancelar',
+          textoConfirmar:
+            'Aceptar',
+          mostrarCancelar:
+            true,
+          onConfirmar: () => {
+            guardarEntrega(true);
+          },
+        });
 
         return;
       }
@@ -495,8 +723,8 @@ export default function OtraEntregaScreen({
       // ======================================
 
       if (
-        abonoNumerico >
-        total
+        aCentavos(abonoNumerico) >
+        aCentavos(total)
       ) {
         mostrarToast(
           'El abono no puede superar el total de la entrega.',
@@ -1086,6 +1314,43 @@ export default function OtraEntregaScreen({
           </Text>
         </View>
 
+        {saldoTotalCliente > 0 && (
+          <View style={styles.saldoAnteriorContainer}>
+            <View style={styles.saldoAnteriorInfo}>
+              <View style={styles.saldoAnteriorTituloFila}>
+                <Ionicons
+                  name="alert-circle-outline"
+                  size={20}
+                  color="#D71920"
+                />
+
+                <Text style={styles.saldoAnteriorLabel}>
+                  Saldo pendiente:
+                </Text>
+              </View>
+
+              <Text style={styles.saldoAnteriorValor}>
+                ${Number(saldoTotalCliente).toFixed(2)}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.botonAbonarSaldo}
+              onPress={abrirModalAbono}
+            >
+              <Ionicons
+                name="wallet-outline"
+                size={18}
+                color="#D71920"
+              />
+
+              <Text style={styles.botonAbonarSaldoTexto}>
+                Abonar
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <Text
           style={
             styles.tituloSeccion
@@ -1270,8 +1535,8 @@ export default function OtraEntregaScreen({
           style={
             styles.botonGuardar
           }
-          onPress={
-            guardarEntrega
+          onPress={() =>
+            guardarEntrega()
           }
         >
           <Text
@@ -1283,6 +1548,251 @@ export default function OtraEntregaScreen({
           </Text>
         </TouchableOpacity>
       </ScrollView>
+      <Modal
+        visible={modalAbonoVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={cerrarModalAbono}
+      >
+        <View style={styles.modalFondo}>
+          <View style={styles.modalAbono}>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderTitulo}>
+                <Ionicons
+                  name="wallet-outline"
+                  size={23}
+                  color="#D71920"
+                />
+
+                <Text style={styles.modalTitulo}>
+                  Abonar saldo pendiente
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                onPress={cerrarModalAbono}
+                disabled={guardandoAbono}
+              >
+                <Ionicons
+                  name="close"
+                  size={26}
+                  color="#666666"
+                />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalSaldoTotal}>
+              <Text style={styles.modalSaldoLabel}>
+                Saldo total:
+              </Text>
+
+              <Text style={styles.modalSaldoValor}>
+                ${Number(saldoTotalCliente).toFixed(2)}
+              </Text>
+            </View>
+
+            <Text style={styles.modalAyuda}>
+              Seleccione una deuda para abonarla directamente o deje todas sin seleccionar para distribuir el abono desde la más antigua.
+            </Text>
+
+            <ScrollView
+              style={styles.listaDeudas}
+              contentContainerStyle={styles.listaDeudasContenido}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              {deudasCliente.map((entrega) => {
+                const seleccionada =
+                  String(deudaSeleccionadaId) ===
+                  String(entrega.id);
+
+                return (
+                  <TouchableOpacity
+                    key={entrega.id}
+                    style={[
+                      styles.deudaTarjeta,
+                      seleccionada &&
+                        styles.deudaTarjetaSeleccionada,
+                    ]}
+                    onPress={() =>
+                      seleccionarDeudaAbono(entrega.id)
+                    }
+                  >
+                    <View style={styles.deudaFechaFila}>
+                      <Ionicons
+                        name="calendar-outline"
+                        size={17}
+                        color="#D71920"
+                      />
+
+                      <Text style={styles.deudaFecha}>
+                        {entrega.fecha || 'Sin fecha'}
+                      </Text>
+                    </View>
+
+                    <Text style={styles.deudaSaldo}>
+                      ${Number(
+                        entrega.saldoPendiente || 0
+                      ).toFixed(2)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+
+              <Text style={styles.modalSeccionTitulo}>
+                Método de pago
+              </Text>
+
+              <TouchableOpacity
+                style={[
+                  styles.metodoAbono,
+                  usaEfectivoAbono &&
+                    styles.metodoAbonoActivo,
+                ]}
+                onPress={() =>
+                  seleccionarMetodoAbono('Efectivo')
+                }
+              >
+                <View style={styles.metodoIzquierda}>
+                  <Ionicons
+                    name="cash-outline"
+                    size={22}
+                    color="#D71920"
+                  />
+
+                  <Text style={styles.metodoAbonoTexto}>
+                    Efectivo
+                  </Text>
+                </View>
+
+                <Ionicons
+                  name={
+                    usaEfectivoAbono
+                      ? 'checkbox'
+                      : 'square-outline'
+                  }
+                  size={24}
+                  color="#D71920"
+                />
+              </TouchableOpacity>
+
+              {usaEfectivoAbono && (
+                <View style={styles.pagoAbonoContainer}>
+                  <Text style={styles.pagoAbonoLabel}>
+                    Monto en efectivo
+                  </Text>
+
+                  <TextInput
+                    style={styles.pagoAbonoInput}
+                    value={abonoEfectivo}
+                    onChangeText={setAbonoEfectivo}
+                    keyboardType="decimal-pad"
+                    placeholder="0.00"
+                    placeholderTextColor="#999999"
+                    selectTextOnFocus
+                  />
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={[
+                  styles.metodoAbono,
+                  usaTransferenciaAbono &&
+                    styles.metodoAbonoActivo,
+                ]}
+                onPress={() =>
+                  seleccionarMetodoAbono('Transferencia')
+                }
+              >
+                <View style={styles.metodoIzquierda}>
+                  <Ionicons
+                    name="card-outline"
+                    size={22}
+                    color="#D71920"
+                  />
+
+                  <Text style={styles.metodoAbonoTexto}>
+                    Transferencia
+                  </Text>
+                </View>
+
+                <Ionicons
+                  name={
+                    usaTransferenciaAbono
+                      ? 'checkbox'
+                      : 'square-outline'
+                  }
+                  size={24}
+                  color="#D71920"
+                />
+              </TouchableOpacity>
+
+              {usaTransferenciaAbono && (
+                <View style={styles.pagoAbonoContainer}>
+                  <Text style={styles.pagoAbonoLabel}>
+                    Monto por transferencia
+                  </Text>
+
+                  <TextInput
+                    style={styles.pagoAbonoInput}
+                    value={abonoTransferencia}
+                    onChangeText={setAbonoTransferencia}
+                    keyboardType="decimal-pad"
+                    placeholder="0.00"
+                    placeholderTextColor="#999999"
+                    selectTextOnFocus
+                  />
+                </View>
+              )}
+
+              <View style={styles.totalAbonoFila}>
+                <Text style={styles.totalAbonoLabel}>
+                  Total abonado:
+                </Text>
+
+                <Text style={styles.totalAbonoValor}>
+                  ${totalAbonoSaldo.toFixed(2)}
+                </Text>
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalBotones}>
+              <TouchableOpacity
+                style={styles.botonCancelarAbono}
+                onPress={cerrarModalAbono}
+                disabled={guardandoAbono}
+              >
+                <Text style={styles.botonCancelarAbonoTexto}>
+                  Cancelar
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.botonConfirmarAbono,
+                  guardandoAbono &&
+                    styles.botonAbonoDeshabilitado,
+                ]}
+                onPress={guardarAbonoSaldo}
+                disabled={guardandoAbono}
+              >
+                <Ionicons
+                  name="wallet-outline"
+                  size={18}
+                  color="#FFFFFF"
+                />
+
+                <Text style={styles.botonConfirmarAbonoTexto}>
+                  {guardandoAbono
+                    ? 'Guardando...'
+                    : 'Abonar'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* NAVEGACIÓN A INICIO */}
       <View style={styles.bottomNavigation}>
         <TouchableOpacity
@@ -1706,6 +2216,307 @@ const styles =
       fontSize: 15,
       fontWeight:
         '700',
+    },
+
+    saldoAnteriorContainer: {
+      minHeight: 72,
+      borderWidth: 1,
+      borderColor: '#F0CACA',
+      borderRadius: 10,
+      backgroundColor: '#FFF7F7',
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      marginTop: 2,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 10,
+    },
+
+    saldoAnteriorInfo: {
+      flex: 1,
+    },
+
+    saldoAnteriorTituloFila: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+
+    saldoAnteriorLabel: {
+      color: '#D71920',
+      fontSize: 12,
+      fontWeight: '700',
+    },
+
+    saldoAnteriorValor: {
+      color: '#D71920',
+      fontSize: 20,
+      fontWeight: '800',
+      marginTop: 3,
+    },
+
+    botonAbonarSaldo: {
+      minWidth: 92,
+      height: 40,
+      borderWidth: 1,
+      borderColor: '#D71920',
+      borderRadius: 8,
+      backgroundColor: '#FFFFFF',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 5,
+      paddingHorizontal: 10,
+    },
+
+    botonAbonarSaldoTexto: {
+      color: '#D71920',
+      fontSize: 12,
+      fontWeight: '700',
+    },
+
+    modalFondo: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      justifyContent: 'center',
+      paddingHorizontal: 18,
+      paddingVertical: 30,
+    },
+
+    modalAbono: {
+      width: '100%',
+      maxHeight: '88%',
+      backgroundColor: '#FFFFFF',
+      borderRadius: 16,
+      padding: 16,
+    },
+
+    modalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 12,
+    },
+
+    modalHeaderTitulo: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginRight: 10,
+    },
+
+    modalTitulo: {
+      flex: 1,
+      color: '#D71920',
+      fontSize: 17,
+      fontWeight: '800',
+    },
+
+    modalSaldoTotal: {
+      minHeight: 50,
+      borderWidth: 1,
+      borderColor: '#F0CACA',
+      borderRadius: 9,
+      backgroundColor: '#FFF7F7',
+      paddingHorizontal: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+
+    modalSaldoLabel: {
+      color: '#666666',
+      fontSize: 13,
+      fontWeight: '700',
+    },
+
+    modalSaldoValor: {
+      color: '#D71920',
+      fontSize: 20,
+      fontWeight: '800',
+    },
+
+    modalAyuda: {
+      color: '#777777',
+      fontSize: 10,
+      lineHeight: 14,
+      marginTop: 8,
+      marginBottom: 8,
+    },
+
+    listaDeudas: {
+      flexGrow: 0,
+    },
+
+    listaDeudasContenido: {
+      paddingBottom: 4,
+    },
+
+    deudaTarjeta: {
+      minHeight: 52,
+      borderWidth: 1,
+      borderColor: '#F0CACA',
+      borderRadius: 9,
+      backgroundColor: '#FFF9F9',
+      paddingHorizontal: 12,
+      marginBottom: 7,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+
+    deudaTarjetaSeleccionada: {
+      borderColor: '#D71920',
+      backgroundColor: '#FFEAEA',
+      borderWidth: 2,
+    },
+
+    deudaFechaFila: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+
+    deudaFecha: {
+      color: '#444444',
+      fontSize: 12,
+      fontWeight: '700',
+    },
+
+    deudaSaldo: {
+      color: '#D71920',
+      fontSize: 16,
+      fontWeight: '800',
+    },
+
+    modalSeccionTitulo: {
+      color: '#D71920',
+      fontSize: 14,
+      fontWeight: '800',
+      marginTop: 7,
+      marginBottom: 7,
+    },
+
+    metodoAbono: {
+      minHeight: 48,
+      borderWidth: 1,
+      borderColor: '#E7CFCF',
+      borderRadius: 9,
+      marginBottom: 7,
+      paddingHorizontal: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+
+    metodoAbonoActivo: {
+      backgroundColor: '#FFF0F0',
+      borderColor: '#D71920',
+    },
+
+    metodoAbonoTexto: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: '#333333',
+    },
+
+    pagoAbonoContainer: {
+      minHeight: 52,
+      backgroundColor: '#FFF7F7',
+      borderRadius: 8,
+      marginBottom: 7,
+      paddingHorizontal: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+    },
+
+    pagoAbonoLabel: {
+      flex: 1,
+      fontSize: 11,
+      fontWeight: '600',
+      color: '#444444',
+    },
+
+    pagoAbonoInput: {
+      width: 100,
+      height: 38,
+      borderWidth: 1,
+      borderColor: '#E3BDBD',
+      borderRadius: 7,
+      backgroundColor: '#FFFFFF',
+      paddingHorizontal: 9,
+      textAlign: 'right',
+      color: '#222222',
+    },
+
+    totalAbonoFila: {
+      minHeight: 50,
+      borderTopWidth: 1,
+      borderTopColor: '#F0CACA',
+      marginTop: 4,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+
+    totalAbonoLabel: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: '#333333',
+    },
+
+    totalAbonoValor: {
+      fontSize: 19,
+      fontWeight: '800',
+      color: '#D71920',
+    },
+
+    modalBotones: {
+      flexDirection: 'row',
+      gap: 9,
+      marginTop: 10,
+    },
+
+    botonCancelarAbono: {
+      flex: 1,
+      height: 46,
+      borderWidth: 1,
+      borderColor: '#D71920',
+      borderRadius: 9,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#FFFFFF',
+    },
+
+    botonCancelarAbonoTexto: {
+      color: '#D71920',
+      fontSize: 13,
+      fontWeight: '700',
+    },
+
+    botonConfirmarAbono: {
+      flex: 1,
+      height: 46,
+      borderRadius: 9,
+      backgroundColor: '#D71920',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+    },
+
+    botonConfirmarAbonoTexto: {
+      color: '#FFFFFF',
+      fontSize: 13,
+      fontWeight: '700',
+    },
+
+    botonAbonoDeshabilitado: {
+      opacity: 0.6,
     },
 
     bottomNavigation: {

@@ -12,13 +12,48 @@ import {
 
 import { Ionicons } from '@expo/vector-icons';
 import { useClientes } from '../context/ClientesContext';
+import { useEntregas } from '../context/EntregasContext';
 
 const EntregasDiaScreen = ({ navigation, route }) => {
   const { clientes } = useClientes();
+  const { entregas } = useEntregas();
 
   const dia = route.params?.dia || '';
 
   const [busqueda, setBusqueda] = useState('');
+
+  // ==========================================
+// ENTREGA REGISTRADA HOY
+// ==========================================
+
+  const obtenerFechaHoy = () => {
+    const hoy = new Date();
+
+    const dia = String(
+      hoy.getDate()
+    ).padStart(2, '0');
+
+    const mes = String(
+      hoy.getMonth() + 1
+    ).padStart(2, '0');
+
+    const anio =
+      hoy.getFullYear();
+
+    return `${dia}/${mes}/${anio}`;
+  };
+
+  const clienteEntregadoHoy = (clienteId) => {
+    const fechaHoy =
+      obtenerFechaHoy();
+
+    return entregas.some(
+      (entrega) =>
+        String(entrega.clienteId) ===
+          String(clienteId) &&
+        entrega.fecha === fechaHoy
+    );
+  };
 
   // ==========================================
   // CLIENTES DEL DÍA
@@ -128,7 +163,10 @@ const EntregasDiaScreen = ({ navigation, route }) => {
   // ==========================================
 
   const renderCliente = ({ item }) => {
-    return (
+  const entregadoHoy =
+    clienteEntregadoHoy(item.id);
+
+  return (
       <TouchableOpacity
         style={styles.clienteCard}
         activeOpacity={0.75}
@@ -136,8 +174,22 @@ const EntregasDiaScreen = ({ navigation, route }) => {
           seleccionarCliente(item)
         }
       >
-        <View style={styles.avatar}>
-          <Text style={styles.avatarTexto}>
+        <View
+          style={[
+            styles.avatar,
+            entregadoHoy
+              ? styles.avatarEntregado
+              : styles.avatarPendiente,
+          ]}
+        >
+          <Text
+            style={[
+              styles.avatarTexto,
+              entregadoHoy
+                ? styles.avatarTextoEntregado
+                : styles.avatarTextoPendiente,
+            ]}
+          >
             {obtenerIniciales(item)}
           </Text>
         </View>
@@ -379,15 +431,29 @@ const styles = StyleSheet.create({
     width: 43,
     height: 43,
     borderRadius: 22,
-    backgroundColor: '#E1F0E5',
     justifyContent: 'center',
     alignItems: 'center',
   },
 
+  avatarPendiente: {
+    backgroundColor: '#FFF3CD',
+  },
+
+  avatarEntregado: {
+    backgroundColor: '#E1F0E5',
+  },
+
   avatarTexto: {
-    color: '#08752F',
     fontSize: 15,
     fontWeight: '700',
+  },
+
+  avatarTextoPendiente: {
+    color: '#D39E00',
+  },
+
+  avatarTextoEntregado: {
+    color: '#08752F',
   },
 
   clienteInfo: {

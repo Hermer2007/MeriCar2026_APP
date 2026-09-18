@@ -5,6 +5,7 @@ import React, {
 } from 'react';
 
 import {
+  Modal,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -16,25 +17,231 @@ import {
 
 import { Ionicons } from '@expo/vector-icons';
 
+import DateTimePicker from '@react-native-community/datetimepicker';
+
 import { useProductos } from '../context/ProductosContext';
 import { useEntregas } from '../context/EntregasContext';
 import { useToast } from '../context/ToastContext';
+import { useAlert } from '../context/AlertContext';
 
 export default function NuevaEntregaScreen({
   navigation,
   route,
 }) {
+
   const { productos } =
     useProductos();
 
-  const { agregarEntrega } =
-    useEntregas();
+  const {
+    agregarEntrega,
+    obtenerDeudasCliente,
+    obtenerSaldoCliente,
+    registrarAbono,
+  } = useEntregas();
 
   const { mostrarToast } =
     useToast();
 
+  const { mostrarAlert } =
+    useAlert();
   const cliente =
     route.params?.cliente;
+
+  // ==========================================
+  // ABONO DE SALDOS PENDIENTES
+  // ==========================================
+
+  const [modalAbonoVisible, setModalAbonoVisible] =
+    useState(false);
+
+  const [deudaSeleccionadaId, setDeudaSeleccionadaId] =
+    useState(null);
+
+  const [metodosAbono, setMetodosAbono] =
+    useState([]);
+
+  const [abonoEfectivo, setAbonoEfectivo] =
+    useState('');
+
+  const [abonoTransferencia, setAbonoTransferencia] =
+    useState('');
+
+  const [guardandoAbono, setGuardandoAbono] =
+    useState(false);
+
+  const deudasCliente = cliente?.id
+    ? obtenerDeudasCliente(cliente.id)
+    : [];
+
+  const saldoTotalCliente = cliente?.id
+    ? obtenerSaldoCliente(cliente.id)
+    : 0;
+
+  const usaEfectivoAbono =
+    metodosAbono.includes('Efectivo');
+
+  const usaTransferenciaAbono =
+    metodosAbono.includes('Transferencia');
+
+  const efectivoAbonoNumerico =
+    usaEfectivoAbono
+      ? Number(
+          String(abonoEfectivo).replace(',', '.')
+        ) || 0
+      : 0;
+
+  const transferenciaAbonoNumerico =
+    usaTransferenciaAbono
+      ? Number(
+          String(abonoTransferencia).replace(',', '.')
+        ) || 0
+      : 0;
+
+  const totalAbonoSaldo =
+    efectivoAbonoNumerico +
+    transferenciaAbonoNumerico;
+
+  const abrirModalAbono = () => {
+    setDeudaSeleccionadaId(null);
+    setMetodosAbono([]);
+    setAbonoEfectivo('');
+    setAbonoTransferencia('');
+    setModalAbonoVisible(true);
+  };
+
+  const cerrarModalAbono = () => {
+    if (guardandoAbono) {
+      return;
+    }
+
+    setModalAbonoVisible(false);
+    setDeudaSeleccionadaId(null);
+    setMetodosAbono([]);
+    setAbonoEfectivo('');
+    setAbonoTransferencia('');
+  };
+
+  const seleccionarDeudaAbono = (entregaId) => {
+    setDeudaSeleccionadaId((actual) =>
+      String(actual) === String(entregaId)
+        ? null
+        : entregaId
+    );
+  };
+
+  const seleccionarMetodoAbono = (metodo) => {
+    setMetodosAbono((actuales) => {
+      if (actuales.includes(metodo)) {
+        if (metodo === 'Efectivo') {
+          setAbonoEfectivo('');
+        }
+
+        if (metodo === 'Transferencia') {
+          setAbonoTransferencia('');
+        }
+
+        return actuales.filter(
+          (item) => item !== metodo
+        );
+      }
+
+      return [...actuales, metodo];
+    });
+  };
+
+  const guardarAbonoSaldo = async () => {
+    if (metodosAbono.length === 0) {
+      mostrarToast(
+        'Seleccione al menos un método de pago.',
+        'warning'
+      );
+      return;
+    }
+
+    if (totalAbonoSaldo <= 0) {
+      mostrarToast(
+        'Ingrese un valor para el abono.',
+        'warning'
+      );
+      return;
+    }
+
+    const deudaSeleccionada =
+      deudaSeleccionadaId
+        ? deudasCliente.find(
+            (entrega) =>
+              String(entrega.id) ===
+              String(deudaSeleccionadaId)
+          )
+        : null;
+
+    if (
+      deudaSeleccionada &&
+      aCentavos(totalAbonoSaldo) >
+        aCentavos(
+          deudaSeleccionada.saldoPendiente
+        )
+    ) {
+      mostrarToast(
+        'El abono no puede superar el saldo de la deuda seleccionada.',
+        'warning'
+      );
+
+      return;
+    }
+
+    if (
+      !deudaSeleccionada &&
+      aCentavos(totalAbonoSaldo) >
+        aCentavos(saldoTotalCliente)
+    ) {
+      mostrarToast(
+        'El abono no puede superar el saldo pendiente total.',
+        'warning'
+      );
+
+      return;
+    }
+
+    try {
+      setGuardandoAbono(true);
+
+      const resultado = await registrarAbono({
+        clienteId: cliente.id,
+        entregaId: deudaSeleccionadaId,
+        pagoEfectivo: efectivoAbonoNumerico,
+        pagoTransferencia:
+          transferenciaAbonoNumerico,
+      });
+
+      if (!resultado?.ok) {
+        mostrarToast(
+          resultado?.mensaje ||
+            'No se pudo registrar el abono.',
+          'warning'
+        );
+        return;
+      }
+
+      setModalAbonoVisible(false);
+      setDeudaSeleccionadaId(null);
+      setMetodosAbono([]);
+      setAbonoEfectivo('');
+      setAbonoTransferencia('');
+
+      mostrarToast(
+        'Abono registrado correctamente.',
+        'success'
+      );
+    } catch (error) {
+      mostrarToast(
+        'No se pudo registrar el abono.',
+        'error'
+      );
+    } finally {
+      setGuardandoAbono(false);
+    }
+  };
 
   // ==========================================
   // CLIENTE
@@ -51,19 +258,14 @@ export default function NuevaEntregaScreen({
   // FECHA Y HORA
   // ==========================================
 
-  const obtenerFechaHora = () => {
+  const [fechaSeleccionada, setFechaSeleccionada] =
+    useState(new Date());
+
+  const [mostrarCalendario, setMostrarCalendario] =
+    useState(false);
+
+  const obtenerHoraActual = () => {
     const ahora = new Date();
-
-    const dia = String(
-      ahora.getDate()
-    ).padStart(2, '0');
-
-    const mes = String(
-      ahora.getMonth() + 1
-    ).padStart(2, '0');
-
-    const anio =
-      ahora.getFullYear();
 
     const hora = String(
       ahora.getHours()
@@ -77,35 +279,101 @@ export default function NuevaEntregaScreen({
       ahora.getSeconds()
     ).padStart(2, '0');
 
-    return {
-      fecha:
-        `${dia}/${mes}/${anio}`,
-
-      hora:
-        `${hora}:${minutos}:${segundos}`,
-    };
+    return `${hora}:${minutos}:${segundos}`;
   };
 
-  const [
-    fechaHoraActual,
-    setFechaHoraActual,
-  ] = useState(
-    obtenerFechaHora()
-  );
+  const [horaActual, setHoraActual] =
+    useState(obtenerHoraActual());
 
   useEffect(() => {
+
     const intervalo =
       setInterval(() => {
-        setFechaHoraActual(
-          obtenerFechaHora()
+        setHoraActual(
+          obtenerHoraActual()
         );
       }, 1000);
 
     return () =>
-      clearInterval(
-        intervalo
-      );
+      clearInterval(intervalo);
+
   }, []);
+
+  const formatearFecha = (fecha) => {
+
+    const dia = String(
+      fecha.getDate()
+    ).padStart(2, '0');
+
+    const mes = String(
+      fecha.getMonth() + 1
+    ).padStart(2, '0');
+
+    const anio =
+      fecha.getFullYear();
+
+    return `${dia}/${mes}/${anio}`;
+  };
+
+  const seleccionarFecha = (
+  event,
+  fecha
+) => {
+
+  setMostrarCalendario(false);
+
+  if (
+    event.type === 'dismissed'
+  ) {
+    return;
+  }
+
+  if (!fecha) {
+    return;
+  }
+
+  const fechaElegida =
+    new Date(
+      fecha.getFullYear(),
+      fecha.getMonth(),
+      fecha.getDate(),
+      12,
+      0,
+      0,
+      0
+    );
+
+  const hoy =
+    new Date();
+
+  const fechaMaxima =
+    new Date(
+      hoy.getFullYear(),
+      hoy.getMonth(),
+      hoy.getDate(),
+      23,
+      59,
+      59,
+      999
+    );
+
+  if (
+    fechaElegida.getTime() >
+    fechaMaxima.getTime()
+  ) {
+
+    mostrarToast(
+      'No puede seleccionar una fecha futura.',
+      'warning'
+    );
+
+    return;
+  }
+
+  setFechaSeleccionada(
+    fechaElegida
+  );
+};
 
   // ==========================================
   // PRODUCTOS
@@ -147,6 +415,22 @@ export default function NuevaEntregaScreen({
     productosIniciales
   );
 
+  useEffect(() => {
+    setProductosEntrega(
+      productosIniciales
+    );
+  }, [productosIniciales]);
+  
+  // ==========================================
+  //CENTAVOS
+  // ==========================================
+
+  const aCentavos = (valor) => {
+    return Math.round(
+      (Number(valor) || 0) * 100
+    );
+  };
+
   // ==========================================
   // MÉTODOS DE PAGO
   // ==========================================
@@ -179,29 +463,28 @@ export default function NuevaEntregaScreen({
   const seleccionarMetodoPago = (
     metodo
   ) => {
+
     setMetodosPago(
       (actuales) => {
+
         if (
           actuales.includes(
             metodo
           )
         ) {
+
           if (
             metodo ===
             'Efectivo'
           ) {
-            setPagoEfectivo(
-              ''
-            );
+            setPagoEfectivo('');
           }
 
           if (
             metodo ===
             'Transferencia'
           ) {
-            setPagoTransferencia(
-              ''
-            );
+            setPagoTransferencia('');
           }
 
           return actuales.filter(
@@ -226,10 +509,12 @@ export default function NuevaEntregaScreen({
     id,
     cambio
   ) => {
+
     setProductosEntrega(
       (actuales) =>
         actuales.map(
           (producto) => {
+
             if (
               producto.id !==
               id
@@ -263,6 +548,7 @@ export default function NuevaEntregaScreen({
     id,
     texto
   ) => {
+
     const numeros =
       texto.replace(
         /[^0-9]/g,
@@ -297,6 +583,7 @@ export default function NuevaEntregaScreen({
     id,
     texto
   ) => {
+
     setProductosEntrega(
       (actuales) =>
         actuales.map(
@@ -322,6 +609,7 @@ export default function NuevaEntregaScreen({
         acumulado,
         producto
       ) => {
+
         const cantidad =
           Number(
             producto.cantidad
@@ -375,210 +663,268 @@ export default function NuevaEntregaScreen({
       : 0;
 
   const abonoNumerico =
-    efectivoNumerico +
-    transferenciaNumerica;
+    (
+      aCentavos(efectivoNumerico) +
+      aCentavos(transferenciaNumerica)
+    ) / 100;
 
   const saldoPendiente =
-    total -
-    abonoNumerico;
+    (
+      aCentavos(total) -
+      aCentavos(abonoNumerico)
+    ) / 100;
 
   // ==========================================
-  // GUARDAR
-  // ==========================================
+// GUARDAR
+// ==========================================
 
-  const guardarEntrega = async () => {
-      const productosSeleccionados =
-        productosEntrega.filter(
-          (producto) =>
-            Number(
-              producto.cantidad
-            ) > 0
-        );
+const guardarEntrega = async (
+  confirmarSinPago = false
+) => {
 
-      if (
-        productosSeleccionados.length ===
-        0
-      ) {
-        mostrarToast(
-          'Seleccione al menos un producto.',
-          'warning'
-        );
+  const productosSeleccionados =
+    productosEntrega.filter(
+      (producto) =>
+        Number(
+          producto.cantidad
+        ) > 0
+    );
 
-        return;
-      }
+  if (
+    productosSeleccionados.length ===
+    0
+  ) {
 
-      const precioInvalido =
-        productosSeleccionados.some(
-          (producto) => {
-            const precio =
-              Number(
-                String(
-                  producto.precio
-                ).replace(
-                  ',',
-                  '.'
-                )
-              );
+    mostrarToast(
+      'Seleccione al menos un producto.',
+      'warning'
+    );
 
-            return (
-              Number.isNaN(
-                precio
-              ) ||
-              precio <= 0
-            );
-          }
-        );
+    return;
+  }
 
-      if (
-        precioInvalido
-      ) {
-        mostrarToast(
-          'Revise el precio de los productos seleccionados.',
-          'warning'
-        );
+  const precioInvalido =
+    productosSeleccionados.some(
+      (producto) => {
 
-        return;
-      }
-
-      if (
-        metodosPago.length ===
-        0
-      ) {
-        mostrarToast(
-          'Seleccione al menos un método de pago.',
-          'warning'
-        );
-
-        return;
-      }
-
-      // ======================================
-      // NUEVA VALIDACIÓN
-      // ======================================
-
-      if (
-        abonoNumerico >
-        total
-      ) {
-        mostrarToast(
-          'El abono no puede superar el total de la entrega.',
-          'warning'
-        );
-
-        return;
-      }
-
-      const momentoRegistro =
-        obtenerFechaHora();
-
-      const nuevaEntrega = {
-        clienteId:
-          cliente?.id,
-
-        tipo:
-          'CLIENTE',
-
-        fecha:
-          momentoRegistro.fecha,
-
-        hora:
-          momentoRegistro.hora,
-
-        productos:
-          productosSeleccionados.map(
-            (producto) => ({
-              id:
-                producto.id,
-
-              nombre:
-                producto.nombre,
-
-              cantidad:
-                Number(
-                  producto.cantidad
-                ),
-
-              precio:
-                Number(
-                  String(
-                    producto.precio
-                  ).replace(
-                    ',',
-                    '.'
-                  )
-                ),
-            })
-          ),
-
-        total:
+        const precio =
           Number(
-            total.toFixed(
-              2
+            String(
+              producto.precio
+            ).replace(
+              ',',
+              '.'
             )
-          ),
-
-        abona:
-          Number(
-            abonoNumerico.toFixed(
-              2
-            )
-          ),
-
-        saldoPendiente:
-          Number(
-            saldoPendiente.toFixed(
-              2
-            )
-          ),
-
-        metodosPago,
-
-        pagoEfectivo:
-          Number(
-            efectivoNumerico.toFixed(
-              2
-            )
-          ),
-
-        pagoTransferencia:
-          Number(
-            transferenciaNumerica.toFixed(
-              2
-            )
-          ),
-
-        numeroEdiciones: 0,
-      };
-
-      try {
-        const resultado = await agregarEntrega(
-          nuevaEntrega
-        );
-
-        if (!resultado) {
-          mostrarToast(
-            'No se pudo registrar la entrega.',
-            'error'
           );
 
-          return;
-        }
-
-        mostrarToast(
-          'Entrega registrada correctamente.',
-          'success'
-        );
-
-        navigation.goBack();
-
-      } catch (error) {
-
-        mostrarToast(
-          'No se pudo registrar la entrega.',
-          'error'
+        return (
+          Number.isNaN(
+            precio
+          ) ||
+          precio <= 0
         );
       }
-    };
+    );
+
+  if (
+    precioInvalido
+  ) {
+
+    mostrarToast(
+      'Revise el precio de los productos seleccionados.',
+      'warning'
+    );
+
+    return;
+  }
+
+  // ========================================
+  // ENTREGA SIN MÉTODO DE PAGO
+  // ========================================
+
+  if (
+    metodosPago.length === 0 &&
+    !confirmarSinPago
+  ) {
+
+    mostrarAlert({
+      titulo:
+        'Sin método de pago seleccionado',
+
+      mensaje:
+        'Esta entrega se registrará como no pagada.',
+
+      tipo:
+        'warning',
+
+      textoCancelar:
+        'Cancelar',
+
+      textoConfirmar:
+        'Aceptar',
+
+      mostrarCancelar:
+        true,
+
+      onConfirmar: () => {
+        guardarEntrega(
+          true
+        );
+      },
+    });
+
+    return;
+  }
+
+  if (
+  aCentavos(abonoNumerico) >
+  aCentavos(total)
+) {
+
+    mostrarToast(
+      'El abono no puede superar el total de la entrega.',
+      'warning'
+    );
+
+    return;
+  }
+
+  // ========================================
+  // PREPARAR FECHA SELECCIONADA
+  // ========================================
+
+  const fechaParaGuardar =
+    new Date(
+      fechaSeleccionada
+    );
+
+  const ahora =
+    new Date();
+
+  fechaParaGuardar.setHours(
+    ahora.getHours(),
+    ahora.getMinutes(),
+    ahora.getSeconds(),
+    0
+  );
+
+  const nuevaEntrega = {
+
+    clienteId:
+      cliente?.id,
+
+    tipo:
+      'CLIENTE',
+
+    fecha:
+      formatearFecha(
+        fechaSeleccionada
+      ),
+
+    hora:
+      obtenerHoraActual(),
+
+    fechaSeleccionada:
+      fechaParaGuardar,
+
+    productos:
+      productosSeleccionados.map(
+        (producto) => ({
+          id:
+            producto.id,
+
+          nombre:
+            producto.nombre,
+
+          cantidad:
+            Number(
+              producto.cantidad
+            ),
+
+          precio:
+            Number(
+              String(
+                producto.precio
+              ).replace(
+                ',',
+                '.'
+              )
+            ),
+        })
+      ),
+
+    total:
+      Number(
+        total.toFixed(
+          2
+        )
+      ),
+
+    abona:
+      Number(
+        abonoNumerico.toFixed(
+          2
+        )
+      ),
+
+    saldoPendiente:
+      Number(
+        saldoPendiente.toFixed(
+          2
+        )
+      ),
+
+    metodosPago,
+
+    pagoEfectivo:
+      Number(
+        efectivoNumerico.toFixed(
+          2
+        )
+      ),
+
+    pagoTransferencia:
+      Number(
+        transferenciaNumerica.toFixed(
+          2
+        )
+      ),
+
+    numeroEdiciones: 0,
+  };
+
+  try {
+
+    const resultado =
+      await agregarEntrega(
+        nuevaEntrega
+      );
+
+    if (!resultado) {
+
+      mostrarToast(
+        'No se pudo registrar la entrega.',
+        'error'
+      );
+
+      return;
+    }
+
+    mostrarToast(
+      'Entrega registrada correctamente.',
+      'success'
+    );
+
+    navigation.goBack();
+
+  } catch (error) {
+
+    mostrarToast(
+      'No se pudo registrar la entrega.',
+      'error'
+    );
+  }
+};
 
   return (
     <View
@@ -586,6 +932,7 @@ export default function NuevaEntregaScreen({
         styles.container
       }
     >
+
       <StatusBar
         barStyle="light-content"
         backgroundColor="#08752F"
@@ -596,6 +943,7 @@ export default function NuevaEntregaScreen({
           styles.header
         }
       >
+
         <TouchableOpacity
           style={
             styles.regresar
@@ -604,11 +952,13 @@ export default function NuevaEntregaScreen({
             navigation.goBack()
           }
         >
+
           <Ionicons
             name="arrow-back"
             size={29}
             color="#FFFFFF"
           />
+
         </TouchableOpacity>
 
         <View
@@ -616,6 +966,7 @@ export default function NuevaEntregaScreen({
             styles.headerCentro
           }
         >
+
           <Text
             style={
               styles.tituloHeader
@@ -631,7 +982,9 @@ export default function NuevaEntregaScreen({
           >
             Cliente: {nombreCliente}
           </Text>
+
         </View>
+
       </View>
 
       <ScrollView
@@ -643,16 +996,24 @@ export default function NuevaEntregaScreen({
         }
         keyboardShouldPersistTaps="handled"
       >
+
         <View
           style={
             styles.fechaContainer
           }
         >
-          <View
+
+          <TouchableOpacity
             style={
               styles.fechaDato
             }
+            onPress={() =>
+              setMostrarCalendario(
+                true
+              )
+            }
           >
+
             <Ionicons
               name="calendar-outline"
               size={20}
@@ -664,17 +1025,25 @@ export default function NuevaEntregaScreen({
                 styles.fechaTexto
               }
             >
-              {
-                fechaHoraActual.fecha
-              }
+              {formatearFecha(
+                fechaSeleccionada
+              )}
             </Text>
-          </View>
+
+            <Ionicons
+              name="chevron-down"
+              size={15}
+              color="#08752F"
+            />
+
+          </TouchableOpacity>
 
           <View
             style={
               styles.fechaDato
             }
           >
+
             <Ionicons
               name="time-outline"
               size={20}
@@ -686,12 +1055,22 @@ export default function NuevaEntregaScreen({
                 styles.fechaTexto
               }
             >
-              {
-                fechaHoraActual.hora
-              }
+              {horaActual}
             </Text>
+
           </View>
+
         </View>
+
+        {mostrarCalendario && (
+  <DateTimePicker
+    value={fechaSeleccionada}
+    mode="date"
+    display="default"
+    maximumDate={new Date()}
+    onChange={seleccionarFecha}
+  />
+)}
 
         <Text
           style={
@@ -706,11 +1085,13 @@ export default function NuevaEntregaScreen({
             styles.productosContainer
           }
         >
+
           {productosEntrega.map(
             (
               producto,
               index
             ) => (
+
               <View
                 key={
                   producto.id
@@ -724,19 +1105,19 @@ export default function NuevaEntregaScreen({
                     styles.ultimaFila,
                 ]}
               >
+
                 <View
                   style={
                     styles.productoInfo
                   }
                 >
+
                   <Text
                     style={
                       styles.productoNombre
                     }
                   >
-                    {
-                      producto.nombre
-                    }
+                    {producto.nombre}
                   </Text>
 
                   <Text
@@ -751,6 +1132,7 @@ export default function NuevaEntregaScreen({
                       2
                     )}
                   </Text>
+
                 </View>
 
                 <View
@@ -758,6 +1140,7 @@ export default function NuevaEntregaScreen({
                     styles.precioContainer
                   }
                 >
+
                   <TextInput
                     style={
                       styles.precioInput
@@ -782,6 +1165,7 @@ export default function NuevaEntregaScreen({
                     size={15}
                     color="#08752F"
                   />
+
                 </View>
 
                 <View
@@ -789,6 +1173,7 @@ export default function NuevaEntregaScreen({
                     styles.cantidadContainer
                   }
                 >
+
                   <TouchableOpacity
                     style={
                       styles.botonCantidad
@@ -800,11 +1185,13 @@ export default function NuevaEntregaScreen({
                       )
                     }
                   >
+
                     <Ionicons
                       name="remove"
                       size={18}
                       color="#08752F"
                     />
+
                   </TouchableOpacity>
 
                   <TextInput
@@ -837,16 +1224,22 @@ export default function NuevaEntregaScreen({
                       )
                     }
                   >
+
                     <Ionicons
                       name="add"
                       size={18}
                       color="#08752F"
                     />
+
                   </TouchableOpacity>
+
                 </View>
+
               </View>
+
             )
           )}
+
         </View>
 
         <View
@@ -854,6 +1247,7 @@ export default function NuevaEntregaScreen({
             styles.resumenFila
           }
         >
+
           <Text
             style={
               styles.resumenLabel
@@ -867,12 +1261,47 @@ export default function NuevaEntregaScreen({
               styles.total
             }
           >
-            $
-            {total.toFixed(
-              2
-            )}
+            ${total.toFixed(2)}
           </Text>
+
         </View>
+
+        {saldoTotalCliente > 0 && (
+          <View style={styles.saldoAnteriorContainer}>
+            <View style={styles.saldoAnteriorInfo}>
+              <View style={styles.saldoAnteriorTituloFila}>
+                <Ionicons
+                  name="alert-circle-outline"
+                  size={20}
+                  color="#D71920"
+                />
+
+                <Text style={styles.saldoAnteriorLabel}>
+                  Saldo pendiente:
+                </Text>
+              </View>
+
+              <Text style={styles.saldoAnteriorValor}>
+                ${Number(saldoTotalCliente).toFixed(2)}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.botonAbonarSaldo}
+              onPress={abrirModalAbono}
+            >
+              <Ionicons
+                name="wallet-outline"
+                size={18}
+                color="#D71920"
+              />
+
+              <Text style={styles.botonAbonarSaldoTexto}>
+                Abonar
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         <Text
           style={
@@ -895,11 +1324,13 @@ export default function NuevaEntregaScreen({
             )
           }
         >
+
           <View
             style={
               styles.metodoIzquierda
             }
           >
+
             <Ionicons
               name="cash-outline"
               size={22}
@@ -913,6 +1344,7 @@ export default function NuevaEntregaScreen({
             >
               Efectivo
             </Text>
+
           </View>
 
           <Ionicons
@@ -924,14 +1356,17 @@ export default function NuevaEntregaScreen({
             size={24}
             color="#08752F"
           />
+
         </TouchableOpacity>
 
         {usaEfectivo && (
+
           <View
             style={
               styles.pagoContainer
             }
           >
+
             <Text
               style={
                 styles.pagoLabel
@@ -955,7 +1390,9 @@ export default function NuevaEntregaScreen({
               placeholderTextColor="#999999"
               selectTextOnFocus
             />
+
           </View>
+
         )}
 
         <TouchableOpacity
@@ -971,11 +1408,13 @@ export default function NuevaEntregaScreen({
             )
           }
         >
+
           <View
             style={
               styles.metodoIzquierda
             }
           >
+
             <Ionicons
               name="card-outline"
               size={22}
@@ -989,6 +1428,7 @@ export default function NuevaEntregaScreen({
             >
               Transferencia
             </Text>
+
           </View>
 
           <Ionicons
@@ -1000,14 +1440,17 @@ export default function NuevaEntregaScreen({
             size={24}
             color="#08752F"
           />
+
         </TouchableOpacity>
 
         {usaTransferencia && (
+
           <View
             style={
               styles.pagoContainer
             }
           >
+
             <Text
               style={
                 styles.pagoLabel
@@ -1031,7 +1474,9 @@ export default function NuevaEntregaScreen({
               placeholderTextColor="#999999"
               selectTextOnFocus
             />
+
           </View>
+
         )}
 
         <View
@@ -1039,6 +1484,7 @@ export default function NuevaEntregaScreen({
             styles.resumenFila
           }
         >
+
           <Text
             style={
               styles.resumenLabel
@@ -1052,11 +1498,9 @@ export default function NuevaEntregaScreen({
               styles.abonado
             }
           >
-            $
-            {abonoNumerico.toFixed(
-              2
-            )}
+            ${abonoNumerico.toFixed(2)}
           </Text>
+
         </View>
 
         <View
@@ -1064,6 +1508,7 @@ export default function NuevaEntregaScreen({
             styles.resumenFila
           }
         >
+
           <Text
             style={
               styles.resumenLabel
@@ -1081,21 +1526,20 @@ export default function NuevaEntregaScreen({
                 styles.saldoCero,
             ]}
           >
-            $
-            {saldoPendiente.toFixed(
-              2
-            )}
+            ${saldoPendiente.toFixed(2)}
           </Text>
+
         </View>
 
         <TouchableOpacity
-          style={
+            style={
             styles.botonGuardar
           }
-          onPress={
-            guardarEntrega
+          onPress={() =>
+            guardarEntrega()
           }
         >
+
           <Ionicons
             name="save-outline"
             size={22}
@@ -1109,35 +1553,303 @@ export default function NuevaEntregaScreen({
           >
             Registrar entrega
           </Text>
+
         </TouchableOpacity>
+
       </ScrollView>
-      {/* NAVEGACIÓN A INICIO */}
-      <View style={styles.bottomNavigation}>
+
+      <Modal
+        visible={modalAbonoVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={cerrarModalAbono}
+      >
+        <View style={styles.modalFondo}>
+          <View style={styles.modalAbono}>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderTitulo}>
+                <Ionicons
+                  name="wallet-outline"
+                  size={23}
+                  color="#D71920"
+                />
+
+                <Text style={styles.modalTitulo}>
+                  Abonar saldo pendiente
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                onPress={cerrarModalAbono}
+                disabled={guardandoAbono}
+              >
+                <Ionicons
+                  name="close"
+                  size={26}
+                  color="#666666"
+                />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalSaldoTotal}>
+              <Text style={styles.modalSaldoLabel}>
+                Saldo total:
+              </Text>
+
+              <Text style={styles.modalSaldoValor}>
+                ${Number(saldoTotalCliente).toFixed(2)}
+              </Text>
+            </View>
+
+            <Text style={styles.modalAyuda}>
+              Seleccione una deuda para abonarla directamente o deje todas sin seleccionar para distribuir el abono desde la más antigua.
+            </Text>
+
+            <ScrollView
+              style={styles.listaDeudas}
+              contentContainerStyle={styles.listaDeudasContenido}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              {deudasCliente.map((entrega) => {
+                const seleccionada =
+                  String(deudaSeleccionadaId) ===
+                  String(entrega.id);
+
+                return (
+                  <TouchableOpacity
+                    key={entrega.id}
+                    style={[
+                      styles.deudaTarjeta,
+                      seleccionada &&
+                        styles.deudaTarjetaSeleccionada,
+                    ]}
+                    onPress={() =>
+                      seleccionarDeudaAbono(entrega.id)
+                    }
+                  >
+                    <View style={styles.deudaFechaFila}>
+                      <Ionicons
+                        name="calendar-outline"
+                        size={17}
+                        color="#D71920"
+                      />
+
+                      <Text style={styles.deudaFecha}>
+                        {entrega.fecha || 'Sin fecha'}
+                      </Text>
+                    </View>
+
+                    <Text style={styles.deudaSaldo}>
+                      ${Number(
+                        entrega.saldoPendiente || 0
+                      ).toFixed(2)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+
+              <Text style={styles.modalSeccionTitulo}>
+                Método de pago
+              </Text>
+
+              <TouchableOpacity
+                style={[
+                  styles.metodoAbono,
+                  usaEfectivoAbono &&
+                    styles.metodoAbonoActivo,
+                ]}
+                onPress={() =>
+                  seleccionarMetodoAbono('Efectivo')
+                }
+              >
+                <View style={styles.metodoIzquierda}>
+                  <Ionicons
+                    name="cash-outline"
+                    size={22}
+                    color="#D71920"
+                  />
+
+                  <Text style={styles.metodoAbonoTexto}>
+                    Efectivo
+                  </Text>
+                </View>
+
+                <Ionicons
+                  name={
+                    usaEfectivoAbono
+                      ? 'checkbox'
+                      : 'square-outline'
+                  }
+                  size={24}
+                  color="#D71920"
+                />
+              </TouchableOpacity>
+
+              {usaEfectivoAbono && (
+                <View style={styles.pagoAbonoContainer}>
+                  <Text style={styles.pagoAbonoLabel}>
+                    Monto en efectivo
+                  </Text>
+
+                  <TextInput
+                    style={styles.pagoAbonoInput}
+                    value={abonoEfectivo}
+                    onChangeText={setAbonoEfectivo}
+                    keyboardType="decimal-pad"
+                    placeholder="0.00"
+                    placeholderTextColor="#999999"
+                    selectTextOnFocus
+                  />
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={[
+                  styles.metodoAbono,
+                  usaTransferenciaAbono &&
+                    styles.metodoAbonoActivo,
+                ]}
+                onPress={() =>
+                  seleccionarMetodoAbono('Transferencia')
+                }
+              >
+                <View style={styles.metodoIzquierda}>
+                  <Ionicons
+                    name="card-outline"
+                    size={22}
+                    color="#D71920"
+                  />
+
+                  <Text style={styles.metodoAbonoTexto}>
+                    Transferencia
+                  </Text>
+                </View>
+
+                <Ionicons
+                  name={
+                    usaTransferenciaAbono
+                      ? 'checkbox'
+                      : 'square-outline'
+                  }
+                  size={24}
+                  color="#D71920"
+                />
+              </TouchableOpacity>
+
+              {usaTransferenciaAbono && (
+                <View style={styles.pagoAbonoContainer}>
+                  <Text style={styles.pagoAbonoLabel}>
+                    Monto por transferencia
+                  </Text>
+
+                  <TextInput
+                    style={styles.pagoAbonoInput}
+                    value={abonoTransferencia}
+                    onChangeText={setAbonoTransferencia}
+                    keyboardType="decimal-pad"
+                    placeholder="0.00"
+                    placeholderTextColor="#999999"
+                    selectTextOnFocus
+                  />
+                </View>
+              )}
+
+              <View style={styles.totalAbonoFila}>
+                <Text style={styles.totalAbonoLabel}>
+                  Total abonado:
+                </Text>
+
+                <Text style={styles.totalAbonoValor}>
+                  ${totalAbonoSaldo.toFixed(2)}
+                </Text>
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalBotones}>
+              <TouchableOpacity
+                style={styles.botonCancelarAbono}
+                onPress={cerrarModalAbono}
+                disabled={guardandoAbono}
+              >
+                <Text style={styles.botonCancelarAbonoTexto}>
+                  Cancelar
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.botonConfirmarAbono,
+                  guardandoAbono &&
+                    styles.botonAbonoDeshabilitado,
+                ]}
+                onPress={guardarAbonoSaldo}
+                disabled={guardandoAbono}
+              >
+                <Ionicons
+                  name="wallet-outline"
+                  size={18}
+                  color="#FFFFFF"
+                />
+
+                <Text style={styles.botonConfirmarAbonoTexto}>
+                  {guardandoAbono
+                    ? 'Guardando...'
+                    : 'Abonar'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <View
+        style={
+          styles.bottomNavigation
+        }
+      >
+
         <TouchableOpacity
-          style={styles.navItem}
+          style={
+            styles.navItem
+          }
           onPress={() =>
             navigation.reset({
               index: 0,
-              routes: [{ name: 'Home' }],
+              routes: [
+                {
+                  name: 'Home',
+                },
+              ],
             })
           }
         >
+
           <Ionicons
             name="home"
             size={28}
             color="#08752F"
           />
 
-          <Text style={styles.navActivo}>
+          <Text
+            style={
+              styles.navActivo
+            }
+          >
             Inicio
           </Text>
+
         </TouchableOpacity>
+
       </View>
+
     </View>
   );
 }
+
 const styles =
   StyleSheet.create({
+
     container: {
       flex: 1,
       backgroundColor:
@@ -1173,6 +1885,8 @@ const styles =
       fontSize: 21,
       fontWeight:
         '700',
+      textAlign:
+        'center',
     },
 
     subtituloHeader: {
@@ -1180,6 +1894,8 @@ const styles =
         '#DDEEE2',
       fontSize: 11,
       marginTop: 2,
+      textAlign:
+        'center',
     },
 
     contenido: {
@@ -1470,26 +2186,336 @@ const styles =
         '700',
     },
 
-        bottomNavigation: {
-      height: 70,
-      borderTopWidth: 1,
-      borderTopColor: '#E5E5E5',
+    saldoAnteriorContainer: {
+      minHeight: 72,
+      borderWidth: 1,
+      borderColor: '#F0CACA',
+      borderRadius: 10,
+      backgroundColor: '#FFF7F7',
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      marginTop: 2,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 10,
+    },
+
+    saldoAnteriorInfo: {
+      flex: 1,
+    },
+
+    saldoAnteriorTituloFila: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+
+    saldoAnteriorLabel: {
+      color: '#D71920',
+      fontSize: 12,
+      fontWeight: '700',
+    },
+
+    saldoAnteriorValor: {
+      color: '#D71920',
+      fontSize: 20,
+      fontWeight: '800',
+      marginTop: 3,
+    },
+
+    botonAbonarSaldo: {
+      minWidth: 92,
+      height: 40,
+      borderWidth: 1,
+      borderColor: '#D71920',
+      borderRadius: 8,
       backgroundColor: '#FFFFFF',
+      flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
+      gap: 5,
+      paddingHorizontal: 10,
+    },
+
+    botonAbonarSaldoTexto: {
+      color: '#D71920',
+      fontSize: 12,
+      fontWeight: '700',
+    },
+
+    modalFondo: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      justifyContent: 'center',
+      paddingHorizontal: 18,
+      paddingVertical: 30,
+    },
+
+    modalAbono: {
+      width: '100%',
+      maxHeight: '88%',
+      backgroundColor: '#FFFFFF',
+      borderRadius: 16,
+      padding: 16,
+    },
+
+    modalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 12,
+    },
+
+    modalHeaderTitulo: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginRight: 10,
+    },
+
+    modalTitulo: {
+      flex: 1,
+      color: '#D71920',
+      fontSize: 17,
+      fontWeight: '800',
+    },
+
+    modalSaldoTotal: {
+      minHeight: 50,
+      borderWidth: 1,
+      borderColor: '#F0CACA',
+      borderRadius: 9,
+      backgroundColor: '#FFF7F7',
+      paddingHorizontal: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+
+    modalSaldoLabel: {
+      color: '#666666',
+      fontSize: 13,
+      fontWeight: '700',
+    },
+
+    modalSaldoValor: {
+      color: '#D71920',
+      fontSize: 20,
+      fontWeight: '800',
+    },
+
+    modalAyuda: {
+      color: '#777777',
+      fontSize: 10,
+      lineHeight: 14,
+      marginTop: 8,
+      marginBottom: 8,
+    },
+
+    listaDeudas: {
+      flexGrow: 0,
+    },
+
+    listaDeudasContenido: {
+      paddingBottom: 4,
+    },
+
+    deudaTarjeta: {
+      minHeight: 52,
+      borderWidth: 1,
+      borderColor: '#F0CACA',
+      borderRadius: 9,
+      backgroundColor: '#FFF9F9',
+      paddingHorizontal: 12,
+      marginBottom: 7,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+
+    deudaTarjetaSeleccionada: {
+      borderColor: '#D71920',
+      backgroundColor: '#FFEAEA',
+      borderWidth: 2,
+    },
+
+    deudaFechaFila: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+
+    deudaFecha: {
+      color: '#444444',
+      fontSize: 12,
+      fontWeight: '700',
+    },
+
+    deudaSaldo: {
+      color: '#D71920',
+      fontSize: 16,
+      fontWeight: '800',
+    },
+
+    modalSeccionTitulo: {
+      color: '#D71920',
+      fontSize: 14,
+      fontWeight: '800',
+      marginTop: 7,
+      marginBottom: 7,
+    },
+
+    metodoAbono: {
+      minHeight: 48,
+      borderWidth: 1,
+      borderColor: '#E7CFCF',
+      borderRadius: 9,
+      marginBottom: 7,
+      paddingHorizontal: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+
+    metodoAbonoActivo: {
+      backgroundColor: '#FFF0F0',
+      borderColor: '#D71920',
+    },
+
+    metodoAbonoTexto: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: '#333333',
+    },
+
+    pagoAbonoContainer: {
+      minHeight: 52,
+      backgroundColor: '#FFF7F7',
+      borderRadius: 8,
+      marginBottom: 7,
+      paddingHorizontal: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+    },
+
+    pagoAbonoLabel: {
+      flex: 1,
+      fontSize: 11,
+      fontWeight: '600',
+      color: '#444444',
+    },
+
+    pagoAbonoInput: {
+      width: 100,
+      height: 38,
+      borderWidth: 1,
+      borderColor: '#E3BDBD',
+      borderRadius: 7,
+      backgroundColor: '#FFFFFF',
+      paddingHorizontal: 9,
+      textAlign: 'right',
+      color: '#222222',
+    },
+
+    totalAbonoFila: {
+      minHeight: 50,
+      borderTopWidth: 1,
+      borderTopColor: '#F0CACA',
+      marginTop: 4,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+
+    totalAbonoLabel: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: '#333333',
+    },
+
+    totalAbonoValor: {
+      fontSize: 19,
+      fontWeight: '800',
+      color: '#D71920',
+    },
+
+    modalBotones: {
+      flexDirection: 'row',
+      gap: 9,
+      marginTop: 10,
+    },
+
+    botonCancelarAbono: {
+      flex: 1,
+      height: 46,
+      borderWidth: 1,
+      borderColor: '#D71920',
+      borderRadius: 9,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#FFFFFF',
+    },
+
+    botonCancelarAbonoTexto: {
+      color: '#D71920',
+      fontSize: 13,
+      fontWeight: '700',
+    },
+
+    botonConfirmarAbono: {
+      flex: 1,
+      height: 46,
+      borderRadius: 9,
+      backgroundColor: '#D71920',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+    },
+
+    botonConfirmarAbonoTexto: {
+      color: '#FFFFFF',
+      fontSize: 13,
+      fontWeight: '700',
+    },
+
+    botonAbonoDeshabilitado: {
+      opacity: 0.6,
+    },
+
+    bottomNavigation: {
+      height: 70,
+      borderTopWidth: 1,
+      borderTopColor:
+        '#E5E5E5',
+      backgroundColor:
+        '#FFFFFF',
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
     },
 
     navItem: {
       width: 100,
       height: '100%',
-      alignItems: 'center',
-      justifyContent: 'center',
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
     },
 
     navActivo: {
-      color: '#08752F',
+      color:
+        '#08752F',
       fontSize: 12,
-      fontWeight: '700',
+      fontWeight:
+        '700',
       marginTop: 3,
     },
+
   });

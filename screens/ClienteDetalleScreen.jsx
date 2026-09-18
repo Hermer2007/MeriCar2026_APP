@@ -9,647 +9,1371 @@ import {
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
+
 import { useEntregas } from '../context/EntregasContext';
+import { useAlert } from '../context/AlertContext';
 
-const ClienteDetalleScreen = ({ navigation, route }) => {
-  const cliente = route.params?.cliente;
+const ClienteDetalleScreen = ({
+  navigation,
+  route,
+}) => {
 
-  const { obtenerEntregasCliente } = useEntregas();
+  const cliente =
+    route.params?.cliente;
 
-  const historial = cliente
-  ? obtenerEntregasCliente(cliente.id)
-  : [];
+  const {
+    obtenerEntregasCliente,
+  } = useEntregas();
 
-  const nombreCompleto = useMemo(() => {
-  if (!cliente) {
-    return 'Cliente';
-  }
+  const historial =
+    cliente
+      ? obtenerEntregasCliente(
+          cliente.id
+        )
+      : [];
 
-  return (
-    cliente.nombre ||
-    `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim()
-  );
-}, [cliente]);
+  // ==========================================
+  // CLIENTE
+  // ==========================================
 
-  const editarEntrega = (entrega) => {
-    navigation.navigate('EditarEntrega', {
-      cliente,
-      entrega,
-    });
+  const nombreCompleto =
+    useMemo(() => {
+
+      if (!cliente) {
+        return 'Cliente';
+      }
+
+      return (
+        cliente.nombre ||
+        `${cliente.nombres || ''} ${
+          cliente.apellidos || ''
+        }`.trim()
+      );
+
+    }, [cliente]);
+
+  // ==========================================
+  // SALDO PENDIENTE TOTAL
+  // ==========================================
+
+  const saldoPendienteTotal =
+    historial.reduce(
+      (
+        acumulado,
+        entrega
+      ) => {
+
+        const saldo =
+          Number(
+            entrega.saldoPendiente
+          ) || 0;
+
+        return (
+          acumulado +
+          Math.max(
+            saldo,
+            0
+          )
+        );
+      },
+      0
+    );
+
+  // ==========================================
+  // NAVEGACIÓN
+  // ==========================================
+
+  const editarEntrega = (
+    entrega
+  ) => {
+
+    navigation.navigate(
+      'EditarEntrega',
+      {
+        cliente,
+        entrega,
+      }
+    );
   };
 
   const nuevaEntrega = () => {
-    navigation.navigate('NuevaEntrega', {
-      cliente,
+
+    navigation.navigate(
+      'NuevaEntrega',
+      {
+        cliente,
+      }
+    );
+  };
+
+  // ==========================================
+  // ALERTA
+  // ==========================================
+
+  const {
+    mostrarAlert,
+  } = useAlert();
+
+  const cerrarSesion = () => {
+
+    mostrarAlert({
+      titulo:
+        'Cerrar sesión',
+
+      mensaje:
+        '¿Desea salir de la aplicación?',
+
+      tipo:
+        'question',
+
+      mostrarCancelar:
+        true,
+
+      textoCancelar:
+        'Cancelar',
+
+      textoConfirmar:
+        'Salir',
+
+      onConfirmar: () => {
+        navigation.replace(
+          'Login'
+        );
+      },
     });
   };
 
-  const renderEntrega = ({ item }) => {
-    const saldoCero = Number(item.saldoPendiente) === 0;
+  // ==========================================
+  // RENDER ENTREGA
+  // ==========================================
+
+  const renderEntrega = ({
+    item,
+  }) => {
+
+    const saldoCero =
+      Number(
+        item.saldoPendiente
+      ) === 0;
+
     const metodos =
-    Array.isArray(item.metodosPago)
-      ? item.metodosPago
-      : item.metodoPago
-      ? [item.metodoPago]
-      : [];
+      Array.isArray(
+        item.metodosPago
+      )
+        ? item.metodosPago
+        : item.metodoPago
+        ? [
+            item.metodoPago,
+          ]
+        : [];
+
+    const sinMetodoPago =
+      metodos.length === 0;
 
     return (
-      <View style={styles.tarjeta}>
+      <View
+        style={
+          styles.tarjeta
+        }
+      >
 
         {/* CABECERA DE ENTREGA */}
-        <View style={styles.encabezadoEntrega}>
-          <View style={styles.fechaContainer}>
+
+        <View
+          style={
+            styles.encabezadoEntrega
+          }
+        >
+
+          <View
+            style={
+              styles.fechaContainer
+            }
+          >
+
             <Ionicons
               name="calendar-outline"
               size={19}
               color="#08752F"
             />
 
-            <Text style={styles.fecha}>
+            <Text
+              style={
+                styles.fecha
+              }
+            >
               {item.fecha}
             </Text>
 
-            <View style={styles.badgeEntrega}>
+            <View
+              style={
+                styles.badgeEntrega
+              }
+            >
+
               <Ionicons
                 name="arrow-up"
                 size={12}
                 color="#08752F"
               />
 
-              <Text style={styles.badgeTexto}>
+              <Text
+                style={
+                  styles.badgeTexto
+                }
+              >
                 Entrega
               </Text>
+
             </View>
+
           </View>
 
           <TouchableOpacity
-            style={styles.botonEditar}
-            onPress={() => editarEntrega(item)}
+            style={
+              styles.botonEditar
+            }
+            onPress={() =>
+              editarEntrega(
+                item
+              )
+            }
           >
+
             <Ionicons
               name="pencil"
               size={21}
               color="#08752F"
             />
+
           </TouchableOpacity>
+
         </View>
 
         {/* PRODUCTOS */}
-        <View style={styles.productos}>
-          {item.productos.map((producto, index) => (
-            <View
-              key={`${item.id}-${index}`}
-              style={styles.productoFila}
-            >
-              <Text style={styles.productoCantidad}>
-                {producto.cantidad} x {Number(producto.precio).toFixed(2)}
-              </Text>
 
-              {index < item.productos.length - 1 && (
-                <Text style={styles.signoMas}>
-                  +
-                </Text>
-              )}
-            </View>
-          ))}
+        <View
+          style={
+            styles.productos
+          }
+        >
+
+          {Array.isArray(
+            item.productos
+          ) &&
+            item.productos.map(
+              (
+                producto,
+                index
+              ) => (
+
+                <View
+                  key={`${item.id}-${index}`}
+                  style={
+                    styles.productoFila
+                  }
+                >
+
+                  <Text
+                    style={
+                      styles.productoCantidad
+                    }
+                  >
+                    {producto.cantidad} x $
+                    {Number(
+                      producto.precio
+                    ).toFixed(
+                      2
+                    )}
+                  </Text>
+
+                  {index <
+                    item.productos.length -
+                      1 && (
+
+                    <Text
+                      style={
+                        styles.signoMas
+                      }
+                    >
+                      +
+                    </Text>
+
+                  )}
+
+                </View>
+
+              )
+            )}
+
         </View>
 
-        <View style={styles.separador} />
+        <View
+          style={
+            styles.separador
+          }
+        />
 
         {/* TOTAL / ABONA */}
-        <View style={styles.resumenFila}>
-          <View style={styles.resumenItem}>
-            <Text style={styles.resumenLabel}>
+
+        <View
+          style={
+            styles.resumenFila
+          }
+        >
+
+          <View
+            style={
+              styles.resumenItem
+            }
+          >
+
+            <Text
+              style={
+                styles.resumenLabel
+              }
+            >
               Total:
             </Text>
 
-            <Text style={styles.total}>
-              ${Number(item.total).toFixed(2)}
+            <Text
+              style={
+                styles.total
+              }
+            >
+              $
+              {Number(
+                item.total
+              ).toFixed(
+                2
+              )}
             </Text>
+
           </View>
 
-          <View style={styles.divisorVertical} />
+          <View
+            style={
+              styles.divisorVertical
+            }
+          />
 
-          <View style={styles.resumenItem}>
-            <Text style={styles.resumenLabel}>
+          <View
+            style={
+              styles.resumenItem
+            }
+          >
+
+            <Text
+              style={
+                styles.resumenLabel
+              }
+            >
               Abona:
             </Text>
 
-            <Text style={styles.abona}>
-              ${Number(item.abona).toFixed(2)}
+            <Text
+              style={
+                styles.abona
+              }
+            >
+              $
+              {Number(
+                item.abona
+              ).toFixed(
+                2
+              )}
             </Text>
+
           </View>
+
         </View>
 
         {/* MÉTODO DE PAGO */}
-        <View style={styles.metodoPagoContainer}>
-          <Text style={styles.metodoLabel}>
+
+        <View
+          style={
+            styles.metodoPagoContainer
+          }
+        >
+
+          <Text
+            style={
+              styles.metodoLabel
+            }
+          >
             Método de pago:
           </Text>
 
-          <View style={styles.metodosContainer}>
+          <View
+            style={
+              styles.metodosContainer
+            }
+          >
 
-            {metodos.includes('Efectivo') && (
-              <View style={styles.metodoItem}>
+            {sinMetodoPago && (
+
+              <View
+                style={
+                  styles.metodoItem
+                }
+              >
+
+                <Ionicons
+                  name="close-circle-outline"
+                  size={17}
+                  color="#D71920"
+                />
+
+                <Text
+                  style={
+                    styles.noPagaTexto
+                  }
+                >
+                  No paga
+                </Text>
+
+              </View>
+
+            )}
+
+            {metodos.includes(
+              'Efectivo'
+            ) && (
+
+              <View
+                style={
+                  styles.metodoItem
+                }
+              >
+
                 <Ionicons
                   name="cash-outline"
                   size={17}
                   color="#08752F"
                 />
 
-                <Text style={styles.metodoTexto}>
+                <Text
+                  style={
+                    styles.metodoTexto
+                  }
+                >
                   Efectivo
                 </Text>
 
-                <Text style={styles.metodoMonto}>
+                <Text
+                  style={
+                    styles.metodoMonto
+                  }
+                >
                   $
                   {Number(
                     item.pagoEfectivo ??
-                    (
-                      item.metodoPago === 'Efectivo'
-                        ? item.abona
-                        : 0
-                    )
-                  ).toFixed(2)}
+                      (
+                        item.metodoPago ===
+                        'Efectivo'
+                          ? item.abona
+                          : 0
+                      )
+                  ).toFixed(
+                    2
+                  )}
                 </Text>
+
               </View>
+
             )}
 
-            {metodos.includes('Transferencia') && (
-              <View style={styles.metodoItem}>
+            {metodos.includes(
+              'Transferencia'
+            ) && (
+
+              <View
+                style={
+                  styles.metodoItem
+                }
+              >
+
                 <Ionicons
                   name="card-outline"
                   size={17}
                   color="#08752F"
                 />
 
-                <Text style={styles.metodoTexto}>
+                <Text
+                  style={
+                    styles.metodoTexto
+                  }
+                >
                   Transferencia
                 </Text>
 
-                <Text style={styles.metodoMonto}>
+                <Text
+                  style={
+                    styles.metodoMonto
+                  }
+                >
                   $
                   {Number(
                     item.pagoTransferencia ??
-                    (
-                      item.metodoPago === 'Transferencia'
-                        ? item.abona
-                        : 0
-                    )
-                  ).toFixed(2)}
+                      (
+                        item.metodoPago ===
+                        'Transferencia'
+                          ? item.abona
+                          : 0
+                      )
+                  ).toFixed(
+                    2
+                  )}
                 </Text>
+
               </View>
+
             )}
 
           </View>
+
         </View>
 
         {/* SALDO */}
-        <View style={styles.saldoFila}>
-          <Text style={styles.saldoLabel}>
+
+        <View
+          style={
+            styles.saldoFila
+          }
+        >
+
+          <Text
+            style={
+              styles.saldoLabel
+            }
+          >
             Saldo pendiente:
           </Text>
 
           <Text
             style={[
               styles.saldo,
+
               saldoCero
                 ? styles.saldoCero
                 : styles.saldoPendiente,
             ]}
           >
-            ${Number(item.saldoPendiente).toFixed(2)}
+            $
+            {Number(
+              item.saldoPendiente
+            ).toFixed(
+              2
+            )}
           </Text>
+
         </View>
 
       </View>
     );
   };
 
+  // ==========================================
+  // INTERFAZ
+  // ==========================================
+
   return (
-    <View style={styles.container}>
+    <View
+      style={
+        styles.container
+      }
+    >
+
       <StatusBar
         barStyle="light-content"
         backgroundColor="#08752F"
       />
 
       {/* HEADER */}
-      <View style={styles.header}>
+
+      <View
+        style={
+          styles.header
+        }
+      >
+
         <TouchableOpacity
-          style={styles.botonRegresar}
-          onPress={() => navigation.goBack()}
+          style={
+            styles.botonRegresar
+          }
+          onPress={() =>
+            navigation.goBack()
+          }
         >
+
           <Ionicons
             name="arrow-back"
             size={29}
             color="#FFFFFF"
           />
+
         </TouchableOpacity>
 
-        <View style={styles.headerCentro}>
-          <Text style={styles.nombreCliente}>
+        <View
+          style={
+            styles.headerCentro
+          }
+        >
+
+          <Text
+            style={
+              styles.nombreCliente
+            }
+          >
             {nombreCompleto}
           </Text>
 
-          <Text style={styles.telefonoCliente}>
+          <Text
+            style={
+              styles.telefonoCliente
+            }
+          >
             {cliente?.telefono || ''}
           </Text>
+
         </View>
+
       </View>
 
-      <Text style={styles.historialTitulo}>
-        Historial
-      </Text>
+      {/* TITULO Y SALDO TOTAL */}
+
+      <View
+        style={
+          styles.historialEncabezado
+        }
+      >
+
+        <Text
+          style={
+            styles.historialTitulo
+          }
+        >
+          Historial
+        </Text>
+
+        <View
+          style={
+            styles.saldoTotalContainer
+          }
+        >
+
+          <Text
+            style={
+              styles.saldoTotalLabel
+            }
+          >
+            Saldo pendiente total
+          </Text>
+
+          <Text
+            style={[
+              styles.saldoTotalValor,
+
+              saldoPendienteTotal <=
+              0
+                ? styles.saldoTotalCero
+                : styles.saldoTotalPendiente,
+            ]}
+          >
+            $
+            {saldoPendienteTotal.toFixed(
+              2
+            )}
+          </Text>
+
+        </View>
+
+      </View>
 
       {/* HISTORIAL */}
+
       <FlatList
-        data={historial}
-        keyExtractor={(item) => item.id}
-        renderItem={renderEntrega}
-        contentContainerStyle={styles.lista}
-        showsVerticalScrollIndicator={false}
+        data={
+          historial
+        }
+        keyExtractor={(
+          item
+        ) =>
+          item.id
+        }
+        renderItem={
+          renderEntrega
+        }
+        contentContainerStyle={
+          styles.lista
+        }
+        showsVerticalScrollIndicator={
+          false
+        }
         ListEmptyComponent={
-          <View style={styles.vacio}>
+
+          <View
+            style={
+              styles.vacio
+            }
+          >
+
             <Ionicons
               name="receipt-outline"
               size={55}
               color="#BBBBBB"
             />
 
-            <Text style={styles.vacioTitulo}>
+            <Text
+              style={
+                styles.vacioTitulo
+              }
+            >
               Sin entregas registradas
             </Text>
 
-            <Text style={styles.vacioSubtitulo}>
+            <Text
+              style={
+                styles.vacioSubtitulo
+              }
+            >
               Las entregas realizadas al cliente aparecerán aquí.
             </Text>
+
           </View>
+
         }
       />
 
       {/* NUEVA ENTREGA */}
-      <View style={styles.botonNuevaContainer}>
+
+      <View
+        style={
+          styles.botonNuevaContainer
+        }
+      >
+
         <TouchableOpacity
-          style={styles.botonNueva}
-          onPress={nuevaEntrega}
+          style={
+            styles.botonNueva
+          }
+          onPress={
+            nuevaEntrega
+          }
         >
+
           <Ionicons
             name="add"
             size={26}
             color="#FFFFFF"
           />
 
-          <Text style={styles.textoNueva}>
+          <Text
+            style={
+              styles.textoNueva
+            }
+          >
             Nueva entrega
           </Text>
+
         </TouchableOpacity>
+
       </View>
 
-      {/* NAVEGACIÓN A INICIO */}
-      <View style={styles.bottomNavigation}>
+      {/* BARRA INFERIOR */}
+
+      <View
+        style={
+          styles.bottomNavigation
+        }
+      >
+
         <TouchableOpacity
-          style={styles.navItem}
+          style={
+            styles.navItem
+          }
           onPress={() =>
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'Home' }],
-            })
+            navigation.navigate(
+              'Home'
+            )
           }
         >
+
           <Ionicons
             name="home"
-            size={28}
+            size={27}
             color="#08752F"
           />
 
-          <Text style={styles.navActivo}>
+          <Text
+            style={
+              styles.navActivo
+            }
+          >
             Inicio
           </Text>
+
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={
+            styles.navItem
+          }
+          onPress={() =>
+            navigation.navigate(
+              'Perfil'
+            )
+          }
+        >
+
+          <Ionicons
+            name="person"
+            size={27}
+            color="#222222"
+          />
+
+          <Text
+            style={
+              styles.navTexto
+            }
+          >
+            Perfil
+          </Text>
+
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={
+            styles.navItem
+          }
+          onPress={
+            cerrarSesion
+          }
+        >
+
+          <Ionicons
+            name="log-out-outline"
+            size={29}
+            color="#222222"
+          />
+
+          <Text
+            style={
+              styles.navTexto
+            }
+          >
+            Salir
+          </Text>
+
+        </TouchableOpacity>
+
       </View>
+
     </View>
   );
 };
 
 export default ClienteDetalleScreen;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
+// ==========================================
+// ESTILOS
+// ==========================================
 
-  header: {
-    height: 115,
-    backgroundColor: '#08752F',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    paddingBottom: 17,
-  },
+const styles =
+  StyleSheet.create({
 
-  botonRegresar: {
-    position: 'absolute',
-    left: 18,
-    bottom: 18,
-    width: 45,
-    height: 45,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  headerCentro: {
-    alignItems: 'center',
-  },
-
-  nombreCliente: {
-    color: '#FFFFFF',
-    fontSize: 22,
-    fontWeight: '700',
-  },
-
-  telefonoCliente: {
-    color: '#E2F2E6',
-    fontSize: 14,
-    marginTop: 2,
-  },
-
-  historialTitulo: {
-    color: '#08752F',
-    fontSize: 16,
-    fontWeight: '700',
-    marginHorizontal: 20,
-    marginTop: 15,
-    marginBottom: 5,
-  },
-
-  lista: {
-    paddingHorizontal: 20,
-    paddingTop: 5,
-    paddingBottom: 20,
-  },
-
-  tarjeta: {
-    borderWidth: 1,
-    borderColor: '#E1E1E1',
-    borderRadius: 13,
-    backgroundColor: '#FFFFFF',
-    padding: 14,
-    marginBottom: 12,
-
-    elevation: 2,
-
-    shadowColor: '#000000',
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    shadowOffset: {
-      width: 0,
-      height: 2,
+    container: {
+      flex: 1,
+      backgroundColor:
+        '#FFFFFF',
     },
-  },
 
-  encabezadoEntrega: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
+    header: {
+      height: 115,
+      backgroundColor:
+        '#08752F',
+      justifyContent:
+        'flex-end',
+      alignItems:
+        'center',
+      paddingBottom: 17,
+    },
 
-  fechaContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-  },
+    botonRegresar: {
+      position:
+        'absolute',
+      left: 18,
+      bottom: 18,
+      width: 45,
+      height: 45,
+      justifyContent:
+        'center',
+      alignItems:
+        'center',
+    },
 
-  fecha: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#202020',
-  },
+    headerCentro: {
+      alignItems:
+        'center',
+      paddingHorizontal: 65,
+    },
 
-  badgeEntrega: {
-    height: 25,
-    paddingHorizontal: 8,
-    borderRadius: 7,
-    backgroundColor: '#E7F3EA',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
+    nombreCliente: {
+      color:
+        '#FFFFFF',
+      fontSize: 22,
+      fontWeight:
+        '700',
+      textAlign:
+        'center',
+    },
 
-  badgeTexto: {
-    color: '#08752F',
-    fontSize: 11,
-    fontWeight: '600',
-  },
+    telefonoCliente: {
+      color:
+        '#E2F2E6',
+      fontSize: 14,
+      marginTop: 2,
+      textAlign:
+        'center',
+    },
 
-  botonEditar: {
-    width: 38,
-    height: 38,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+    // ========================================
+    // HISTORIAL / SALDO TOTAL
+    // ========================================
 
-  productos: {
-    marginTop: 9,
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-  },
+    historialEncabezado: {
+      paddingHorizontal: 20,
+      paddingTop: 15,
+      paddingBottom: 7,
+    },
 
-  productoFila: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+    historialTitulo: {
+      color:
+        '#08752F',
+      fontSize: 16,
+      fontWeight:
+        '700',
+      marginBottom: 8,
+    },
 
-  productoCantidad: {
-    fontSize: 15,
-    color: '#282828',
-  },
+    saldoTotalContainer: {
+      minHeight: 48,
+      borderWidth: 1,
+      borderColor:
+        '#F0CACA',
+      borderRadius: 10,
+      backgroundColor:
+        '#FFF7F7',
+      paddingHorizontal: 13,
+      paddingVertical: 9,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      justifyContent:
+        'space-between',
+    },
 
-  signoMas: {
-    marginHorizontal: 12,
-    color: '#08752F',
-    fontSize: 20,
-    fontWeight: '700',
-  },
+    saldoTotalLabel: {
+      flex: 1,
+      color:
+        '#666666',
+      fontSize: 12,
+      fontWeight:
+        '600',
+      marginRight: 10,
+    },
 
-  separador: {
-    height: 1,
-    backgroundColor: '#EEEEEE',
-    marginVertical: 11,
-  },
+    saldoTotalValor: {
+      fontSize: 18,
+      fontWeight:
+        '800',
+    },
 
-  resumenFila: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+    saldoTotalPendiente: {
+      color:
+        '#D71920',
+    },
 
-  resumenItem: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
+    saldoTotalCero: {
+      color:
+        '#08752F',
+    },
 
-  divisorVertical: {
-    width: 1,
-    height: 22,
-    backgroundColor: '#E3E3E3',
-    marginHorizontal: 10,
-  },
+    lista: {
+      paddingHorizontal: 20,
+      paddingTop: 5,
+      paddingBottom: 20,
+    },
 
-  resumenLabel: {
-    fontSize: 12,
-    color: '#666666',
-  },
+    // ========================================
+    // TARJETAS
+    // ========================================
 
-  total: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#08752F',
-  },
+    tarjeta: {
+      borderWidth: 1,
+      borderColor:
+        '#E1E1E1',
+      borderRadius: 13,
+      backgroundColor:
+        '#FFFFFF',
+      padding: 14,
+      marginBottom: 12,
 
-  abona: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#08752F',
-  },
+      elevation: 2,
 
-  metodoFila: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 11,
-    gap: 6,
-  },
+      shadowColor:
+        '#000000',
+      shadowOpacity: 0.05,
+      shadowRadius: 4,
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+    },
 
-  metodoLabel: {
-    fontSize: 12,
-    color: '#666666',
-  },
+    encabezadoEntrega: {
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      justifyContent:
+        'space-between',
+    },
 
-  metodoValor: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#08752F',
-  },
+    fechaContainer: {
+      flex: 1,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      flexWrap:
+        'wrap',
+      gap: 7,
+      paddingRight: 5,
+    },
 
-  metodoPagoContainer: {
-    marginTop: 11,
-  },
+    fecha: {
+      fontSize: 15,
+      fontWeight:
+        '700',
+      color:
+        '#202020',
+    },
 
-  metodoLabel: {
-    fontSize: 12,
-    color: '#666666',
-    marginBottom: 5,
-  },
+    badgeEntrega: {
+      minHeight: 25,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 7,
+      backgroundColor:
+        '#E7F3EA',
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      gap: 3,
+    },
 
-  metodosContainer: {
-    gap: 5,
-  },
+    badgeTexto: {
+      color:
+        '#08752F',
+      fontSize: 11,
+      fontWeight:
+        '600',
+    },
 
-  metodoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
+    botonEditar: {
+      width: 38,
+      height: 38,
+      justifyContent:
+        'center',
+      alignItems:
+        'center',
+    },
 
-  metodoTexto: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#08752F',
-  },
+    productos: {
+      marginTop: 9,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      flexWrap:
+        'wrap',
+    },
 
-  metodoMonto: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#08752F',
-  },
+    productoFila: {
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+    },
 
-  saldoFila: {
-    marginTop: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: 5,
-  },
+    productoCantidad: {
+      fontSize: 15,
+      color:
+        '#282828',
+    },
 
-  saldoLabel: {
-    fontSize: 12,
-    color: '#666666',
-  },
+    signoMas: {
+      marginHorizontal: 12,
+      color:
+        '#08752F',
+      fontSize: 20,
+      fontWeight:
+        '700',
+    },
 
-  saldo: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
+    separador: {
+      minHeight: 1,
+      backgroundColor:
+        '#E5E5E5',
+      marginVertical: 11,
+    },
 
-  saldoCero: {
-    color: '#08752F',
-  },
+    resumenFila: {
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+    },
 
-  saldoPendiente: {
-    color: '#D71920',
-  },
+    resumenItem: {
+      flex: 1,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      flexWrap:
+        'wrap',
+      gap: 6,
+    },
 
-  vacio: {
-    alignItems: 'center',
-    paddingTop: 70,
-    paddingHorizontal: 30,
-  },
+    divisorVertical: {
+      width: 1,
+      minHeight: 22,
+      backgroundColor:
+        '#E3E3E3',
+      marginHorizontal: 10,
+    },
 
-  vacioTitulo: {
-    marginTop: 12,
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#555555',
-  },
+    resumenLabel: {
+      fontSize: 12,
+      color:
+        '#666666',
+    },
 
-  vacioSubtitulo: {
-    marginTop: 5,
-    textAlign: 'center',
-    color: '#999999',
-    fontSize: 13,
-  },
+    total: {
+      fontSize: 14,
+      fontWeight:
+        '700',
+      color:
+        '#08752F',
+    },
 
-  botonNuevaContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 9,
-    backgroundColor: '#FFFFFF',
-  },
+    abona: {
+      fontSize: 14,
+      fontWeight:
+        '700',
+      color:
+        '#08752F',
+    },
 
-  botonNueva: {
-    height: 52,
-    borderRadius: 10,
-    backgroundColor: '#08752F',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 7,
-  },
+    // ========================================
+    // MÉTODOS DE PAGO
+    // ========================================
 
-  textoNueva: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
+    metodoPagoContainer: {
+      marginTop: 11,
+    },
 
-  bottomNavigation: {
-    height: 78,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E5E5',
-    backgroundColor: '#FFFFFF',
-    flexDirection: 'row',
-  },
+    metodoLabel: {
+      fontSize: 12,
+      color:
+        '#666666',
+      marginBottom: 5,
+    },
 
-  navItem: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+    metodosContainer: {
+      gap: 5,
+    },
 
-  navActivo: {
-    color: '#08752F',
-    fontSize: 12,
-    fontWeight: '700',
-    marginTop: 3,
-  },
-});
+    metodoItem: {
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      flexWrap:
+        'wrap',
+      gap: 5,
+    },
+
+    metodoTexto: {
+      fontSize: 12,
+      fontWeight:
+        '700',
+      color:
+        '#08752F',
+    },
+
+    metodoMonto: {
+      fontSize: 12,
+      fontWeight:
+        '700',
+      color:
+        '#08752F',
+    },
+
+    noPagaTexto: {
+      fontSize: 12,
+      fontWeight:
+        '700',
+      color:
+        '#D71920',
+    },
+
+    // ========================================
+    // SALDO
+    // ========================================
+
+    saldoFila: {
+      marginTop: 10,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      justifyContent:
+        'flex-end',
+      flexWrap:
+        'wrap',
+      gap: 5,
+    },
+
+    saldoLabel: {
+      fontSize: 12,
+      color:
+        '#666666',
+    },
+
+    saldo: {
+      fontSize: 15,
+      fontWeight:
+        '700',
+    },
+
+    saldoCero: {
+      color:
+        '#08752F',
+    },
+
+    saldoPendiente: {
+      color:
+        '#D71920',
+    },
+
+    // ========================================
+    // VACÍO
+    // ========================================
+
+    vacio: {
+      alignItems:
+        'center',
+      paddingTop: 70,
+      paddingHorizontal: 30,
+    },
+
+    vacioTitulo: {
+      marginTop: 12,
+      fontSize: 17,
+      fontWeight:
+        '700',
+      color:
+        '#555555',
+      textAlign:
+        'center',
+    },
+
+    vacioSubtitulo: {
+      marginTop: 5,
+      textAlign:
+        'center',
+      color:
+        '#999999',
+      fontSize: 13,
+    },
+
+    // ========================================
+    // NUEVA ENTREGA
+    // ========================================
+
+    botonNuevaContainer: {
+      paddingHorizontal: 20,
+      paddingVertical: 9,
+      backgroundColor:
+        '#FFFFFF',
+    },
+
+    botonNueva: {
+      minHeight: 52,
+      borderRadius: 10,
+      backgroundColor:
+        '#08752F',
+      flexDirection:
+        'row',
+      justifyContent:
+        'center',
+      alignItems:
+        'center',
+      gap: 7,
+      paddingVertical: 12,
+      paddingHorizontal: 15,
+    },
+
+    textoNueva: {
+      color:
+        '#FFFFFF',
+      fontSize: 16,
+      fontWeight:
+        '700',
+    },
+
+    // ========================================
+    // NAVEGACIÓN
+    // ========================================
+
+    bottomNavigation: {
+      height: 78,
+      borderTopWidth: 1,
+      borderTopColor:
+        '#E5E5E5',
+      backgroundColor:
+        '#FFFFFF',
+      flexDirection:
+        'row',
+    },
+
+    navItem: {
+      flex: 1,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+    },
+
+    navActivo: {
+      color:
+        '#08752F',
+      fontSize: 12,
+      fontWeight:
+        '700',
+      marginTop: 3,
+    },
+
+    navTexto: {
+      color:
+        '#333333',
+      fontSize: 12,
+      marginTop: 3,
+    },
+
+  });
