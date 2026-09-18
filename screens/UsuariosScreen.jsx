@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useUsuarios } from '../context/UsuariosContext';
 import { useToast } from '../context/ToastContext';
 import { useAlert } from '../context/AlertContext';
+import BotonHome from '../components/BotonHome';
 
 export default function UsuariosScreen({
   navigation,
@@ -924,6 +925,7 @@ export default function UsuariosScreen({
         >
           Usuarios
         </Text>
+        <BotonHome navigation={navigation} />
       </View>
 
       <ScrollView

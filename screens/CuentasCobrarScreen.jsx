@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useClientes } from '../context/ClientesContext';
 import { useEntregas } from '../context/EntregasContext';
+import BotonHome from '../components/BotonHome';
 
 export default function CuentasCobrarScreen({
   navigation,
@@ -612,6 +613,7 @@ export default function CuentasCobrarScreen({
             Saldos pendientes
           </Text>
         </View>
+        <BotonHome navigation={navigation} />
       </View>
 
       <FlatList

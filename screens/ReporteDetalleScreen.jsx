@@ -11,6 +11,7 @@ import {
 
 import { Ionicons } from '@expo/vector-icons';
 import { useEntregas } from '../context/EntregasContext';
+import BotonHome from '../components/BotonHome';
 
 const ReporteDetalleScreen = ({
   navigation,
@@ -358,6 +359,7 @@ const ReporteDetalleScreen = ({
             {fecha}
           </Text>
         </View>
+        <BotonHome navigation={navigation} />
       </View>
 
       <ScrollView

@@ -13,10 +13,14 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useClientes } from '../context/ClientesContext';
 import { useEntregas } from '../context/EntregasContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import BotonHome from '../components/BotonHome';
 
 const EntregasDiaScreen = ({ navigation, route }) => {
   const { clientes } = useClientes();
   const { entregas } = useEntregas();
+
+   const insets = useSafeAreaInsets();
 
   const dia = route.params?.dia || '';
 
@@ -250,6 +254,7 @@ const EntregasDiaScreen = ({ navigation, route }) => {
               : 'clientes'}
           </Text>
         </View>
+        <BotonHome navigation={navigation} />
       </View>
 
       {/* BUSCADOR */}
@@ -319,7 +324,14 @@ const EntregasDiaScreen = ({ navigation, route }) => {
 
       {/* OTRA ENTREGA */}
 
-      <View style={styles.footer}>
+      <View
+        style={[
+          styles.footer,
+          {
+            paddingBottom: 13 + insets.bottom,
+          },
+        ]}
+      >
         <TouchableOpacity
           style={styles.botonOtraEntrega}
           onPress={otraEntrega}

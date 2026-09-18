@@ -10,6 +10,7 @@ import {
 
 import { Ionicons } from '@expo/vector-icons';
 import { useInventario } from '../context/InventarioContext';
+import BotonHome from '../components/BotonHome';
 
 const InventarioScreen = ({ navigation }) => {
   const { inventario } = useInventario();
@@ -178,6 +179,8 @@ const InventarioScreen = ({ navigation }) => {
             Control de stock por día
           </Text>
         </View>
+        <BotonHome navigation={navigation} />
+
       </View>
 
       {/* BOTÓN REGISTRAR STOCK */}

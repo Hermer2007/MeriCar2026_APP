@@ -11,6 +11,7 @@ import {
 
 import { Ionicons } from '@expo/vector-icons';
 import { useEntregas } from '../context/EntregasContext';
+import BotonHome from '../components/BotonHome';
 
 const ReportesScreen = ({ navigation }) => {
   const {
@@ -632,6 +633,7 @@ const ReportesScreen = ({ navigation }) => {
             registradas
           </Text>
         </View>
+        <BotonHome navigation={navigation} />
       </View>
 
       {/* INFORMACIÓN */}

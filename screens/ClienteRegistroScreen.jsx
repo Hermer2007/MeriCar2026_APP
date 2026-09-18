@@ -14,12 +14,16 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useClientes } from '../context/ClientesContext';
 import { useToast } from '../context/ToastContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import BotonHome from '../components/BotonHome';
 
 const DIAS = ['Lunes', 'Miércoles', 'Jueves', 'Domingo'];
 
 const ClienteRegistroScreen = ({ navigation }) => {
   const { mostrarToast } = useToast();
   const { agregarCliente } = useClientes();
+
+  const insets = useSafeAreaInsets()
 
   const [nombre, setNombre] = useState('');
   const [cedula, setCedula] = useState('');
@@ -98,6 +102,8 @@ const ClienteRegistroScreen = ({ navigation }) => {
         <Text style={styles.tituloHeader}>
           Agregar cliente
         </Text>
+
+        <BotonHome navigation={navigation} />
       </View>
 
       <KeyboardAvoidingView
@@ -105,7 +111,12 @@ const ClienteRegistroScreen = ({ navigation }) => {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={styles.contenido}
+          contentContainerStyle={[
+            styles.contenido,
+            {
+              paddingBottom: 30 + insets.bottom,
+            },
+          ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >

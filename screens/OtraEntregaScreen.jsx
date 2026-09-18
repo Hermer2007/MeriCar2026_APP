@@ -22,6 +22,8 @@ import { useClientes } from '../context/ClientesContext';
 import { useEntregas } from '../context/EntregasContext';
 import { useToast } from '../context/ToastContext';
 import { useAlert } from '../context/AlertContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import BotonHome from '../components/BotonHome';
 
 export default function OtraEntregaScreen({
   navigation,
@@ -44,6 +46,8 @@ export default function OtraEntregaScreen({
 
   const { mostrarAlert } =
     useAlert();
+
+  const insets = useSafeAreaInsets();
 
   // ==========================================
   // CLIENTE OPCIONAL
@@ -910,12 +914,17 @@ export default function OtraEntregaScreen({
             Entrega adicional
           </Text>
         </View>
+        <BotonHome navigation={navigation} />
+
       </View>
 
       <ScrollView
-        contentContainerStyle={
-          styles.contenido
-        }
+        contentContainerStyle={[
+          styles.contenido,
+          {
+            paddingBottom: 40 + insets.bottom,
+          },
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={
           false
@@ -1792,29 +1801,6 @@ export default function OtraEntregaScreen({
           </View>
         </View>
       </Modal>
-
-      {/* NAVEGACIÓN A INICIO */}
-      <View style={styles.bottomNavigation}>
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() =>
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'Home' }],
-            })
-          }
-        >
-          <Ionicons
-            name="home"
-            size={28}
-            color="#08752F"
-          />
-
-          <Text style={styles.navActivo}>
-            Inicio
-          </Text>
-        </TouchableOpacity>
-      </View>
     </View>
   );
 }
@@ -2517,28 +2503,5 @@ const styles =
 
     botonAbonoDeshabilitado: {
       opacity: 0.6,
-    },
-
-    bottomNavigation: {
-      height: 70,
-      borderTopWidth: 1,
-      borderTopColor: '#E5E5E5',
-      backgroundColor: '#FFFFFF',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-
-    navItem: {
-      width: 100,
-      height: '100%',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-
-    navActivo: {
-      color: '#08752F',
-      fontSize: 12,
-      fontWeight: '700',
-      marginTop: 3,
     },
   });

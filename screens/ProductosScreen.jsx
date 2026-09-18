@@ -16,10 +16,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useProductos } from '../context/ProductosContext';
 import { useToast } from '../context/ToastContext';
 import { useAlert } from '../context/AlertContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import BotonHome from '../components/BotonHome';
 
 const ProductosScreen = ({ navigation }) => {
   const { mostrarToast } = useToast();
   const { mostrarAlert } = useAlert();
+
+  const insets = useSafeAreaInsets();
 
   const {
     productos,
@@ -326,6 +330,8 @@ const ProductosScreen = ({ navigation }) => {
             precios
           </Text>
         </View>
+        <BotonHome navigation={navigation} />
+
       </View>
 
       {/* BUSCADOR */}
@@ -387,9 +393,12 @@ const ProductosScreen = ({ navigation }) => {
       {/* BOTÓN AGREGAR */}
 
       <View
-        style={
-          styles.botonAgregarContainer
-        }
+        style={[
+          styles.botonAgregarContainer,
+          {
+            paddingBottom: insets.bottom,
+          },
+        ]}
       >
         <TouchableOpacity
           style={styles.botonAgregar}

@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
+import BotonHome from '../components/BotonHome';
 
 export default function ReportesMenuScreen({
   navigation,
@@ -185,6 +186,7 @@ export default function ReportesMenuScreen({
             Información del negocio
           </Text>
         </View>
+        <BotonHome navigation={navigation} />
       </View>
 
       {/* CONTENIDO */}

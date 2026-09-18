@@ -9,6 +9,7 @@ import {
 
 import { Ionicons } from '@expo/vector-icons';
 import { useClientes } from '../context/ClientesContext';
+import BotonHome from '../components/BotonHome';
 
 const DIAS = [
   {
@@ -89,6 +90,7 @@ const EntregasScreen = ({ navigation }) => {
         <Text style={styles.tituloHeader}>
           Entregas
         </Text>
+        <BotonHome navigation={navigation} />
       </View>
 
       {/* DÍAS */}

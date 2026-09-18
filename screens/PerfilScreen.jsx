@@ -8,6 +8,7 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  ScrollView,
   TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
@@ -21,6 +22,7 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import { useUsuarios } from '../context/UsuariosContext';
 import { useToast } from '../context/ToastContext';
 import { useAlert } from '../context/AlertContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const PerfilScreen = ({ navigation }) => {
   const {
@@ -31,6 +33,8 @@ const PerfilScreen = ({ navigation }) => {
   const { mostrarToast } = useToast();
 
   const { mostrarAlert } = useAlert();
+
+  const insets = useSafeAreaInsets();
 
   const [modalPin, setModalPin] =
     useState(false);
@@ -542,8 +546,11 @@ const desactivarHuella = () => {
       </View>
 
       {/* PERFIL */}
-
-      <View style={styles.contenido}>
+      <ScrollView
+        style={styles.contenido}
+        contentContainerStyle={styles.contenidoScroll}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.avatar}>
           <Ionicons
             name="person"
@@ -824,14 +831,20 @@ const desactivarHuella = () => {
             </Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
 
       {/* =====================================
           NAVEGACIÓN INFERIOR
       ===================================== */}
 
       <View
-        style={styles.bottomNavigation}
+        style={[
+          styles.bottomNavigation,
+          {
+            paddingBottom: insets.bottom,
+            height: 78 + insets.bottom,
+          },
+        ]}
       >
         <TouchableOpacity
           style={styles.navItem}
@@ -1168,11 +1181,15 @@ const styles = StyleSheet.create({
   },
 
   contenido: {
-    flex: 1,
-    paddingHorizontal: 25,
-    paddingTop: 20,
-    alignItems: 'center',
-  },
+  flex: 1,
+},
+
+contenidoScroll: {
+  paddingHorizontal: 25,
+  paddingTop: 20,
+  paddingBottom: 25,
+  alignItems: 'center',
+},
 
   avatar: {
     width: 85,

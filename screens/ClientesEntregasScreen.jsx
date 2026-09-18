@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useClientes } from '../context/ClientesContext';
 import { useEntregas } from '../context/EntregasContext';
+import BotonHome from '../components/BotonHome';
 
 export default function ClientesEntregasScreen({
   navigation,
@@ -648,6 +649,8 @@ export default function ClientesEntregasScreen({
             Resumen general de clientes
           </Text>
         </View>
+
+        <BotonHome navigation={navigation} />
       </View>
 
       <FlatList

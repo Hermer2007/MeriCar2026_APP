@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useInventario } from '../context/InventarioContext';
 import { useProductos } from '../context/ProductosContext';
 import { useToast } from '../context/ToastContext';
-
+import BotonHome from '../components/BotonHome';
 
 const RegistrarStockScreen = ({ navigation }) => {
 
@@ -445,7 +445,7 @@ navigation.goBack();
           size={27}
           color="#FFFFFF"
         />
-
+        <BotonHome navigation={navigation} />
       </View>
 
 

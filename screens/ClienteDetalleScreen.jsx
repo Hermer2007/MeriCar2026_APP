@@ -12,11 +12,15 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useEntregas } from '../context/EntregasContext';
 import { useAlert } from '../context/AlertContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import BotonHome from '../components/BotonHome';
 
 const ClienteDetalleScreen = ({
   navigation,
   route,
 }) => {
+
+  const insets = useSafeAreaInsets();
 
   const cliente =
     route.params?.cliente;
@@ -883,6 +887,7 @@ const ClienteDetalleScreen = ({
 
         </View>
 
+        <BotonHome navigation={navigation} />
       </View>
 
       {/* TITULO Y SALDO TOTAL */}
@@ -993,9 +998,12 @@ const ClienteDetalleScreen = ({
       {/* NUEVA ENTREGA */}
 
       <View
-        style={
-          styles.botonNuevaContainer
-        }
+        style={[
+          styles.botonNuevaContainer,
+          {
+            paddingBottom: 9 + insets.bottom,
+          },
+        ]}
       >
 
         <TouchableOpacity
@@ -1024,96 +1032,6 @@ const ClienteDetalleScreen = ({
         </TouchableOpacity>
 
       </View>
-
-      {/* BARRA INFERIOR */}
-
-      <View
-        style={
-          styles.bottomNavigation
-        }
-      >
-
-        <TouchableOpacity
-          style={
-            styles.navItem
-          }
-          onPress={() =>
-            navigation.navigate(
-              'Home'
-            )
-          }
-        >
-
-          <Ionicons
-            name="home"
-            size={27}
-            color="#08752F"
-          />
-
-          <Text
-            style={
-              styles.navActivo
-            }
-          >
-            Inicio
-          </Text>
-
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={
-            styles.navItem
-          }
-          onPress={() =>
-            navigation.navigate(
-              'Perfil'
-            )
-          }
-        >
-
-          <Ionicons
-            name="person"
-            size={27}
-            color="#222222"
-          />
-
-          <Text
-            style={
-              styles.navTexto
-            }
-          >
-            Perfil
-          </Text>
-
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={
-            styles.navItem
-          }
-          onPress={
-            cerrarSesion
-          }
-        >
-
-          <Ionicons
-            name="log-out-outline"
-            size={29}
-            color="#222222"
-          />
-
-          <Text
-            style={
-              styles.navTexto
-            }
-          >
-            Salir
-          </Text>
-
-        </TouchableOpacity>
-
-      </View>
-
     </View>
   );
 };
@@ -1598,44 +1516,4 @@ const styles =
       fontWeight:
         '700',
     },
-
-    // ========================================
-    // NAVEGACIÓN
-    // ========================================
-
-    bottomNavigation: {
-      height: 78,
-      borderTopWidth: 1,
-      borderTopColor:
-        '#E5E5E5',
-      backgroundColor:
-        '#FFFFFF',
-      flexDirection:
-        'row',
-    },
-
-    navItem: {
-      flex: 1,
-      alignItems:
-        'center',
-      justifyContent:
-        'center',
-    },
-
-    navActivo: {
-      color:
-        '#08752F',
-      fontSize: 12,
-      fontWeight:
-        '700',
-      marginTop: 3,
-    },
-
-    navTexto: {
-      color:
-        '#333333',
-      fontSize: 12,
-      marginTop: 3,
-    },
-
   });

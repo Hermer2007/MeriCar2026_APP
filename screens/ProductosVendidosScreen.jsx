@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useEntregas } from '../context/EntregasContext';
 import { useProductos } from '../context/ProductosContext';
+import BotonHome from '../components/BotonHome';
 
 export default function ProductosVendidosScreen({
   navigation,
@@ -465,6 +466,7 @@ export default function ProductosVendidosScreen({
             Productos entregados
           </Text>
         </View>
+        <BotonHome navigation={navigation} />
       </View>
 
       <FlatList

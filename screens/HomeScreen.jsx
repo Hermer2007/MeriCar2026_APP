@@ -16,6 +16,7 @@ import {
 import { useUsuarios } from '../context/UsuariosContext';
 import { useToast } from '../context/ToastContext';
 import { useAlert } from '../context/AlertContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const HomeScreen = ({
   navigation,
@@ -31,6 +32,8 @@ const HomeScreen = ({
     bloquearSesion,
     obtenerNotificacionesUsuarios,
   } = useUsuarios();
+
+  const insets = useSafeAreaInsets();
 
   // ==========================================
   // USUARIO ACTUAL
@@ -482,9 +485,13 @@ const HomeScreen = ({
       {/* BARRA INFERIOR */}
 
       <View
-        style={
-          styles.bottomNavigation
-        }
+        style={[
+          styles.bottomNavigation,
+          {
+            paddingBottom: insets.bottom,
+            height: 76 + insets.bottom,
+          },
+        ]}
       >
         <TouchableOpacity
           style={

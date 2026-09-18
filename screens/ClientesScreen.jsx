@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useClientes } from '../context/ClientesContext';
 import { useEntregas } from '../context/EntregasContext';
 import { useToast } from '../context/ToastContext';
+import BotonHome from '../components/BotonHome';
 
 const DIAS = [
   'Lunes',
@@ -496,6 +497,7 @@ const ClientesScreen = ({ navigation }) => {
               : 'clientes registrados'}
           </Text>
         </View>
+        <BotonHome navigation={navigation} />
       </View>
 
       {/* BUSCADOR */}
