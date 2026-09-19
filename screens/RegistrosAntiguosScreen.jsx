@@ -471,7 +471,7 @@ const [
             }
           >
             Los registros con una antigüedad
-            de 1 mes aparecerán en este
+            de 4 meses aparecerán en este
             apartado para que puedan ser
             revisados y eliminados
             manualmente.
