@@ -13,6 +13,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useEntregas } from '../context/EntregasContext';
 import BotonHome from '../components/BotonHome';
 
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system/legacy';
+
 const ReporteDetalleScreen = ({
   navigation,
   route,
@@ -23,6 +27,33 @@ const ReporteDetalleScreen = ({
   } = useEntregas();
 
   const fecha = route.params?.fecha;
+
+  // ==========================================
+  // FECHA ACTUAL
+  // ==========================================
+
+  const obtenerFechaActual = () => {
+    const hoy = new Date();
+
+    const dia = String(
+      hoy.getDate()
+    ).padStart(2, '0');
+
+    const mes = String(
+      hoy.getMonth() + 1
+    ).padStart(2, '0');
+
+    const anio =
+      hoy.getFullYear();
+
+    return `${dia}/${mes}/${anio}`;
+  };
+
+  const fechaActual =
+    obtenerFechaActual();
+
+  const esReporteHistorico =
+    fecha !== fechaActual;
 
   // ==========================================
   // ENTREGAS DEL DÍA
@@ -311,6 +342,623 @@ const ReporteDetalleScreen = ({
     )}`;
   };
 
+  // ==========================================
+  // GENERAR PDF
+  // ==========================================
+
+  const generarPDF = async () => {
+    try {
+      const filasProductos =
+        reporte.productos.length > 0
+          ? reporte.productos
+              .map(
+                (producto) => `
+                  <tr>
+                    <td>
+                      ${producto.nombre}
+                    </td>
+
+                    <td class="centrado">
+                      ${producto.cantidad}
+                    </td>
+                  </tr>
+                `
+              )
+              .join('')
+          : `
+              <tr>
+                <td
+                  colspan="2"
+                  class="sin-datos"
+                >
+                  No hay productos registrados.
+                </td>
+              </tr>
+            `;
+
+      const html = `
+        <!DOCTYPE html>
+
+        <html>
+
+          <head>
+
+            <meta charset="UTF-8">
+
+            <style>
+
+              @page {
+                size: A4;
+                margin: 28px;
+              }
+
+              * {
+                box-sizing: border-box;
+              }
+
+              body {
+                font-family: Arial, sans-serif;
+                color: #252525;
+                margin: 0;
+                padding: 0;
+                font-size: 12px;
+              }
+
+              .encabezado {
+                background-color: #08752F;
+                color: #FFFFFF;
+                padding: 22px;
+                border-radius: 8px;
+                margin-bottom: 18px;
+              }
+
+              .empresa {
+                font-size: 25px;
+                font-weight: bold;
+                margin: 0;
+              }
+
+              .subtitulo {
+                margin-top: 4px;
+                font-size: 13px;
+              }
+
+              .fecha {
+                margin-top: 13px;
+                font-size: 12px;
+                font-weight: bold;
+              }
+
+              .titulo-seccion {
+                font-size: 15px;
+                font-weight: bold;
+                color: #08752F;
+                margin-top: 18px;
+                margin-bottom: 9px;
+              }
+
+              .resumen {
+                width: 100%;
+                border-collapse: collapse;
+              }
+
+              .resumen td {
+                width: 50%;
+                padding: 10px;
+                border: 1px solid #E2E2E2;
+              }
+
+              .label {
+                color: #666666;
+                font-size: 10px;
+              }
+
+              .valor {
+                display: block;
+                margin-top: 4px;
+                font-size: 17px;
+                font-weight: bold;
+                color: #08752F;
+              }
+
+              .total-vendido {
+                background-color: #08752F;
+                color: #FFFFFF;
+              }
+
+              .total-vendido .label,
+              .total-vendido .valor {
+                color: #FFFFFF;
+              }
+
+              .saldo {
+                background-color: #FDEDED;
+              }
+
+              .saldo .valor {
+                color: #D71920;
+              }
+
+              .actividad {
+                width: 100%;
+                border-collapse: collapse;
+              }
+
+              .actividad td {
+                width: 33.33%;
+                text-align: center;
+                padding: 12px 5px;
+                border: 1px solid #E2E2E2;
+              }
+
+              .numero {
+                font-size: 18px;
+                font-weight: bold;
+                color: #08752F;
+                display: block;
+                margin-top: 4px;
+              }
+
+              .tabla {
+                width: 100%;
+                border-collapse: collapse;
+              }
+
+              .tabla th {
+                background-color: #F0F7F2;
+                color: #08752F;
+                text-align: left;
+                padding: 9px;
+                border: 1px solid #DDE8E0;
+              }
+
+              .tabla td {
+                padding: 9px;
+                border: 1px solid #E5E5E5;
+              }
+
+              .centrado {
+                text-align: center;
+              }
+
+              .derecha {
+                text-align: right;
+              }
+
+              .sin-datos {
+                text-align: center;
+                color: #777777;
+              }
+
+              .nota {
+                margin-top: 20px;
+                padding: 11px;
+                background-color: #F1F7F3;
+                border-left: 4px solid #08752F;
+                color: #555555;
+                font-size: 10px;
+                line-height: 15px;
+              }
+
+              .pie {
+                margin-top: 25px;
+                padding-top: 10px;
+                border-top: 1px solid #DDDDDD;
+                text-align: center;
+                color: #777777;
+                font-size: 9px;
+              }
+
+            </style>
+
+          </head>
+
+          <body>
+
+            <div class="encabezado">
+
+              <p class="empresa">
+                MERICAR
+              </p>
+
+              <div class="subtitulo">
+                Reporte general de ventas y entregas
+              </div>
+
+              <div class="fecha">
+                Fecha del reporte: ${fecha}
+              </div>
+
+            </div>
+
+            <div class="titulo-seccion">
+              Resumen general
+            </div>
+
+            <table class="resumen">
+
+              <tr>
+
+                <td>
+
+                  <span class="label">
+                    Efectivo
+                  </span>
+
+                  <span class="valor">
+                    ${dinero(
+                      reporte.efectivo
+                    )}
+                  </span>
+
+                </td>
+
+                <td>
+
+                  <span class="label">
+                    Transferencias
+                  </span>
+
+                  <span class="valor">
+                    ${dinero(
+                      reporte.transferencias
+                    )}
+                  </span>
+
+                </td>
+
+              </tr>
+
+              <tr>
+
+                <td>
+
+                  <span class="label">
+                    Total recibido
+                  </span>
+
+                  <span class="valor">
+                    ${dinero(
+                      reporte.totalRecibido
+                    )}
+                  </span>
+
+                </td>
+
+                <td class="total-vendido">
+
+                  <span class="label">
+                    Total vendido
+                  </span>
+
+                  <span class="valor">
+                    ${dinero(
+                      reporte.totalVendido
+                    )}
+                  </span>
+
+                </td>
+
+              </tr>
+
+              <tr>
+
+                <td
+                  colspan="2"
+                  class="saldo"
+                >
+
+                  <span class="label">
+                    Saldo pendiente
+                  </span>
+
+                  <span class="valor">
+                    ${dinero(
+                      reporte.saldoPendiente
+                    )}
+                  </span>
+
+                </td>
+
+              </tr>
+
+            </table>
+
+            <div class="titulo-seccion">
+              Actividad del día
+            </div>
+
+            <table class="actividad">
+
+              <tr>
+
+                <td>
+
+                  Clientes atendidos
+
+                  <span class="numero">
+                    ${reporte.clientes}
+                  </span>
+
+                  Registrados
+
+                </td>
+
+                <td>
+
+                  Ventas ocasionales
+
+                  <span class="numero">
+                    ${reporte.ventasOcasionales}
+                  </span>
+
+                  Sin registro
+
+                </td>
+
+                <td>
+
+                  Entregas realizadas
+
+                  <span class="numero">
+                    ${reporte.entregasRealizadas}
+                  </span>
+
+                  Totales
+
+                </td>
+
+              </tr>
+
+            </table>
+
+            <div class="titulo-seccion">
+              Productos vendidos
+            </div>
+
+            <table class="tabla">
+
+              <thead>
+
+                <tr>
+
+                  <th>
+                    Producto
+                  </th>
+
+                  <th class="centrado">
+                    Cantidad
+                  </th>
+
+                </tr>
+
+              </thead>
+
+              <tbody>
+
+                ${filasProductos}
+
+              </tbody>
+
+            </table>
+
+            <div class="titulo-seccion">
+              Métodos de pago
+            </div>
+
+            <table class="tabla">
+
+              <thead>
+
+                <tr>
+
+                  <th>
+                    Método
+                  </th>
+
+                  <th class="centrado">
+                    Ventas
+                  </th>
+
+                  <th class="centrado">
+                    Abonos
+                  </th>
+
+                  <th class="derecha">
+                    Total recibido
+                  </th>
+
+                </tr>
+
+              </thead>
+
+              <tbody>
+
+                <tr>
+
+                  <td>
+                    Efectivo
+                  </td>
+
+                  <td class="centrado">
+                    ${reporte.ventasEfectivo}
+                  </td>
+
+                  <td class="centrado">
+                    ${reporte.abonosEfectivo}
+                  </td>
+
+                  <td class="derecha">
+                    ${dinero(
+                      reporte.efectivo
+                    )}
+                  </td>
+
+                </tr>
+
+                <tr>
+
+                  <td>
+                    Transferencia
+                  </td>
+
+                  <td class="centrado">
+                    ${reporte.ventasTransferencia}
+                  </td>
+
+                  <td class="centrado">
+                    ${reporte.abonosTransferencia}
+                  </td>
+
+                  <td class="derecha">
+                    ${dinero(
+                      reporte.transferencias
+                    )}
+                  </td>
+
+                </tr>
+
+              </tbody>
+
+            </table>
+
+            <div class="nota">
+
+              Este reporte fue generado a partir de las
+              entregas, ventas y abonos registrados en
+              MERICAR para la fecha ${fecha}.
+
+            </div>
+
+            <div class="pie">
+
+              Distribuidora MERICAR · Reporte generado
+              desde la aplicación MERICAR
+
+            </div>
+
+          </body>
+
+        </html>
+      `;
+
+      // ==========================================
+      // GENERAR PDF EN BASE64
+      // ==========================================
+
+      const resultadoPDF =
+        await Print.printToFileAsync({
+          html,
+          base64: true,
+        });
+
+      if (!resultadoPDF.base64) {
+        throw new Error(
+          'No se pudo obtener el contenido del PDF.'
+        );
+      }
+
+      // ==========================================
+      // NOMBRE DEL ARCHIVO
+      // ==========================================
+
+      const fechaArchivo =
+        fecha.replace(
+          /\//g,
+          '-'
+        );
+
+      const nombreArchivo =
+        `Reporte_MERICAR_${fechaArchivo}.pdf`;
+
+      const uriDestino =
+        `${FileSystem.cacheDirectory}${nombreArchivo}`;
+
+      // ==========================================
+      // ELIMINAR COPIA ANTERIOR SI EXISTE
+      // ==========================================
+
+      const archivoAnterior =
+        await FileSystem.getInfoAsync(
+          uriDestino
+        );
+
+      if (
+        archivoAnterior.exists
+      ) {
+        await FileSystem.deleteAsync(
+          uriDestino,
+          {
+            idempotent: true,
+          }
+        );
+      }
+
+      // ==========================================
+      // CREAR PDF ACCESIBLE
+      // ==========================================
+
+      await FileSystem.writeAsStringAsync(
+        uriDestino,
+        resultadoPDF.base64,
+        {
+          encoding:
+            FileSystem.EncodingType.Base64,
+        }
+      );
+
+      // ==========================================
+      // COMPROBAR ARCHIVO
+      // ==========================================
+
+      const archivoCreado =
+        await FileSystem.getInfoAsync(
+          uriDestino
+        );
+
+      if (!archivoCreado.exists) {
+        throw new Error(
+          'No se pudo crear el archivo PDF.'
+        );
+      }
+
+      // ==========================================
+      // COMPARTIR / GUARDAR
+      // ==========================================
+
+      const compartirDisponible =
+        await Sharing.isAvailableAsync();
+
+      if (
+        !compartirDisponible
+      ) {
+        throw new Error(
+          'La opción de compartir archivos no está disponible.'
+        );
+      }
+
+      await Sharing.shareAsync(
+        uriDestino,
+        {
+          mimeType:
+            'application/pdf',
+
+          dialogTitle:
+            `Reporte MERICAR ${fecha}`,
+
+          UTI:
+            'com.adobe.pdf',
+        }
+      );
+
+    } catch (error) {
+      console.log(
+        'Error al generar PDF:',
+        error
+      );
+    }
+  };
+
   return (
     <View
       style={styles.container}
@@ -359,7 +1007,10 @@ const ReporteDetalleScreen = ({
             {fecha}
           </Text>
         </View>
-        <BotonHome navigation={navigation} />
+
+        <BotonHome
+          navigation={navigation}
+        />
       </View>
 
       <ScrollView
@@ -454,8 +1105,16 @@ const ReporteDetalleScreen = ({
             />
           </View>
 
-          <View style={styles.saldoCard}>
-            <View style={styles.saldoIcono}>
+          <View
+            style={
+              styles.saldoCard
+            }
+          >
+            <View
+              style={
+                styles.saldoIcono
+              }
+            >
               <Ionicons
                 name="alert-circle-outline"
                 size={25}
@@ -463,18 +1122,34 @@ const ReporteDetalleScreen = ({
               />
             </View>
 
-            <View style={styles.saldoContenido}>
-              <Text style={styles.saldoTitulo}>
+            <View
+              style={
+                styles.saldoContenido
+              }
+            >
+              <Text
+                style={
+                  styles.saldoTitulo
+                }
+              >
                 Saldo pendiente
               </Text>
 
-              <Text style={styles.saldoValor}>
+              <Text
+                style={
+                  styles.saldoValor
+                }
+              >
                 {dinero(
                   reporte.saldoPendiente
                 )}
               </Text>
 
-              <Text style={styles.saldoDescripcion}>
+              <Text
+                style={
+                  styles.saldoDescripcion
+                }
+              >
                 Valor pendiente por cobrar de las ventas
                 realizadas durante el día.
               </Text>
@@ -700,6 +1375,33 @@ const ReporteDetalleScreen = ({
             abono de saldo pendiente.
           </Text>
         </View>
+
+        {/* EXTRAER PDF SOLO PARA REPORTES HISTÓRICOS */}
+
+        {esReporteHistorico && (
+          <TouchableOpacity
+            style={
+              styles.botonPdf
+            }
+            activeOpacity={0.85}
+            onPress={generarPDF}
+          >
+            <Ionicons
+              name="document-text-outline"
+              size={22}
+              color="#FFFFFF"
+            />
+
+            <Text
+              style={
+                styles.botonPdfTexto
+              }
+            >
+              Extraer PDF
+            </Text>
+          </TouchableOpacity>
+        )}
+
       </ScrollView>
     </View>
   );
@@ -731,13 +1433,17 @@ const ResumenCard = ({
 
     <View>
       <Text
-        style={styles.cardTitulo}
+        style={
+          styles.cardTitulo
+        }
       >
         {titulo}
       </Text>
 
       <Text
-        style={styles.cardValor}
+        style={
+          styles.cardValor
+        }
       >
         {valor}
       </Text>
@@ -841,7 +1547,9 @@ const MetodoPago = ({
   total,
 }) => (
   <View
-    style={styles.metodoFila}
+    style={
+      styles.metodoFila
+    }
   >
     <Text
       style={
@@ -893,11 +1601,16 @@ const MetodoPago = ({
 
 export default ReporteDetalleScreen;
 
+// ============================================
+// ESTILOS
+// ============================================
+
 const styles =
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: '#F7F8F7',
+      backgroundColor:
+        '#F7F8F7',
     },
 
     header: {
@@ -919,11 +1632,13 @@ const styles =
       height: 45,
       justifyContent:
         'center',
-      alignItems: 'center',
+      alignItems:
+        'center',
     },
 
     headerCentro: {
-      alignItems: 'center',
+      alignItems:
+        'center',
     },
 
     tituloHeader: {
@@ -967,7 +1682,8 @@ const styles =
       borderRadius: 11,
       padding: 11,
       marginBottom: 10,
-      backgroundColor: '#FCFCFC',
+      backgroundColor:
+        '#FCFCFC',
     },
 
     tituloSeccion: {
@@ -1018,7 +1734,7 @@ const styles =
     },
 
     // ========================================
-    // TOTAL VENDIDO DESTACADO
+    // TOTAL VENDIDO
     // ========================================
 
     totalVendidoCard: {
@@ -1061,13 +1777,18 @@ const styles =
       marginTop: 4,
     },
 
+    // ========================================
+    // SALDO
+    // ========================================
+
     saldoCard: {
       minHeight: 88,
       borderRadius: 7,
       padding: 10,
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: '#D71920',
+      backgroundColor:
+        '#D71920',
       marginTop: 2,
     },
 
@@ -1098,6 +1819,10 @@ const styles =
       color: '#FFE5E5',
       marginTop: 4,
     },
+
+    // ========================================
+    // ACTIVIDAD
+    // ========================================
 
     actividad: {
       flexDirection: 'row',
@@ -1131,6 +1856,10 @@ const styles =
         '#E5E5E5',
     },
 
+    // ========================================
+    // PRODUCTOS
+    // ========================================
+
     productoFila: {
       minHeight: 31,
       borderTopWidth: 1,
@@ -1150,6 +1879,10 @@ const styles =
       fontSize: 10,
       fontWeight: '600',
     },
+
+    // ========================================
+    // MÉTODOS
+    // ========================================
 
     metodoFila: {
       minHeight: 40,
@@ -1192,6 +1925,10 @@ const styles =
       paddingVertical: 10,
     },
 
+    // ========================================
+    // NOTA
+    // ========================================
+
     nota: {
       minHeight: 58,
       backgroundColor:
@@ -1207,5 +1944,29 @@ const styles =
       marginLeft: 9,
       fontSize: 9,
       color: '#555555',
+    },
+
+    // ========================================
+    // PDF
+    // ========================================
+
+    botonPdf: {
+      height: 52,
+      borderRadius: 11,
+      backgroundColor:
+        '#08752F',
+      flexDirection: 'row',
+      justifyContent:
+        'center',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: 5,
+      marginBottom: 10,
+    },
+
+    botonPdfTexto: {
+      color: '#FFFFFF',
+      fontSize: 14,
+      fontWeight: '700',
     },
   });

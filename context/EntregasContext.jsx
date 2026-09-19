@@ -10,6 +10,7 @@ import {
   addDoc,
   doc,
   updateDoc,
+  deleteDoc,
   onSnapshot,
   query,
   orderBy,
@@ -920,6 +921,72 @@ export const EntregasProvider = ({
   };
 
   // ==========================================
+// ELIMINAR ENTREGAS
+// ==========================================
+
+  const eliminarEntregas = async (
+    idsEntregas
+  ) => {
+
+    try {
+
+      if (
+        !Array.isArray(idsEntregas) ||
+        idsEntregas.length === 0
+      ) {
+
+        return {
+          ok: false,
+          mensaje:
+            'No existen registros seleccionados.',
+        };
+      }
+
+      const eliminaciones =
+        idsEntregas.map(
+          (entregaId) => {
+
+            const referenciaEntrega =
+              doc(
+                db,
+                'entregas',
+                entregaId
+              );
+
+            return deleteDoc(
+              referenciaEntrega
+            );
+          }
+        );
+
+      await Promise.all(
+        eliminaciones
+      );
+
+      return {
+        ok: true,
+        mensaje:
+          idsEntregas.length === 1
+            ? 'Registro eliminado correctamente.'
+            : `${idsEntregas.length} registros eliminados correctamente.`,
+      };
+
+    } catch (error) {
+
+      console.log(
+        'Error al eliminar entregas:',
+        error
+      );
+
+      return {
+        ok: false,
+        mensaje:
+          'No se pudieron eliminar los registros seleccionados.',
+      };
+    }
+  };
+
+  // ==========================================
   // PROVIDER
   // ==========================================
 
@@ -938,6 +1005,7 @@ export const EntregasProvider = ({
         obtenerAbonosEntrega,
 
         registrarAbono,
+        eliminarEntregas,
       }}
     >
       {children}

@@ -47,6 +47,7 @@ import CuentasCobrarScreen from '../screens/CuentasCobrarScreen';
 import ProductosVendidosScreen from '../screens/ProductosVendidosScreen';
 
 import PerfilScreen from '../screens/PerfilScreen';
+import RegistrosAntiguosScreen from '../screens/RegistrosAntiguosScreen';
 
 import {
   useUsuarios,
@@ -127,6 +128,13 @@ export default function AppNavigator() {
         <Stack.Screen
           name="Home"
           component={HomeScreen}
+        />
+
+        {/* PAPELERA DE REPORTES */}
+        
+        <Stack.Screen
+          name="RegistrosAntiguos"
+          component={RegistrosAntiguosScreen}
         />
 
         {/* USUARIOS */}
