@@ -17,7 +17,7 @@ import { useToast } from '../context/ToastContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BotonHome from '../components/BotonHome';
 
-const DIAS = ['Lunes', 'Miércoles', 'Jueves', 'Domingo'];
+const DIAS = ['Lunes', 'Miércoles', 'Jueves', 'Sábado', 'Domingo'];
 
 const EditarClienteScreen = ({ navigation, route }) => {
   const { cliente } = route.params;
@@ -462,7 +462,9 @@ const styles = StyleSheet.create({
 
   dias: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 10,
   },
 
   diaCard: {

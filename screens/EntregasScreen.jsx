@@ -25,6 +25,10 @@ const DIAS = [
     nombre: 'Jueves',
   },
   {
+    id: 'sábado',
+    nombre: 'Sábado',
+  },
+  {
     id: 'domingo',
     nombre: 'Domingo',
   },

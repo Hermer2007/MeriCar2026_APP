@@ -21,6 +21,7 @@ const DIAS = [
   'Lunes',
   'Miércoles',
   'Jueves',
+  'Sábado',
   'Domingo',
 ];
 
