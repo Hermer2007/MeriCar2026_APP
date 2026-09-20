@@ -45,6 +45,7 @@ import ReportesMenuScreen from '../screens/ReportesMenuScreen';
 import ClientesEntregasScreen from '../screens/ClientesEntregasScreen';
 import CuentasCobrarScreen from '../screens/CuentasCobrarScreen';
 import ProductosVendidosScreen from '../screens/ProductosVendidosScreen';
+import BalanceGananciasScreen from '../screens/BalanceGananciasScreen';
 
 import PerfilScreen from '../screens/PerfilScreen';
 import RegistrosAntiguosScreen from '../screens/RegistrosAntiguosScreen';
@@ -254,6 +255,11 @@ export default function AppNavigator() {
         <Stack.Screen
           name="ProductosVendidos"
           component={ProductosVendidosScreen}
+        />
+
+        <Stack.Screen
+          name="BalanceGanancias"
+          component={BalanceGananciasScreen}
         />
 
       </Stack.Navigator>

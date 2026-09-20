@@ -438,13 +438,6 @@ navigation.goBack();
           </Text>
 
         </View>
-
-
-        <Ionicons
-          name="calendar-outline"
-          size={27}
-          color="#FFFFFF"
-        />
         <BotonHome navigation={navigation} />
       </View>
 
@@ -941,14 +934,20 @@ const styles = StyleSheet.create({
 
 
   headerCentro: {
-    alignItems: 'center',
-  },
+  position: 'absolute',
+  left: 0,
+  right: 0,
+  bottom: 17,
+  alignItems: 'center',
+  justifyContent: 'center',
+},
 
 
   tituloHeader: {
     fontSize: 22,
     fontWeight: '700',
     color: '#FFFFFF',
+    textAlign: 'center',
   },
 
 
@@ -956,6 +955,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#E5F2E8',
     marginTop: 2,
+    textAlign: 'center',
   },
 
 

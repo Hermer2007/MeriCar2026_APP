@@ -841,6 +841,17 @@ export const EntregasProvider = ({
 
               metodosPago,
 
+              transferenciaConfirmada:
+                transferencia > 0
+                  ? false
+                  : null,
+
+              transferenciaConDiferencia:
+                false,
+
+              fechaConfirmacionTransferencia:
+                null,
+
               fecha:
                 fechaPago,
 
@@ -916,6 +927,533 @@ export const EntregasProvider = ({
         ok: false,
         mensaje:
           'No se pudo registrar el abono.',
+      };
+    }
+  };
+
+  // ==========================================
+// CONFIRMAR TRANSFERENCIA DE UN ABONO
+// ==========================================
+
+const confirmarTransferenciaAbono = async ({
+  abonoId,
+  montoRecibido,
+  fechaTransferencia,
+}) => {
+
+  try {
+
+    const abonoActual =
+      abonos.find(
+        (abono) =>
+          String(abono.id) ===
+          String(abonoId)
+      );
+
+    if (!abonoActual) {
+      return {
+        ok: false,
+        mensaje:
+          'No se encontró el abono.',
+      };
+    }
+
+    const transferenciaAnterior =
+      Number(
+        abonoActual.pagoTransferencia || 0
+      );
+
+    const transferenciaRecibida =
+      Number(montoRecibido);
+
+    if (
+      Number.isNaN(transferenciaRecibida) ||
+      transferenciaRecibida < 0
+    ) {
+      return {
+        ok: false,
+        mensaje:
+          'Ingrese un valor válido para la transferencia.',
+      };
+    }
+
+    if (
+      transferenciaRecibida >
+      transferenciaAnterior
+    ) {
+      return {
+        ok: false,
+        mensaje:
+          'El valor recibido no puede superar la transferencia registrada.',
+      };
+    }
+
+    if (!fechaTransferencia) {
+      return {
+        ok: false,
+        mensaje:
+          'Seleccione la fecha de la transferencia.',
+      };
+    }
+
+    if (
+      abonoActual.transferenciaConfirmada ===
+      true
+    ) {
+      return {
+        ok: false,
+        mensaje:
+          'Esta transferencia ya fue confirmada.',
+      };
+    }
+
+    const diferencia =
+      Number(
+        (
+          transferenciaAnterior -
+          transferenciaRecibida
+        ).toFixed(2)
+      );
+
+    const valoresCoinciden =
+      diferencia === 0;
+
+    const distribucionOriginal =
+      Array.isArray(
+        abonoActual.distribucion
+      )
+        ? abonoActual.distribucion
+        : [];
+
+    const referenciaAbono =
+      doc(
+        db,
+        'abonos',
+        abonoId
+      );
+
+    await runTransaction(
+      db,
+      async (transaction) => {
+
+        // ======================================
+        // LEER ENTREGAS AFECTADAS
+        // ======================================
+
+        const entregasAfectadas =
+          [];
+
+        if (diferencia > 0) {
+
+          for (
+            const detalle of
+            distribucionOriginal
+          ) {
+
+            const referenciaEntrega =
+              doc(
+                db,
+                'entregas',
+                detalle.entregaId
+              );
+
+            const documentoEntrega =
+              await transaction.get(
+                referenciaEntrega
+              );
+
+            if (
+              !documentoEntrega.exists()
+            ) {
+              throw new Error(
+                'ENTREGA_NO_EXISTE'
+              );
+            }
+
+            entregasAfectadas.push({
+              detalle,
+              referencia:
+                referenciaEntrega,
+              datos:
+                documentoEntrega.data(),
+            });
+          }
+        }
+
+        // ======================================
+        // DEVOLVER LA DIFERENCIA
+        // DESDE LA ÚLTIMA DEUDA AFECTADA
+        // ======================================
+
+        let diferenciaRestante =
+          diferencia;
+
+        const nuevaDistribucion =
+          distribucionOriginal.map(
+            (detalle) => ({
+              ...detalle,
+            })
+          );
+
+        for (
+          let indice =
+            entregasAfectadas.length - 1;
+
+          indice >= 0 &&
+          diferenciaRestante > 0;
+
+          indice--
+        ) {
+
+          const entregaAfectada =
+            entregasAfectadas[indice];
+
+          const detalle =
+            nuevaDistribucion[indice];
+
+          const montoAplicado =
+            Number(
+              detalle.montoAplicado || 0
+            );
+
+          const montoDevolver =
+            Number(
+              Math.min(
+                diferenciaRestante,
+                montoAplicado
+              ).toFixed(2)
+            );
+
+          const saldoActual =
+            Number(
+              entregaAfectada.datos
+                .saldoPendiente || 0
+            );
+
+          const nuevoSaldo =
+            Number(
+              (
+                saldoActual +
+                montoDevolver
+              ).toFixed(2)
+            );
+
+          const nuevoMontoAplicado =
+            Number(
+              (
+                montoAplicado -
+                montoDevolver
+              ).toFixed(2)
+            );
+
+          transaction.update(
+            entregaAfectada.referencia,
+            {
+              saldoPendiente:
+                nuevoSaldo,
+            }
+          );
+
+          detalle.montoAplicado =
+            nuevoMontoAplicado;
+
+          detalle.saldoNuevo =
+            Number(
+              (
+                Number(
+                  detalle.saldoAnterior ||
+                  0
+                ) -
+                nuevoMontoAplicado
+              ).toFixed(2)
+            );
+
+          diferenciaRestante =
+            Number(
+              (
+                diferenciaRestante -
+                montoDevolver
+              ).toFixed(2)
+            );
+        }
+
+        if (
+          diferenciaRestante > 0
+        ) {
+          throw new Error(
+            'DISTRIBUCION_INSUFICIENTE'
+          );
+        }
+
+        // ======================================
+        // ACTUALIZAR EL ABONO
+        // ======================================
+
+          const efectivo =
+            Number(
+              abonoActual.pagoEfectivo || 0
+            );
+
+          const nuevoMontoTotal =
+            Number(
+              (
+                efectivo +
+                transferenciaRecibida
+              ).toFixed(2)
+            );
+
+          transaction.update(
+            referenciaAbono,
+            {
+              pagoTransferencia:
+                Number(
+                  transferenciaRecibida.toFixed(
+                    2
+                  )
+                ),
+
+              monto:
+                nuevoMontoTotal,
+
+              transferenciaConfirmada:
+                true,
+
+              transferenciaConDiferencia:
+                !valoresCoinciden,
+
+              fechaConfirmacionTransferencia:
+                fechaTransferencia,
+
+              distribucion:
+                nuevaDistribucion,
+            }
+          );
+        }
+      );
+
+      return {
+        ok: true,
+
+        diferencia:
+          !valoresCoinciden,
+
+        mensaje:
+          valoresCoinciden
+            ? 'Transferencia confirmada correctamente.'
+            : 'Transferencia actualizada correctamente.',
+      };
+
+    } catch (error) {
+
+      console.log(
+        'Error al confirmar transferencia del abono:',
+        error
+      );
+
+      if (
+        error.message ===
+        'ENTREGA_NO_EXISTE'
+      ) {
+        return {
+          ok: false,
+          mensaje:
+            'No se encontró una de las entregas relacionadas con el abono.',
+        };
+      }
+
+      if (
+        error.message ===
+        'DISTRIBUCION_INSUFICIENTE'
+      ) {
+        return {
+          ok: false,
+          mensaje:
+            'No se pudo corregir la distribución del abono.',
+        };
+      }
+
+      return {
+        ok: false,
+        mensaje:
+          'No se pudo confirmar la transferencia.',
+      };
+    }
+  };
+
+    // ==========================================
+  // CONFIRMAR TRANSFERENCIA DE UNA ENTREGA
+  // ==========================================
+
+  const confirmarTransferenciaEntrega = async ({
+    entregaId,
+    montoRecibido,
+    fechaTransferencia,
+  }) => {
+
+    try {
+
+      const entregaActual =
+        entregas.find(
+          (entrega) =>
+            String(entrega.id) ===
+            String(entregaId)
+        );
+
+      if (!entregaActual) {
+        return {
+          ok: false,
+          mensaje:
+            'No se encontró la entrega.',
+        };
+      }
+
+      const transferenciaAnterior =
+        Number(
+          entregaActual.pagoTransferencia || 0
+        );
+
+      const transferenciaRecibida =
+        Number(montoRecibido);
+
+      if (
+        Number.isNaN(transferenciaRecibida) ||
+        transferenciaRecibida < 0
+      ) {
+        return {
+          ok: false,
+          mensaje:
+            'Ingrese un valor válido para la transferencia.',
+        };
+      }
+
+      if (
+        transferenciaRecibida >
+        transferenciaAnterior
+      ) {
+        return {
+          ok: false,
+          mensaje:
+            'El valor recibido no puede superar la transferencia registrada.',
+        };
+      }
+
+      if (!fechaTransferencia) {
+        return {
+          ok: false,
+          mensaje:
+            'Seleccione la fecha de la transferencia.',
+        };
+      }
+
+      const valoresCoinciden =
+        Math.round(
+          transferenciaRecibida * 100
+        ) ===
+        Math.round(
+          transferenciaAnterior * 100
+        );
+
+      const diferenciaCentavos =
+        Math.round(
+          transferenciaAnterior * 100
+        ) -
+        Math.round(
+          transferenciaRecibida * 100
+        );
+
+      const abonoActualCentavos =
+        Math.round(
+          (
+            Number(
+              entregaActual.abona
+            ) || 0
+          ) * 100
+        );
+
+      const saldoActualCentavos =
+        Math.round(
+          (
+            Number(
+              entregaActual.saldoPendiente
+            ) || 0
+          ) * 100
+        );
+
+      const nuevoAbono =
+        Math.max(
+          0,
+          (
+            abonoActualCentavos -
+            diferenciaCentavos
+          ) / 100
+        );
+
+      const nuevoSaldo =
+        (
+          saldoActualCentavos +
+          diferenciaCentavos
+        ) / 100;
+
+      const referenciaEntrega =
+        doc(
+          db,
+          'entregas',
+          entregaId
+        );
+
+      await updateDoc(
+        referenciaEntrega,
+        {
+          pagoTransferencia:
+            Number(
+              transferenciaRecibida.toFixed(2)
+            ),
+
+          abona:
+            Number(
+              nuevoAbono.toFixed(2)
+            ),
+
+          saldoPendiente:
+            Number(
+              nuevoSaldo.toFixed(2)
+            ),
+
+          transferenciaConfirmada:
+            true,
+
+          transferenciaConDiferencia:
+            !valoresCoinciden,
+
+          fechaConfirmacionTransferencia:
+            valoresCoinciden
+              ? null
+              : fechaTransferencia,
+        }
+      );
+
+      return {
+        ok: true,
+        diferencia:
+          !valoresCoinciden,
+
+        mensaje:
+          valoresCoinciden
+            ? 'Transferencia confirmada correctamente.'
+            : 'Transferencia actualizada correctamente.',
+      };
+
+    } catch (error) {
+
+      console.log(
+        'Error al confirmar transferencia:',
+        error
+      );
+
+      return {
+        ok: false,
+        mensaje:
+          'No se pudo confirmar la transferencia.',
       };
     }
   };
@@ -1005,6 +1543,8 @@ export const EntregasProvider = ({
         obtenerAbonosEntrega,
 
         registrarAbono,
+        confirmarTransferenciaAbono,
+        confirmarTransferenciaEntrega,
         eliminarEntregas,
       }}
     >

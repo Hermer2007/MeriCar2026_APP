@@ -813,19 +813,24 @@ export default function OtraEntregaScreen({
 
         metodosPago,
 
-        pagoEfectivo:
-          Number(
-            efectivoNumerico.toFixed(
-              2
-            )
-          ),
+        pagoEfectivo: Number(
+          efectivoNumerico.toFixed(2)
+        ),
 
-        pagoTransferencia:
-          Number(
-            transferenciaNumerica.toFixed(
-              2
-            )
-          ),
+        pagoTransferencia: Number(
+          transferenciaNumerica.toFixed(2)
+        ),
+
+        transferenciaConfirmada:
+          transferenciaNumerica > 0
+            ? false
+            : null,
+
+        transferenciaConDiferencia:
+          false,
+
+        fechaConfirmacionTransferencia:
+          null,
 
         numeroEdiciones: 0,
       };

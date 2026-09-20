@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
   FlatList,
-  Image,
   Modal,
   Pressable,
   StatusBar,
@@ -29,6 +28,7 @@ const ProductosScreen = ({ navigation }) => {
     productos,
     agregarProducto: agregarProductoContext,
     actualizarPrecio,
+    actualizarPrecioCompra,
     eliminarProducto: eliminarProductoContext,
   } = useProductos();
 
@@ -42,6 +42,16 @@ const ProductosScreen = ({ navigation }) => {
   const [
     nuevoPrecio,
     setNuevoPrecio,
+  ] = useState('');
+
+  const [
+    productoCompraEditando,
+    setProductoCompraEditando,
+  ] = useState(null);
+
+  const [
+    nuevoPrecioCompra,
+    setNuevoPrecioCompra,
   ] = useState('');
 
   const [
@@ -59,6 +69,11 @@ const ProductosScreen = ({ navigation }) => {
     setPrecioNuevoProducto,
   ] = useState('');
 
+  const [
+    precioCompraNuevoProducto,
+    setPrecioCompraNuevoProducto,
+  ] = useState('');
+
   const productosFiltrados = useMemo(() => {
     return productos.filter((producto) =>
       producto.nombre
@@ -68,18 +83,20 @@ const ProductosScreen = ({ navigation }) => {
   }, [productos, busqueda]);
 
   // ==========================================
-  // EDITAR PRECIO
+  // EDITAR PRECIO DE VENTA
   // ==========================================
 
   const abrirEditarPrecio = (producto) => {
     setProductoEditando(producto);
 
     setNuevoPrecio(
-      Number(producto.precio).toFixed(2)
+      Number(
+        producto.precio || 0
+      ).toFixed(2)
     );
   };
 
-  const guardarPrecio = () => {
+  const guardarPrecio = async () => {
     const precioConvertido = Number(
       nuevoPrecio.replace(',', '.')
     );
@@ -98,21 +115,96 @@ const ProductosScreen = ({ navigation }) => {
     }
 
     try {
-      actualizarPrecio(
-        productoEditando.id,
-        precioConvertido
-      );
+      const resultado =
+        await actualizarPrecio(
+          productoEditando.id,
+          precioConvertido
+        );
+
+      if (!resultado) {
+        mostrarToast(
+          'No se pudo actualizar el precio.',
+          'error'
+        );
+
+        return;
+      }
 
       setProductoEditando(null);
       setNuevoPrecio('');
 
       mostrarToast(
-        'Precio actualizado correctamente.',
+        'Precio de venta actualizado correctamente.',
         'success'
       );
     } catch (error) {
       mostrarToast(
         'No se pudo actualizar el precio.',
+        'error'
+      );
+    }
+  };
+
+  // ==========================================
+  // EDITAR PRECIO DE COMPRA
+  // ==========================================
+
+  const abrirEditarPrecioCompra = (
+    producto
+  ) => {
+    setProductoCompraEditando(producto);
+
+    setNuevoPrecioCompra(
+      Number(
+        producto.precioCompra || 0
+      ).toFixed(2)
+    );
+  };
+
+  const guardarPrecioCompra = async () => {
+    const precioConvertido = Number(
+      nuevoPrecioCompra.replace(',', '.')
+    );
+
+    if (
+      !nuevoPrecioCompra.trim() ||
+      Number.isNaN(precioConvertido) ||
+      precioConvertido < 0
+    ) {
+      mostrarToast(
+        'Ingrese un precio válido.',
+        'warning'
+      );
+
+      return;
+    }
+
+    try {
+      const resultado =
+        await actualizarPrecioCompra(
+          productoCompraEditando.id,
+          precioConvertido
+        );
+
+      if (!resultado) {
+        mostrarToast(
+          'No se pudo actualizar el precio de compra.',
+          'error'
+        );
+
+        return;
+      }
+
+      setProductoCompraEditando(null);
+      setNuevoPrecioCompra('');
+
+      mostrarToast(
+        'Precio de compra actualizado correctamente.',
+        'success'
+      );
+    } catch (error) {
+      mostrarToast(
+        'No se pudo actualizar el precio de compra.',
         'error'
       );
     }
@@ -125,16 +217,28 @@ const ProductosScreen = ({ navigation }) => {
   const eliminarProducto = (producto) => {
     mostrarAlert({
       titulo: 'Eliminar producto',
-      mensaje: `¿Desea eliminar ${producto.nombre}?`,
+      mensaje:
+        `¿Desea eliminar ${producto.nombre}?`,
       tipo: 'danger',
       mostrarCancelar: true,
       textoCancelar: 'Cancelar',
       textoConfirmar: 'Eliminar',
-      onConfirmar: () => {
+
+      onConfirmar: async () => {
         try {
-          eliminarProductoContext(
-            producto.id
-          );
+          const resultado =
+            await eliminarProductoContext(
+              producto.id
+            );
+
+          if (!resultado) {
+            mostrarToast(
+              'No se pudo eliminar el producto.',
+              'error'
+            );
+
+            return;
+          }
 
           mostrarToast(
             'Producto eliminado correctamente.',
@@ -154,12 +258,18 @@ const ProductosScreen = ({ navigation }) => {
   // AGREGAR PRODUCTO
   // ==========================================
 
-  const agregarProducto = () => {
+  const agregarProducto = async () => {
     const precioConvertido = Number(
       precioNuevoProducto.replace(',', '.')
     );
 
-    // NOMBRE VACÍO
+    const precioCompraConvertido = Number(
+      precioCompraNuevoProducto.replace(
+        ',',
+        '.'
+      )
+    );
+
     if (!nuevoNombre.trim()) {
       mostrarToast(
         'Ingrese el nombre del producto.',
@@ -169,23 +279,44 @@ const ProductosScreen = ({ navigation }) => {
       return;
     }
 
-    // PRECIO VACÍO
     if (!precioNuevoProducto.trim()) {
       mostrarToast(
-        'Ingrese el precio del producto.',
+        'Ingrese el precio de venta.',
         'warning'
       );
 
       return;
     }
 
-    // PRECIO INVÁLIDO
     if (
       Number.isNaN(precioConvertido) ||
       precioConvertido < 0
     ) {
       mostrarToast(
-        'Ingrese un precio válido.',
+        'Ingrese un precio de venta válido.',
+        'warning'
+      );
+
+      return;
+    }
+
+    if (!precioCompraNuevoProducto.trim()) {
+      mostrarToast(
+        'Ingrese el precio de compra.',
+        'warning'
+      );
+
+      return;
+    }
+
+    if (
+      Number.isNaN(
+        precioCompraConvertido
+      ) ||
+      precioCompraConvertido < 0
+    ) {
+      mostrarToast(
+        'Ingrese un precio de compra válido.',
         'warning'
       );
 
@@ -193,13 +324,25 @@ const ProductosScreen = ({ navigation }) => {
     }
 
     try {
-      agregarProductoContext(
-        nuevoNombre.trim(),
-        precioConvertido
-      );
+      const resultado =
+        await agregarProductoContext(
+          nuevoNombre.trim(),
+          precioConvertido,
+          precioCompraConvertido
+        );
+
+      if (!resultado) {
+        mostrarToast(
+          'No se pudo registrar el producto.',
+          'error'
+        );
+
+        return;
+      }
 
       setNuevoNombre('');
       setPrecioNuevoProducto('');
+      setPrecioCompraNuevoProducto('');
       setModalAgregar(false);
 
       mostrarToast(
@@ -217,6 +360,13 @@ const ProductosScreen = ({ navigation }) => {
         'error'
       );
     }
+  };
+
+  const cerrarModalAgregar = () => {
+    setModalAgregar(false);
+    setNuevoNombre('');
+    setPrecioNuevoProducto('');
+    setPrecioCompraNuevoProducto('');
   };
 
   // ==========================================
@@ -245,7 +395,7 @@ const ProductosScreen = ({ navigation }) => {
         <Text
           style={styles.precioTitulo}
         >
-          Precio actual
+          Precio de venta
         </Text>
 
         <TouchableOpacity
@@ -258,7 +408,7 @@ const ProductosScreen = ({ navigation }) => {
           <Text style={styles.precio}>
             $
             {Number(
-              item.precio
+              item.precio || 0
             ).toFixed(2)}
           </Text>
 
@@ -269,6 +419,20 @@ const ProductosScreen = ({ navigation }) => {
           />
         </TouchableOpacity>
       </View>
+
+      <TouchableOpacity
+        style={styles.botonPrecioCompra}
+        onPress={() =>
+          abrirEditarPrecioCompra(item)
+        }
+        activeOpacity={0.75}
+      >
+        <Text
+          style={styles.textoPrecioCompra}
+        >
+          ####
+        </Text>
+      </TouchableOpacity>
 
       <TouchableOpacity
         style={styles.botonEliminar}
@@ -322,24 +486,21 @@ const ProductosScreen = ({ navigation }) => {
           </Text>
 
           <Text
-            style={
-              styles.subtituloHeader
-            }
+            style={styles.subtituloHeader}
           >
-            Gestiona tus productos y
-            precios
+            Gestiona tus productos y precios
           </Text>
         </View>
-        <BotonHome navigation={navigation} />
 
+        <BotonHome
+          navigation={navigation}
+        />
       </View>
 
       {/* BUSCADOR */}
 
       <View
-        style={
-          styles.buscadorContainer
-        }
+        style={styles.buscadorContainer}
       >
         <Ionicons
           name="search"
@@ -396,7 +557,8 @@ const ProductosScreen = ({ navigation }) => {
         style={[
           styles.botonAgregarContainer,
           {
-            paddingBottom: insets.bottom,
+            paddingBottom:
+              insets.bottom,
           },
         ]}
       >
@@ -422,7 +584,7 @@ const ProductosScreen = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      {/* MODAL EDITAR PRECIO */}
+      {/* MODAL PRECIO DE VENTA */}
 
       <Modal
         visible={
@@ -430,15 +592,17 @@ const ProductosScreen = ({ navigation }) => {
         }
         transparent
         animationType="fade"
-        onRequestClose={() =>
-          setProductoEditando(null)
-        }
+        onRequestClose={() => {
+          setProductoEditando(null);
+          setNuevoPrecio('');
+        }}
       >
         <Pressable
           style={styles.modalFondo}
-          onPress={() =>
-            setProductoEditando(null)
-          }
+          onPress={() => {
+            setProductoEditando(null);
+            setNuevoPrecio('');
+          }}
         >
           <Pressable
             style={
@@ -449,7 +613,7 @@ const ProductosScreen = ({ navigation }) => {
             <Text
               style={styles.modalTitulo}
             >
-              Modificar precio
+              Modificar precio de venta
             </Text>
 
             <Text
@@ -474,6 +638,7 @@ const ProductosScreen = ({ navigation }) => {
               }
               keyboardType="decimal-pad"
               placeholder="$0.00"
+              placeholderTextColor="#999999"
               selectTextOnFocus
             />
 
@@ -484,11 +649,12 @@ const ProductosScreen = ({ navigation }) => {
                 style={
                   styles.botonCancelar
                 }
-                onPress={() =>
+                onPress={() => {
                   setProductoEditando(
                     null
-                  )
-                }
+                  );
+                  setNuevoPrecio('');
+                }}
               >
                 <Text
                   style={
@@ -518,20 +684,140 @@ const ProductosScreen = ({ navigation }) => {
         </Pressable>
       </Modal>
 
+      {/* MODAL PRECIO DE COMPRA */}
+
+      <Modal
+        visible={
+          productoCompraEditando !==
+          null
+        }
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setProductoCompraEditando(
+            null
+          );
+          setNuevoPrecioCompra('');
+        }}
+      >
+        <Pressable
+          style={
+            styles.modalFondoCompra
+          }
+          onPress={() => {
+            setProductoCompraEditando(
+              null
+            );
+            setNuevoPrecioCompra('');
+          }}
+        >
+          <Pressable
+            style={
+              styles.modalContenidoCompra
+            }
+            onPress={() => {}}
+          >
+            <Text
+              style={
+                styles.modalTituloCompra
+              }
+            >
+              Modificar precio de compra
+            </Text>
+
+            <Text
+              style={
+                styles.modalSubtituloCompra
+              }
+            >
+              {
+                productoCompraEditando
+                  ?.nombre
+              }
+            </Text>
+
+            <Text
+              style={
+                styles.modalLabelCompra
+              }
+            >
+              Nuevo precio
+            </Text>
+
+            <TextInput
+              style={
+                styles.modalInputCompra
+              }
+              value={nuevoPrecioCompra}
+              onChangeText={
+                setNuevoPrecioCompra
+              }
+              keyboardType="decimal-pad"
+              placeholder="$0.00"
+              placeholderTextColor="#999999"
+              selectTextOnFocus
+            />
+
+            <View
+              style={styles.modalBotones}
+            >
+              <TouchableOpacity
+                style={
+                  styles.botonCancelarCompra
+                }
+                onPress={() => {
+                  setProductoCompraEditando(
+                    null
+                  );
+                  setNuevoPrecioCompra(
+                    ''
+                  );
+                }}
+              >
+                <Text
+                  style={
+                    styles.textoCancelarCompra
+                  }
+                >
+                  Cancelar
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={
+                  styles.botonGuardarCompra
+                }
+                onPress={
+                  guardarPrecioCompra
+                }
+              >
+                <Text
+                  style={
+                    styles.textoGuardarCompra
+                  }
+                >
+                  Guardar
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {/* MODAL NUEVO PRODUCTO */}
 
       <Modal
         visible={modalAgregar}
         transparent
         animationType="fade"
-        onRequestClose={() =>
-          setModalAgregar(false)
+        onRequestClose={
+          cerrarModalAgregar
         }
       >
         <Pressable
           style={styles.modalFondo}
-          onPress={() =>
-            setModalAgregar(false)
+          onPress={
+            cerrarModalAgregar
           }
         >
           <Pressable
@@ -569,7 +855,7 @@ const ProductosScreen = ({ navigation }) => {
                 styles.modalLabelSeparado
               }
             >
-              Precio
+              Precio de venta
             </Text>
 
             <TextInput
@@ -586,6 +872,28 @@ const ProductosScreen = ({ navigation }) => {
               selectTextOnFocus
             />
 
+            <Text
+              style={
+                styles.modalLabelSeparado
+              }
+            >
+              Precio de compra
+            </Text>
+
+            <TextInput
+              style={styles.modalInput}
+              placeholder="$0.00"
+              placeholderTextColor="#999999"
+              value={
+                precioCompraNuevoProducto
+              }
+              onChangeText={
+                setPrecioCompraNuevoProducto
+              }
+              keyboardType="decimal-pad"
+              selectTextOnFocus
+            />
+
             <View
               style={styles.modalBotones}
             >
@@ -593,8 +901,8 @@ const ProductosScreen = ({ navigation }) => {
                 style={
                   styles.botonCancelar
                 }
-                onPress={() =>
-                  setModalAgregar(false)
+                onPress={
+                  cerrarModalAgregar
                 }
               >
                 <Text
@@ -738,6 +1046,7 @@ const styles = StyleSheet.create({
     color: '#151515',
     marginBottom: 7,
     marginHorizontal: 20,
+    paddingRight: 50,
   },
 
   precioTitulo: {
@@ -758,6 +1067,28 @@ const styles = StyleSheet.create({
     fontSize: 21,
     fontWeight: '700',
     color: '#08752F',
+  },
+
+  botonPrecioCompra: {
+    position: 'absolute',
+    right: 13,
+    top: 12,
+    minWidth: 55,
+    height: 27,
+    borderRadius: 7,
+    backgroundColor: '#E1E1E1',
+    borderWidth: 1,
+    borderColor: '#C7C7C7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+
+  textoPrecioCompra: {
+    color: '#686868',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1,
   },
 
   botonEliminar: {
@@ -808,6 +1139,8 @@ const styles = StyleSheet.create({
     color: '#999999',
     fontSize: 15,
   },
+
+  // MODALES VERDES
 
   modalFondo: {
     flex: 1,
@@ -894,6 +1227,88 @@ const styles = StyleSheet.create({
   },
 
   textoGuardar: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+
+  // MODAL PRECIO DE COMPRA - GRIS
+
+  modalFondoCompra: {
+    flex: 1,
+    backgroundColor:
+      'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    paddingHorizontal: 28,
+  },
+
+  modalContenidoCompra: {
+    backgroundColor: '#F7F7F7',
+    borderRadius: 18,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: '#D4D4D4',
+  },
+
+  modalTituloCompra: {
+    fontSize: 21,
+    fontWeight: '700',
+    color: '#3F3F3F',
+  },
+
+  modalSubtituloCompra: {
+    marginTop: 3,
+    marginBottom: 22,
+    fontSize: 14,
+    color: '#777777',
+  },
+
+  modalLabelCompra: {
+    marginTop: 20,
+    marginBottom: 7,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#4D4D4D',
+  },
+
+  modalInputCompra: {
+    height: 52,
+    borderWidth: 1,
+    borderColor: '#BEBEBE',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    fontSize: 16,
+    color: '#333333',
+    backgroundColor: '#FFFFFF',
+  },
+
+  botonCancelarCompra: {
+    flex: 1,
+    height: 50,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#BDBDBD',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  textoCancelarCompra: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#555555',
+  },
+
+  botonGuardarCompra: {
+    flex: 1,
+    height: 50,
+    borderRadius: 10,
+    backgroundColor: '#606060',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  textoGuardarCompra: {
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '700',

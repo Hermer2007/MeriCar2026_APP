@@ -1,14 +1,18 @@
-import React, { useMemo } from 'react';
+import React, {useMemo, useState,} from 'react';
+
 import {
   FlatList,
   StatusBar,
   StyleSheet,
+  Modal,
+  TextInput,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
+import {DateTimePickerAndroid,} from '@react-native-community/datetimepicker';
 
 import { useEntregas } from '../context/EntregasContext';
 import { useAlert } from '../context/AlertContext';
@@ -28,14 +32,50 @@ const ClienteDetalleScreen = ({
   const {
     obtenerEntregasCliente,
     abonos,
+    confirmarTransferenciaEntrega,
+    confirmarTransferenciaAbono,
   } = useEntregas();
 
-  const historial =
-    cliente
-      ? obtenerEntregasCliente(
-          cliente.id
-        )
-      : [];
+    // ==========================================
+    // CONFIRMACIÓN DE TRANSFERENCIA
+    // ==========================================
+
+    const [
+      modalTransferenciaVisible,
+      setModalTransferenciaVisible,
+    ] = useState(false);
+
+    const [
+      entregaTransferencia,
+      setEntregaTransferencia,
+    ] = useState(null);
+
+    const [
+      abonoTransferencia,
+      setAbonoTransferencia,
+    ] = useState(null);
+
+    const [
+      valorTransferencia,
+      setValorTransferencia,
+    ] = useState('');
+
+    const [
+      fechaTransferencia,
+      setFechaTransferencia,
+    ] = useState(null);
+
+    const [
+      guardandoTransferencia,
+      setGuardandoTransferencia,
+    ] = useState(false);
+
+    const historial =
+      cliente
+        ? obtenerEntregasCliente(
+            cliente.id
+          )
+        : [];
 
   // ==========================================
   // ABONOS POSTERIORES DE UNA ENTREGA
@@ -122,6 +162,12 @@ const ClienteDetalleScreen = ({
                 id:
                   `${abono.id}-${detalle.entregaId}`,
 
+                abonoId:
+                  abono.id,
+
+                tipo:
+                  abono.tipo,
+
                 fecha:
                   abono.fecha || '',
 
@@ -130,6 +176,18 @@ const ClienteDetalleScreen = ({
 
                 transferencia:
                   transferenciaAplicada,
+
+                transferenciaTotal:
+                  transferencia,
+
+                transferenciaConfirmada:
+                  abono.transferenciaConfirmada,
+
+                transferenciaConDiferencia:
+                  abono.transferenciaConDiferencia,
+
+                fechaConfirmacionTransferencia:
+                  abono.fechaConfirmacionTransferencia,
               });
             }
           }
@@ -187,6 +245,57 @@ const ClienteDetalleScreen = ({
       0
     );
 
+    // ==========================================
+// TRANSFERENCIA AUTOMÁTICA PENDIENTE
+// ==========================================
+
+const abonosAutomaticosPendientes =
+  (abonos || [])
+    .filter(
+      (abono) =>
+        String(abono.clienteId) ===
+          String(cliente?.id) &&
+        abono.tipo ===
+          'AUTOMATICO' &&
+        Number(
+          abono.pagoTransferencia || 0
+        ) > 0 &&
+        abono.transferenciaConfirmada !==
+          true
+    )
+    .sort(
+      (
+        abonoA,
+        abonoB
+      ) => {
+
+        const fechaA =
+          abonoA.fechaCreacion
+            ?.toMillis
+            ? abonoA.fechaCreacion
+                .toMillis()
+            : 0;
+
+        const fechaB =
+          abonoB.fechaCreacion
+            ?.toMillis
+            ? abonoB.fechaCreacion
+                .toMillis()
+            : 0;
+
+        return (
+          fechaA -
+          fechaB
+        );
+      }
+    );
+
+const abonoAutomaticoPendiente =
+  abonosAutomaticosPendientes.length >
+  0
+    ? abonosAutomaticosPendientes[0]
+    : null;
+
   // ==========================================
   // NAVEGACIÓN
   // ==========================================
@@ -213,6 +322,344 @@ const ClienteDetalleScreen = ({
       }
     );
   };
+
+    // ==========================================
+    // CONFIRMAR TRANSFERENCIA
+    // ==========================================
+
+    const abrirConfirmacionTransferencia = (
+
+      entrega
+    ) => {
+      setAbonoTransferencia(
+        null
+      );
+
+      setEntregaTransferencia(
+        entrega
+      );
+
+      setValorTransferencia(
+        Number(
+          entrega.pagoTransferencia || 0
+        ).toFixed(2)
+      );
+
+      setFechaTransferencia(
+        null
+      );
+
+      setModalTransferenciaVisible(
+        true
+      );
+    };
+
+    const abrirConfirmacionAbono = (
+      abono
+    ) => {
+
+      setEntregaTransferencia(
+        null
+      );
+
+      setAbonoTransferencia(
+        abono
+      );
+
+      setValorTransferencia(
+        Number(
+          abono.transferenciaTotal || 0
+        ).toFixed(2)
+      );
+
+      setFechaTransferencia(
+        null
+      );
+
+      setModalTransferenciaVisible(
+        true
+      );
+    };
+
+    const abrirConfirmacionAutomatica =
+  () => {
+
+    if (
+      !abonoAutomaticoPendiente
+    ) {
+      return;
+    }
+
+    setEntregaTransferencia(
+      null
+    );
+
+    setAbonoTransferencia({
+      abonoId:
+        abonoAutomaticoPendiente.id,
+
+      transferenciaTotal:
+        Number(
+          abonoAutomaticoPendiente
+            .pagoTransferencia || 0
+        ),
+    });
+
+    setValorTransferencia(
+      Number(
+        abonoAutomaticoPendiente
+          .pagoTransferencia || 0
+      ).toFixed(2)
+    );
+
+    setFechaTransferencia(
+      null
+    );
+
+    setModalTransferenciaVisible(
+      true
+    );
+  };
+
+    const cerrarConfirmacionTransferencia =
+      () => {
+
+        if (guardandoTransferencia) {
+          return;
+        }
+
+        setModalTransferenciaVisible(
+          false
+        );
+
+        setEntregaTransferencia(
+          null
+        );
+
+        setAbonoTransferencia(
+          null
+        );
+
+        setValorTransferencia(
+          ''
+        );
+
+        setFechaTransferencia(
+          null
+        );
+      };
+
+    const formatearFechaTransferencia = (
+      fecha
+    ) => {
+
+      if (!fecha) {
+        return '';
+      }
+
+      const dia =
+        String(
+          fecha.getDate()
+        ).padStart(
+          2,
+          '0'
+        );
+
+      const mes =
+        String(
+          fecha.getMonth() + 1
+        ).padStart(
+          2,
+          '0'
+        );
+
+      const anio =
+        fecha.getFullYear();
+
+      return `${dia}/${mes}/${anio}`;
+    };
+
+    const abrirCalendarioTransferencia =
+      () => {
+
+        const hoy =
+          new Date();
+
+        const fechaInicial =
+          fechaTransferencia ||
+          hoy;
+
+        DateTimePickerAndroid.open({
+          value:
+            fechaInicial,
+
+          mode:
+            'date',
+
+          is24Hour:
+            true,
+
+          maximumDate:
+            hoy,
+
+          onChange: (
+            event,
+            fechaSeleccionada
+          ) => {
+
+            if (
+              event.type ===
+                'set' &&
+              fechaSeleccionada
+            ) {
+
+              setFechaTransferencia(
+                fechaSeleccionada
+              );
+            }
+          },
+        });
+      };
+
+    const confirmarTransferencia =
+      async () => {
+
+        if (
+          !entregaTransferencia &&
+          !abonoTransferencia
+        ) {
+          return;
+        }
+
+        const valor =
+          Number(
+            String(
+              valorTransferencia
+            ).replace(
+              ',',
+              '.'
+            )
+          );
+
+        if (
+          Number.isNaN(valor) ||
+          valor < 0
+        ) {
+
+          mostrarAlert({
+            titulo:
+              'Valor inválido',
+
+            mensaje:
+              'Ingrese el valor recibido de la transferencia.',
+
+            tipo:
+              'warning',
+
+            textoConfirmar:
+              'Aceptar',
+          });
+
+          return;
+        }
+
+        if (!fechaTransferencia) {
+
+          mostrarAlert({
+            titulo:
+              'Fecha requerida',
+
+            mensaje:
+              'Seleccione manualmente la fecha de la transferencia.',
+
+            tipo:
+              'warning',
+
+            textoConfirmar:
+              'Aceptar',
+          });
+
+          return;
+        }
+
+        setGuardandoTransferencia(
+          true
+        );
+
+        let resultado;
+
+        if (abonoTransferencia) {
+
+          resultado =
+            await confirmarTransferenciaAbono({
+              abonoId:
+                abonoTransferencia.abonoId,
+
+              montoRecibido:
+                valor,
+
+              fechaTransferencia:
+                formatearFechaTransferencia(
+                  fechaTransferencia
+                ),
+            });
+
+        } else {
+
+          resultado =
+            await confirmarTransferenciaEntrega({
+              entregaId:
+                entregaTransferencia.id,
+
+              montoRecibido:
+                valor,
+
+              fechaTransferencia:
+                formatearFechaTransferencia(
+                  fechaTransferencia
+                ),
+            });
+        }
+
+        setGuardandoTransferencia(
+          false
+        );
+
+        if (!resultado.ok) {
+
+          mostrarAlert({
+            titulo:
+              'No se pudo confirmar',
+
+            mensaje:
+              resultado.mensaje,
+
+            tipo:
+              'warning',
+
+            textoConfirmar:
+              'Aceptar',
+          });
+
+          return;
+        }
+
+        cerrarConfirmacionTransferencia();
+
+        mostrarAlert({
+          titulo:
+            'Transferencia confirmada',
+
+          mensaje:
+            resultado.mensaje,
+
+          tipo:
+            'success',
+
+          textoConfirmar:
+            'Aceptar',
+        });
+      };
 
   // ==========================================
   // ALERTA
@@ -601,7 +1048,7 @@ const ClienteDetalleScreen = ({
 
             )}
 
-            {/* PAGO ORIGINAL POR TRANSFERENCIA */}
+                        {/* PAGO ORIGINAL POR TRANSFERENCIA */}
 
             {metodos.includes(
               'Transferencia'
@@ -609,42 +1056,134 @@ const ClienteDetalleScreen = ({
 
               <View
                 style={
-                  styles.metodoItem
+                  styles.transferenciaContainer
                 }
               >
 
-                <Ionicons
-                  name="card-outline"
-                  size={17}
-                  color="#08752F"
-                />
-
-                <Text
+                <View
                   style={
-                    styles.metodoTexto
+                    styles.metodoItem
                   }
                 >
-                  Transferencia
-                </Text>
 
-                <Text
-                  style={
-                    styles.metodoMonto
-                  }
-                >
-                  $
-                  {Number(
-                    item.pagoTransferencia ??
-                    (
-                      item.metodoPago ===
-                      'Transferencia'
-                        ? item.abona
-                        : 0
+                  <Ionicons
+                    name="card-outline"
+                    size={17}
+                    color="#D69E00"
+                  />
+
+                  <Text
+                    style={
+                      styles.transferenciaTexto
+                    }
+                  >
+                    Transferencia
+                  </Text>
+
+                  <Text
+                    style={
+                      styles.transferenciaMonto
+                    }
+                  >
+                    $
+                    {Number(
+                      item.pagoTransferencia ??
+                      (
+                        item.metodoPago ===
+                        'Transferencia'
+                          ? item.abona
+                          : 0
+                      )
+                    ).toFixed(
+                      2
+                    )}
+                  </Text>
+
+                  {item.transferenciaConfirmada ===
+                    true ? (
+
+                    item.transferenciaConDiferencia ===
+                      true ? (
+
+                      <View
+                        style={
+                          styles.badgeTransferencia
+                        }
+                      >
+
+                        <Text
+                          style={
+                            styles.badgeTransferenciaTexto
+                          }
+                        >
+                          {
+                            item.fechaConfirmacionTransferencia
+                          }
+                        </Text>
+
+                      </View>
+
+                    ) : (
+
+                      <View
+                        style={
+                          styles.badgeTransferencia
+                        }
+                      >
+
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={13}
+                          color="#A66F00"
+                        />
+
+                        <Text
+                          style={
+                            styles.badgeTransferenciaTexto
+                          }
+                        >
+                          Confirmado
+                        </Text>
+
+                      </View>
+
                     )
-                  ).toFixed(
-                    2
-                  )}
-                </Text>
+
+                  ) : null}
+
+                </View>
+
+                {item.transferenciaConfirmada !==
+                  true && (
+
+                  <TouchableOpacity
+                    style={
+                      styles.botonConfirmarTransferencia
+                    }
+                    onPress={() =>
+                      abrirConfirmacionTransferencia(
+                        item
+                      )
+                    }
+                  >
+
+                    <Ionicons
+                      name="checkmark-circle-outline"
+                      size={17}
+                      color="#7A5700"
+                    />
+
+                    <Text
+                      style={
+                        styles.textoConfirmarTransferencia
+                      }
+                    >
+                      Confirmar transferencia
+                    </Text>
+
+                  </TouchableOpacity>
+
+                )}
 
               </View>
 
@@ -719,7 +1258,13 @@ const ClienteDetalleScreen = ({
                   )}
 
                   {abono.transferencia >
-                    0 && (
+                  0 && (
+
+                  <View
+                    style={
+                      styles.transferenciaContainer
+                    }
+                  >
 
                     <View
                       style={
@@ -730,12 +1275,12 @@ const ClienteDetalleScreen = ({
                       <Ionicons
                         name="card-outline"
                         size={17}
-                        color="#08752F"
+                        color="#D69E00"
                       />
 
                       <Text
                         style={
-                          styles.metodoTexto
+                          styles.transferenciaTexto
                         }
                       >
                         Transferencia
@@ -743,15 +1288,13 @@ const ClienteDetalleScreen = ({
 
                       <Text
                         style={
-                          styles.metodoMonto
+                          styles.transferenciaMonto
                         }
                       >
                         $
                         {Number(
                           abono.transferencia
-                        ).toFixed(
-                          2
-                        )}
+                        ).toFixed(2)}
                       </Text>
 
                       <View
@@ -759,21 +1302,87 @@ const ClienteDetalleScreen = ({
                           styles.badgeAbono
                         }
                       >
-
                         <Text
                           style={
                             styles.badgeAbonoTexto
                           }
                         >
-                          Abono {abono.fecha}
+                          Abono
                         </Text>
-
                       </View>
+
+                      {abono.transferenciaConfirmada ===
+                        true && (
+
+                        <View
+                          style={
+                            styles.badgeTransferencia
+                          }
+                        >
+
+                          {abono.transferenciaConDiferencia !==
+                            true && (
+                            <Ionicons
+                              name="checkmark-circle"
+                              size={13}
+                              color="#A66F00"
+                            />
+                          )}
+
+                          <Text
+                            style={
+                              styles.badgeTransferenciaTexto
+                            }
+                          >
+                            {abono.transferenciaConDiferencia ===
+                            true
+                              ? abono.fechaConfirmacionTransferencia
+                              : 'Confirmado'}
+                          </Text>
+
+                        </View>
+
+                      )}
 
                     </View>
 
-                  )}
+                    {abono.transferenciaConfirmada !==
+                      true &&
+                      abono.tipo ===
+                        'ESPECIFICO' && (
 
+                      <TouchableOpacity
+                        style={
+                          styles.botonConfirmarTransferencia
+                        }
+                        onPress={() =>
+                          abrirConfirmacionAbono(
+                            abono
+                          )
+                        }
+                      >
+
+                        <Ionicons
+                          name="checkmark-circle-outline"
+                          size={17}
+                          color="#7A5700"
+                        />
+
+                        <Text
+                          style={
+                            styles.textoConfirmarTransferencia
+                          }
+                        >
+                          Confirmar transferencia
+                        </Text>
+
+                      </TouchableOpacity>
+
+                    )}
+
+                  </View>
+
+                )}
                 </React.Fragment>
 
               )
@@ -898,13 +1507,50 @@ const ClienteDetalleScreen = ({
         }
       >
 
-        <Text
+        <View
           style={
-            styles.historialTitulo
+            styles.historialTituloFila
           }
         >
-          Historial
-        </Text>
+
+          <Text
+            style={
+              styles.historialTitulo
+            }
+          >
+            Historial
+          </Text>
+
+          {abonoAutomaticoPendiente && (
+
+            <TouchableOpacity
+              style={
+                styles.botonConfirmarHistorial
+              }
+              onPress={
+                abrirConfirmacionAutomatica
+              }
+            >
+
+              <Ionicons
+                name="checkmark-circle-outline"
+                size={16}
+                color="#7A5700"
+              />
+
+              <Text
+                style={
+                  styles.textoConfirmarHistorial
+                }
+              >
+                Confirmar transferencia
+              </Text>
+
+            </TouchableOpacity>
+
+          )}
+
+        </View>
 
         <View
           style={
@@ -1032,6 +1678,209 @@ const ClienteDetalleScreen = ({
         </TouchableOpacity>
 
       </View>
+
+            {/* MODAL CONFIRMAR TRANSFERENCIA */}
+
+            <Modal
+              visible={
+                modalTransferenciaVisible
+              }
+              transparent
+              animationType="fade"
+              onRequestClose={
+                cerrarConfirmacionTransferencia
+              }
+            >
+
+              <View
+                style={
+                  styles.modalFondo
+                }
+              >
+
+                <View
+                  style={
+                    styles.modalTransferencia
+                  }
+                >
+
+                  <View
+                    style={
+                      styles.modalIconoContainer
+                    }
+                  >
+
+                    <Ionicons
+                      name="card-outline"
+                      size={28}
+                      color="#A66F00"
+                    />
+
+                  </View>
+
+                  <Text
+                    style={
+                      styles.modalTitulo
+                    }
+                  >
+                    Confirmar transferencia
+                  </Text>
+
+                  <Text
+                    style={
+                      styles.modalSubtitulo
+                    }
+                  >
+                    Verifique la transferencia con la información recibida en el banco.
+                  </Text>
+
+                  <Text
+                    style={
+                      styles.modalLabel
+                    }
+                  >
+                    Fecha de transferencia
+                  </Text>
+
+                  <TouchableOpacity
+                    style={
+                      styles.selectorFecha
+                    }
+                    onPress={
+                      abrirCalendarioTransferencia
+                    }
+                  >
+
+                    <Ionicons
+                      name="calendar-outline"
+                      size={20}
+                      color="#A66F00"
+                    />
+
+                    <Text
+                      style={[
+                        styles.selectorFechaTexto,
+
+                        !fechaTransferencia &&
+                          styles.selectorFechaPlaceholder,
+                      ]}
+                    >
+                      {fechaTransferencia
+                        ? formatearFechaTransferencia(
+                            fechaTransferencia
+                          )
+                        : 'Seleccionar fecha'}
+                    </Text>
+
+                  </TouchableOpacity>
+
+                  <Text
+                    style={
+                      styles.modalLabel
+                    }
+                  >
+                    Valor recibido
+                  </Text>
+
+                  <View
+                    style={
+                      styles.inputTransferenciaContainer
+                    }
+                  >
+
+                    <Text
+                      style={
+                        styles.simboloDolar
+                      }
+                    >
+                      $
+                    </Text>
+
+                    <TextInput
+                      style={
+                        styles.inputTransferencia
+                      }
+                      value={
+                        valorTransferencia
+                      }
+                      onChangeText={
+                        setValorTransferencia
+                      }
+                      keyboardType="decimal-pad"
+                      placeholder="0.00"
+                      editable={
+                        !guardandoTransferencia
+                      }
+                    />
+
+                  </View>
+
+                  <View
+                    style={
+                      styles.modalBotones
+                    }
+                  >
+
+                    <TouchableOpacity
+                      style={
+                        styles.botonCancelarTransferencia
+                      }
+                      onPress={
+                        cerrarConfirmacionTransferencia
+                      }
+                      disabled={
+                        guardandoTransferencia
+                      }
+                    >
+
+                      <Text
+                        style={
+                          styles.textoCancelarTransferencia
+                        }
+                      >
+                        Cancelar
+                      </Text>
+
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={
+                        styles.botonGuardarTransferencia
+                      }
+                      onPress={
+                        confirmarTransferencia
+                      }
+                      disabled={
+                        guardandoTransferencia
+                      }
+                    >
+
+                      <Ionicons
+                        name="checkmark"
+                        size={19}
+                        color="#FFFFFF"
+                      />
+
+                      <Text
+                        style={
+                          styles.textoGuardarTransferencia
+                        }
+                      >
+                        {guardandoTransferencia
+                          ? 'Guardando...'
+                          : 'Confirmar'}
+                      </Text>
+
+                    </TouchableOpacity>
+
+                  </View>
+
+                </View>
+
+              </View>
+
+            </Modal>
+
     </View>
   );
 };
@@ -1116,7 +1965,6 @@ const styles =
       fontSize: 16,
       fontWeight:
         '700',
-      marginBottom: 8,
     },
 
     saldoTotalContainer: {
@@ -1516,4 +2364,232 @@ const styles =
       fontWeight:
         '700',
     },
+
+        transferenciaContainer: {
+      marginTop: 2,
+    },
+
+    transferenciaTexto: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: '#A66F00',
+    },
+
+    transferenciaMonto: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: '#A66F00',
+    },
+
+    badgeTransferencia: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+      backgroundColor: '#FFF4CC',
+      borderRadius: 6,
+      paddingHorizontal: 7,
+      paddingVertical: 3,
+      marginLeft: 4,
+    },
+
+    badgeTransferenciaTexto: {
+      color: '#A66F00',
+      fontSize: 9,
+      fontWeight: '700',
+    },
+
+    botonConfirmarTransferencia: {
+      alignSelf: 'flex-start',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      marginTop: 7,
+      backgroundColor: '#FFF4CC',
+      borderWidth: 1,
+      borderColor: '#E2B93B',
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 7,
+    },
+
+    textoConfirmarTransferencia: {
+      color: '#7A5700',
+      fontSize: 11,
+      fontWeight: '700',
+    },
+
+    modalFondo: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.45)',
+      justifyContent: 'center',
+      paddingHorizontal: 24,
+    },
+
+    modalTransferencia: {
+      backgroundColor: '#FFFFFF',
+      borderRadius: 16,
+      padding: 20,
+      borderWidth: 2,
+      borderColor: '#E2B93B',
+    },
+
+    modalIconoContainer: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      backgroundColor: '#FFF4CC',
+      justifyContent: 'center',
+      alignItems: 'center',
+      alignSelf: 'center',
+      marginBottom: 10,
+    },
+
+    modalTitulo: {
+      fontSize: 20,
+      fontWeight: '800',
+      color: '#7A5700',
+      textAlign: 'center',
+    },
+
+    modalSubtitulo: {
+      marginTop: 6,
+      marginBottom: 18,
+      color: '#777777',
+      fontSize: 12,
+      textAlign: 'center',
+      lineHeight: 18,
+    },
+
+    modalLabel: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: '#555555',
+      marginBottom: 6,
+      marginTop: 7,
+    },
+
+    selectorFecha: {
+      minHeight: 48,
+      borderWidth: 1,
+      borderColor: '#E2B93B',
+      borderRadius: 9,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 12,
+      backgroundColor: '#FFFDF5',
+    },
+
+    selectorFechaTexto: {
+      color: '#333333',
+      fontSize: 14,
+      fontWeight: '600',
+    },
+
+    selectorFechaPlaceholder: {
+      color: '#999999',
+      fontWeight: '400',
+    },
+
+    inputTransferenciaContainer: {
+      minHeight: 48,
+      borderWidth: 1,
+      borderColor: '#E2B93B',
+      borderRadius: 9,
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: '#FFFDF5',
+      paddingHorizontal: 12,
+    },
+
+    simboloDolar: {
+      color: '#A66F00',
+      fontSize: 16,
+      fontWeight: '800',
+      marginRight: 5,
+    },
+
+    inputTransferencia: {
+      flex: 1,
+      fontSize: 15,
+      color: '#222222',
+      paddingVertical: 10,
+    },
+
+    modalBotones: {
+      flexDirection: 'row',
+      gap: 10,
+      marginTop: 20,
+    },
+
+    botonCancelarTransferencia: {
+      flex: 1,
+      minHeight: 46,
+      borderRadius: 9,
+      borderWidth: 1,
+      borderColor: '#D5D5D5',
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: '#FFFFFF',
+    },
+
+    textoCancelarTransferencia: {
+      color: '#666666',
+      fontSize: 14,
+      fontWeight: '700',
+    },
+
+    botonGuardarTransferencia: {
+      flex: 1,
+      minHeight: 46,
+      borderRadius: 9,
+      backgroundColor: '#D69E00',
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: 5,
+    },
+
+    textoGuardarTransferencia: {
+      color: '#FFFFFF',
+      fontSize: 14,
+      fontWeight: '700',
+    },
+
+    historialTituloFila: {
+  flexDirection:
+    'row',
+  alignItems:
+    'center',
+  justifyContent:
+    'space-between',
+  marginBottom: 8,
+  gap: 10,
+},
+
+botonConfirmarHistorial: {
+  flexDirection:
+    'row',
+  alignItems:
+    'center',
+  justifyContent:
+    'center',
+  gap: 5,
+  backgroundColor:
+    '#FFF4CC',
+  borderWidth: 1,
+  borderColor:
+    '#E2B93B',
+  borderRadius: 8,
+  paddingHorizontal: 9,
+  paddingVertical: 6,
+},
+
+textoConfirmarHistorial: {
+  color:
+    '#7A5700',
+  fontSize: 10,
+  fontWeight:
+    '700',
+},
   });

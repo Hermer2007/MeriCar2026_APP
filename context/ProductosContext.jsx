@@ -65,7 +65,8 @@ export const ProductosProvider = ({ children }) => {
 
   const agregarProducto = async (
     nombre,
-    precio
+    precio,
+    precioCompra
   ) => {
 
     try {
@@ -73,6 +74,7 @@ export const ProductosProvider = ({ children }) => {
       const nuevoProducto = {
         nombre,
         precio,
+        precioCompra,
       };
 
       await addDoc(
@@ -94,7 +96,7 @@ export const ProductosProvider = ({ children }) => {
   };
 
   // ==========================================
-  // ACTUALIZAR PRECIO
+  // ACTUALIZAR PRECIO DE VENTA
   // ==========================================
 
   const actualizarPrecio = async (
@@ -122,7 +124,44 @@ export const ProductosProvider = ({ children }) => {
     } catch (error) {
 
       console.log(
-        'Error al actualizar precio:',
+        'Error al actualizar precio de venta:',
+        error
+      );
+
+      return false;
+    }
+  };
+
+  // ==========================================
+  // ACTUALIZAR PRECIO DE COMPRA
+  // ==========================================
+
+  const actualizarPrecioCompra = async (
+    id,
+    nuevoPrecioCompra
+  ) => {
+
+    try {
+
+      const referenciaProducto = doc(
+        db,
+        'productos',
+        id
+      );
+
+      await updateDoc(
+        referenciaProducto,
+        {
+          precioCompra: nuevoPrecioCompra,
+        }
+      );
+
+      return true;
+
+    } catch (error) {
+
+      console.log(
+        'Error al actualizar precio de compra:',
         error
       );
 
@@ -167,6 +206,7 @@ export const ProductosProvider = ({ children }) => {
         productos,
         agregarProducto,
         actualizarPrecio,
+        actualizarPrecioCompra,
         eliminarProducto,
       }}
     >

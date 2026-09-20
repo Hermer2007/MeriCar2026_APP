@@ -130,6 +130,18 @@ export default function ReportesMenuScreen({
           'ProductosVendidos'
         ),
     },
+
+    {
+      id: '6',
+      titulo: 'Balance de ganancias diarias',
+      descripcion:
+        'Ganancias generadas por los productos vendidos durante el día.',
+      icono: 'trending-up-outline',
+      accion: () =>
+        navigation.navigate(
+          'BalanceGanancias'
+        ),
+    },
   ];
 
   return (
