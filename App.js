@@ -1,5 +1,6 @@
 import React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import AppNavigator from './navigators/AppNavigator';
 
@@ -13,22 +14,24 @@ import { AlertProvider } from './context/AlertContext';
 
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <ToastProvider>
-        <AlertProvider>
-          <UsuariosProvider>
-            <ProductosProvider>
-              <InventarioProvider>
-                <ClientesProvider>
-                  <EntregasProvider>
-                    <AppNavigator />
-                  </EntregasProvider>
-                </ClientesProvider>
-              </InventarioProvider>
-            </ProductosProvider>
-          </UsuariosProvider>
-        </AlertProvider>
-      </ToastProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <ToastProvider>
+          <AlertProvider>
+            <UsuariosProvider>
+              <ProductosProvider>
+                <InventarioProvider>
+                  <ClientesProvider>
+                    <EntregasProvider>
+                      <AppNavigator />
+                    </EntregasProvider>
+                  </ClientesProvider>
+                </InventarioProvider>
+              </ProductosProvider>
+            </UsuariosProvider>
+          </AlertProvider>
+        </ToastProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

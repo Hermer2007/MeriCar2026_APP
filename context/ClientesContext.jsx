@@ -129,12 +129,74 @@ export const ClientesProvider = ({ children }) => {
     }
   };
 
+  // ==========================================
+  // GUARDAR ORDEN DE CLIENTES POR DÍA
+  // ==========================================
+
+  const guardarOrdenClientes = async (
+    dia,
+    clientesOrdenados
+  ) => {
+
+    try {
+
+      const claveDia =
+        String(dia)
+          .trim()
+          .toLowerCase();
+
+      const actualizaciones =
+        clientesOrdenados.map(
+          async (cliente, index) => {
+
+            const referenciaCliente =
+              doc(
+                db,
+                'clientes',
+                cliente.id
+              );
+
+            const ordenActual = {
+              ...(cliente.ordenEntregaPorDia || {}),
+            };
+
+            ordenActual[claveDia] =
+              index + 1;
+
+            await updateDoc(
+              referenciaCliente,
+              {
+                ordenEntregaPorDia:
+                  ordenActual,
+              }
+            );
+          }
+        );
+
+      await Promise.all(
+        actualizaciones
+      );
+
+      return true;
+
+    } catch (error) {
+
+      console.log(
+        'Error al guardar orden de clientes:',
+        error
+      );
+
+      return false;
+    }
+  };
+
   return (
     <ClientesContext.Provider
       value={{
         clientes,
         agregarCliente,
         editarCliente,
+        guardarOrdenClientes,
       }}
     >
       {children}

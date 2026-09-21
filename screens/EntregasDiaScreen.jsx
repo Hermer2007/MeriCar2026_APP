@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 
 import {
-  FlatList,
   StatusBar,
   StyleSheet,
   Text,
@@ -15,9 +14,10 @@ import { useClientes } from '../context/ClientesContext';
 import { useEntregas } from '../context/EntregasContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BotonHome from '../components/BotonHome';
+import DraggableFlatList, {ScaleDecorator,} from 'react-native-draggable-flatlist';
 
 const EntregasDiaScreen = ({ navigation, route }) => {
-  const { clientes } = useClientes();
+  const { clientes, guardarOrdenClientes,} = useClientes();
   const { entregas } = useEntregas();
 
    const insets = useSafeAreaInsets();
@@ -25,6 +25,8 @@ const EntregasDiaScreen = ({ navigation, route }) => {
   const dia = route.params?.dia || '';
 
   const [busqueda, setBusqueda] = useState('');
+
+  const [ordenLocal,setOrdenLocal,] = useState(null);
 
   // ==========================================
 // ENTREGA REGISTRADA HOY
@@ -63,22 +65,88 @@ const EntregasDiaScreen = ({ navigation, route }) => {
   // CLIENTES DEL DÍA
   // ==========================================
 
-  const clientesDelDia = useMemo(() => {
-    return clientes.filter((cliente) => {
-      if (Array.isArray(cliente.diasTrabajo)) {
-        return cliente.diasTrabajo.some(
-          (d) =>
-            String(d).toLowerCase() ===
-            dia.toLowerCase()
-        );
-      }
+      const clientesDelDia = useMemo(() => {
 
-      return (
-        String(cliente.diaTrabajo || '').toLowerCase() ===
-        dia.toLowerCase()
+      const claveDia =
+        String(dia)
+          .trim()
+          .toLowerCase();
+
+      const lista =
+        clientes.filter((cliente) => {
+
+          if (
+            Array.isArray(
+              cliente.diasTrabajo
+            )
+          ) {
+            return cliente.diasTrabajo.some(
+              (d) =>
+                String(d)
+                  .trim()
+                  .toLowerCase() ===
+                claveDia
+            );
+          }
+
+          return (
+            String(
+              cliente.diaTrabajo || ''
+            )
+              .trim()
+              .toLowerCase() ===
+            claveDia
+          );
+        });
+
+      return [...lista].sort(
+        (a, b) => {
+
+          const ordenA =
+            Number(
+              a.ordenEntregaPorDia?.[
+                claveDia
+              ]
+            );
+
+          const ordenB =
+            Number(
+              b.ordenEntregaPorDia?.[
+                claveDia
+              ]
+            );
+
+          const tieneOrdenA =
+            Number.isFinite(ordenA) &&
+            ordenA > 0;
+
+          const tieneOrdenB =
+            Number.isFinite(ordenB) &&
+            ordenB > 0;
+
+          if (
+            tieneOrdenA &&
+            tieneOrdenB
+          ) {
+            return ordenA - ordenB;
+          }
+
+          if (tieneOrdenA) {
+            return -1;
+          }
+
+          if (tieneOrdenB) {
+            return 1;
+          }
+
+          return 0;
+        }
       );
-    });
-  }, [clientes, dia]);
+
+    }, [
+      clientes,
+      dia,
+    ]);
 
   // ==========================================
   // BUSCADOR
@@ -89,11 +157,14 @@ const EntregasDiaScreen = ({ navigation, route }) => {
     .trim()
     .toLowerCase();
 
+  const listaBase =
+    ordenLocal || clientesDelDia;
+
   if (!texto) {
-    return clientesDelDia;
+    return listaBase;
   }
 
-  return clientesDelDia.filter((cliente) => {
+  return listaBase.filter((cliente) => {
     const nombreCompleto =
       cliente.nombre ||
       `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim();
@@ -109,6 +180,7 @@ const EntregasDiaScreen = ({ navigation, route }) => {
 }, [
   clientesDelDia,
   busqueda,
+  ordenLocal,
 ]);
 
   // ==========================================
@@ -166,18 +238,34 @@ const EntregasDiaScreen = ({ navigation, route }) => {
   // CLIENTE
   // ==========================================
 
-  const renderCliente = ({ item }) => {
+  const renderCliente = ({
+    item,
+    drag,
+    isActive,
+  }) => {
   const entregadoHoy =
     clienteEntregadoHoy(item.id);
 
   return (
-      <TouchableOpacity
-        style={styles.clienteCard}
-        activeOpacity={0.75}
-        onPress={() =>
-          seleccionarCliente(item)
-        }
-      >
+  <ScaleDecorator>
+    <TouchableOpacity
+      style={[
+        styles.clienteCard,
+        isActive &&
+          styles.clienteCardArrastrando,
+      ]}
+      activeOpacity={0.75}
+      onPress={() =>
+        seleccionarCliente(item)
+      }
+      onLongPress={
+        busqueda.length === 0
+          ? drag
+          : undefined
+      }
+      delayLongPress={150}
+      disabled={isActive}
+    >
         <View
           style={[
             styles.avatar,
@@ -215,7 +303,8 @@ const EntregasDiaScreen = ({ navigation, route }) => {
           size={22}
           color="#08752F"
         />
-      </TouchableOpacity>
+          </TouchableOpacity>
+      </ScaleDecorator>
     );
   };
 
@@ -272,7 +361,10 @@ const EntregasDiaScreen = ({ navigation, route }) => {
           placeholderTextColor="#888888"
           value={busqueda}
           onChangeText={setBusqueda}
-          selectTextOnFocus
+          selection={{
+            start: busqueda.length,
+            end: busqueda.length,
+          }}
         />
 
         {busqueda.length > 0 && (
@@ -290,9 +382,12 @@ const EntregasDiaScreen = ({ navigation, route }) => {
         )}
       </View>
 
+      
+
       {/* LISTA */}
 
-      <FlatList
+      <View style={styles.contenedorLista}>
+      <DraggableFlatList
         data={clientesFiltrados}
         keyExtractor={(item) =>
           String(item.id)
@@ -302,6 +397,26 @@ const EntregasDiaScreen = ({ navigation, route }) => {
           styles.lista
         }
         showsVerticalScrollIndicator={false}
+
+        activationDistance={10}
+        autoscrollThreshold={100}
+        autoscrollSpeed={180}
+
+        onDragEnd={({ data }) => {
+          if (
+            busqueda.trim().length > 0
+          ) {
+            return;
+          }
+
+          setOrdenLocal(data);
+
+          guardarOrdenClientes(
+            dia,
+            data
+          );
+        }}
+
         ListEmptyComponent={
           <View style={styles.vacio}>
             <Ionicons
@@ -321,17 +436,18 @@ const EntregasDiaScreen = ({ navigation, route }) => {
           </View>
         }
       />
+    </View>
 
-      {/* OTRA ENTREGA */}
+    {/* OTRA ENTREGA */}
 
-      <View
-        style={[
-          styles.footer,
-          {
-            paddingBottom: 13 + insets.bottom,
-          },
-        ]}
-      >
+    <View
+      style={[
+        styles.footer,
+        {
+          paddingBottom: 13 + insets.bottom,
+        },
+      ]}
+    >
         <TouchableOpacity
           style={styles.botonOtraEntrega}
           onPress={otraEntrega}
@@ -422,6 +538,11 @@ const styles = StyleSheet.create({
     color: '#222222',
   },
 
+  contenedorLista: {
+    flex: 1,
+    overflow: 'hidden',
+  },
+
   lista: {
     paddingHorizontal: 20,
     paddingTop: 10,
@@ -437,6 +558,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
+  },
+
+  clienteCardArrastrando: {
+    backgroundColor: '#F2FAF4',
+    borderColor: '#08752F',
+    elevation: 8,
   },
 
   avatar: {
@@ -471,6 +598,10 @@ const styles = StyleSheet.create({
   clienteInfo: {
     flex: 1,
     marginLeft: 12,
+  },
+
+  listaArrastrable: {
+    flex: 1,
   },
 
   nombreCliente: {

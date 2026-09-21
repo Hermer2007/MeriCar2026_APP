@@ -1,99 +1,81 @@
 import React, {
-  useEffect,
   useMemo,
-  useRef,
-  useState,
 } from 'react';
 
 import {
   ScrollView,
   StatusBar,
+  TouchableOpacity,
   StyleSheet,
   Text,
-  TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 
-import { Ionicons } from '@expo/vector-icons';
+import {
+  Ionicons,
+} from '@expo/vector-icons';
 
-import { useProductos } from '../context/ProductosContext';
-import { useEntregas } from '../context/EntregasContext';
-import { useToast } from '../context/ToastContext';
-import { useAlert } from '../context/AlertContext';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import BotonHome from '../components/BotonHome';
+import {
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
+
+import {
+  useEntregas,
+} from '../context/EntregasContext';
+
+import BotonHome
+  from '../components/BotonHome';
 
 export default function EditarEntregaScreen({
   navigation,
   route,
 }) {
-  const { productos } =
-    useProductos();
 
-  const {
-    actualizarEntrega:
-      actualizarEntregaContext,
-  } = useEntregas();
-
-  const { mostrarToast } =
-    useToast();
-
-  const { mostrarAlert } =
-    useAlert();
-  
-  const insets = useSafeAreaInsets();
+  const insets =
+    useSafeAreaInsets();
 
   const cliente =
     route.params?.cliente;
 
-  const entrega =
+  const entregaRecibida =
     route.params?.entrega;
 
-  const alertaMostrada =
-    useRef(false);
+  const {
+    entregas,
+    obtenerAbonosEntrega,
+  } = useEntregas();
 
   // ==========================================
-  // ALERTA SALDO 0
+  // ENTREGA ACTUAL
   // ==========================================
 
-  useEffect(() => {
-    if (
-      alertaMostrada.current
-    ) {
-      return;
-    }
+  const entrega =
+    useMemo(() => {
 
-    const saldo =
-      Number(
-        entrega?.saldoPendiente ||
-          0
+      if (
+        !entregaRecibida?.id
+      ) {
+        return entregaRecibida;
+      }
+
+      const actual =
+        entregas.find(
+          (item) =>
+            String(item.id) ===
+            String(
+              entregaRecibida.id
+            )
+        );
+
+      return (
+        actual ||
+        entregaRecibida
       );
 
-    if (
-      saldo === 0
-    ) {
-      alertaMostrada.current =
-        true;
-
-      mostrarAlert({
-        titulo: 'Entrega pagada',
-        mensaje:
-          'Esta entrega ya tiene un saldo pendiente de $0.00. ¿Desea editar esta entrega?',
-        tipo: 'warning',
-        mostrarCancelar: true,
-        textoCancelar: 'Cancelar',
-        textoConfirmar: 'Sí, editar',
-        onCancelar: () => {
-          navigation.goBack();
-        },
-      });
-    }
-  }, [
-    entrega,
-    navigation,
-    mostrarAlert,
-  ]);
+    }, [
+      entregas,
+      entregaRecibida,
+    ]);
 
   // ==========================================
   // CLIENTE
@@ -107,208 +89,243 @@ export default function EditarEntregaScreen({
     'Cliente';
 
   // ==========================================
+  // FORMATO DINERO
+  // ==========================================
+
+  const dinero = (
+    valor
+  ) => {
+
+    return `$${(
+      Number(valor) || 0
+    ).toFixed(2)}`;
+  };
+
+  // ==========================================
+  // CONVERTIR TIMESTAMP A DATE
+  // ==========================================
+
+  const convertirFecha = (
+    valor
+  ) => {
+
+    if (!valor) {
+      return null;
+    }
+
+    if (
+      typeof valor.toDate ===
+      'function'
+    ) {
+      return valor.toDate();
+    }
+
+    if (
+      valor instanceof Date
+    ) {
+      return valor;
+    }
+
+    if (
+      typeof valor ===
+        'object' &&
+      valor.seconds !==
+        undefined
+    ) {
+      return new Date(
+        valor.seconds * 1000
+      );
+    }
+
+    return null;
+  };
+
+  // ==========================================
+  // FORMATEAR FECHA
+  // ==========================================
+
+  const formatearFecha = (
+    valor
+  ) => {
+
+    const fecha =
+      convertirFecha(
+        valor
+      );
+
+    if (!fecha) {
+      return 'Sin fecha';
+    }
+
+    const dia =
+      String(
+        fecha.getDate()
+      ).padStart(
+        2,
+        '0'
+      );
+
+    const mes =
+      String(
+        fecha.getMonth() + 1
+      ).padStart(
+        2,
+        '0'
+      );
+
+    const anio =
+      fecha.getFullYear();
+
+    return (
+      `${dia}/${mes}/${anio}`
+    );
+  };
+
+  // ==========================================
+  // FORMATEAR HORA
+  // ==========================================
+
+  const formatearHora = (
+    valor
+  ) => {
+
+    const fecha =
+      convertirFecha(
+        valor
+      );
+
+    if (!fecha) {
+      return 'Sin hora';
+    }
+
+    const horas =
+      String(
+        fecha.getHours()
+      ).padStart(
+        2,
+        '0'
+      );
+
+    const minutos =
+      String(
+        fecha.getMinutes()
+      ).padStart(
+        2,
+        '0'
+      );
+
+    const segundos =
+      String(
+        fecha.getSeconds()
+      ).padStart(
+        2,
+        '0'
+      );
+
+    return (
+      `${horas}:${minutos}:${segundos}`
+    );
+  };
+
+  // ==========================================
   // REGISTRO ORIGINAL
   // ==========================================
 
-  const fechaOriginal =
-    entrega?.fecha ||
-    null;
+  const fechaRegistroOriginal =
+    entrega?.fechaCreacion
+      ? formatearFecha(
+          entrega.fechaCreacion
+        )
+      : entrega?.fecha ||
+        'Sin fecha';
 
-  const horaOriginal =
-    entrega?.hora ||
-    null;
+  const horaRegistroOriginal =
+    entrega?.fechaCreacion
+      ? formatearHora(
+          entrega.fechaCreacion
+        )
+      : entrega?.hora ||
+        'Sin hora';
+
+  // ==========================================
+  // FECHA DE LA ENTREGA
+  // ==========================================
 
   const fechaEntrega =
-    fechaOriginal ||
+    entrega?.fecha ||
     'Sin fecha';
 
   const horaEntrega =
-    horaOriginal ||
+    entrega?.hora ||
     'Sin hora';
-
-  // ==========================================
-  // EDICIONES
-  // ==========================================
-
-  const numeroEdiciones =
-    Number(
-      entrega?.numeroEdiciones
-    ) || 0;
-
-  const fechaUltimaEdicion =
-    entrega?.fechaEdicion ||
-    null;
-
-  const horaUltimaEdicion =
-    entrega?.horaEdicion ||
-    null;
-
-  const mostrarUltimaEdicion =
-    numeroEdiciones > 0 &&
-    fechaUltimaEdicion &&
-    horaUltimaEdicion;
-
-  // ==========================================
-  // FECHA Y HORA ACTUAL
-  // ==========================================
-
-  const obtenerFechaHoraActual =
-    () => {
-      const ahora =
-        new Date();
-
-      const dia = String(
-        ahora.getDate()
-      ).padStart(2, '0');
-
-      const mes = String(
-        ahora.getMonth() + 1
-      ).padStart(2, '0');
-
-      const anio =
-        ahora.getFullYear();
-
-      const hora = String(
-        ahora.getHours()
-      ).padStart(2, '0');
-
-      const minutos = String(
-        ahora.getMinutes()
-      ).padStart(2, '0');
-
-      const segundos = String(
-        ahora.getSeconds()
-      ).padStart(2, '0');
-
-      return {
-        fecha:
-          `${dia}/${mes}/${anio}`,
-
-        hora:
-          `${hora}:${minutos}:${segundos}`,
-      };
-    };
-
-  const [
-    fechaHoraActual,
-    setFechaHoraActual,
-  ] = useState(
-    obtenerFechaHoraActual()
-  );
-
-  useEffect(() => {
-    const intervalo =
-      setInterval(() => {
-        setFechaHoraActual(
-          obtenerFechaHoraActual()
-        );
-      }, 1000);
-
-    return () =>
-      clearInterval(
-        intervalo
-      );
-  }, []);
 
   // ==========================================
   // PRODUCTOS
   // ==========================================
 
-  const productosIniciales =
-    useMemo(() => {
-      return productos.map(
-        (producto) => {
-          const productoEntrega =
-            entrega?.productos?.find(
-              (item) =>
-                String(
-                  item.id
-                ) ===
-                  String(
-                    producto.id
-                  ) ||
-                String(
-                  item.productoId
-                ) ===
-                  String(
-                    producto.id
-                  ) ||
-                item.nombre ===
-                  producto.nombre
-            );
-
-          return {
-            id:
-              producto.id,
-
-            nombre:
-              producto.nombre,
-
-            precioGeneral:
-              Number(
-                producto.precio
-              ) || 0,
-
-            precio:
-              String(
-                productoEntrega?.precio !==
-                  undefined
-                  ? productoEntrega.precio
-                  : Number(
-                      producto.precio
-                    ).toFixed(
-                      2
-                    )
-              ),
-
-            cantidad:
-              productoEntrega?.cantidad !==
-              undefined
-                ? Number(
-                    productoEntrega.cantidad
-                  )
-                : 0,
-          };
-        }
-      );
-    }, [
-      productos,
-      entrega,
-    ]);
-
-  const [
-    productosEntrega,
-    setProductosEntrega,
-  ] = useState(
-    productosIniciales
-  );
+  const productosEntrega =
+    Array.isArray(
+      entrega?.productos
+    )
+      ? entrega.productos
+      : [];
 
   // ==========================================
-  // ABONO ANTERIOR
+  // VALORES
   // ==========================================
 
-  const abonoAnterior =
+  const total =
+    Number(
+      entrega?.total
+    ) || 0;
+
+  const abonoRegistrado =
     Number(
       entrega?.abona
     ) || 0;
 
-  const pagoEfectivoAnterior =
+  const saldoPendiente =
+    Number(
+      entrega?.saldoPendiente
+    ) || 0;
+
+  const pagoEfectivo =
     Number(
       entrega?.pagoEfectivo
     ) || 0;
 
-  const pagoTransferenciaAnterior =
+  const pagoTransferencia =
     Number(
       entrega?.pagoTransferencia
     ) || 0;
 
   // ==========================================
-  // MÉTODOS ANTERIORES
+  // MÉTODOS DE PAGO
   // ==========================================
 
-  const metodosPagoAnteriores =
+  const metodosPago =
     useMemo(() => {
+
+      const metodos = [];
+
       if (
+        pagoEfectivo > 0
+      ) {
+        metodos.push(
+          'Efectivo'
+        );
+      }
+
+      if (
+        pagoTransferencia > 0
+      ) {
+        metodos.push(
+          'Transferencia'
+        );
+      }
+
+      if (
+        metodos.length === 0 &&
         Array.isArray(
           entrega?.metodosPago
         )
@@ -316,520 +333,150 @@ export default function EditarEntregaScreen({
         return entrega.metodosPago;
       }
 
+      return metodos;
+
+    }, [
+      pagoEfectivo,
+      pagoTransferencia,
+      entrega,
+    ]);
+
+  const textoMetodosPago =
+    metodosPago.length > 0
+      ? metodosPago.join(
+          ' + '
+        )
+      : 'Sin método de pago';
+
+  // ==========================================
+  // TRANSFERENCIA
+  // ==========================================
+
+  const tieneTransferencia =
+    pagoTransferencia > 0;
+
+  const transferenciaConfirmada =
+    entrega
+      ?.transferenciaConfirmada ===
+    true;
+
+  const transferenciaConDiferencia =
+    entrega
+      ?.transferenciaConDiferencia ===
+    true;
+
+  const fechaConfirmacionTransferencia =
+    entrega
+      ?.fechaConfirmacionTransferencia ||
+    null;
+
+  // ==========================================
+  // ABONOS POSTERIORES
+  // ==========================================
+
+  const abonosPosteriores =
+    useMemo(() => {
+
       if (
-        entrega?.metodoPago
+        !entrega?.id ||
+        !obtenerAbonosEntrega
       ) {
-        return [
-          entrega.metodoPago,
-        ];
+        return [];
       }
 
-      return [];
+      return (
+        obtenerAbonosEntrega(
+          entrega.id
+        ) || []
+      );
+
+    }, [
+      entrega,
+      obtenerAbonosEntrega,
+    ]);
+
+  // ==========================================
+  // HISTORIAL DE REEMPLAZOS
+  // ==========================================
+
+  const historialReemplazos =
+    useMemo(() => {
+
+      if (
+        !Array.isArray(
+          entrega
+            ?.historialReemplazos
+        )
+      ) {
+        return [];
+      }
+
+      return (
+        entrega
+          .historialReemplazos
+          .map(
+            (
+              reemplazo,
+              index
+            ) => ({
+              id:
+                `reemplazo-${index}`,
+
+              fecha:
+                formatearFecha(
+                  reemplazo
+                ),
+
+              hora:
+                formatearHora(
+                  reemplazo
+                ),
+            })
+          )
+      );
+
     }, [
       entrega,
     ]);
 
-    // ==========================================
-    // CENTAVOS
-    // ==========================================
-
-    const aCentavos = (valor) => {
-      return Math.round(
-        (Number(valor) || 0) * 100
-      );
-    };
-
   // ==========================================
-  // NUEVO PAGO
+  // TOTAL DE REEMPLAZOS
   // ==========================================
 
-  const [
-    metodosPago,
-    setMetodosPago,
-  ] = useState([]);
-
-  const [
-    pagoEfectivo,
-    setPagoEfectivo,
-  ] = useState('');
-
-  const [
-    pagoTransferencia,
-    setPagoTransferencia,
-  ] = useState('');
-
-  const usaEfectivo =
-    metodosPago.includes(
-      'Efectivo'
-    );
-
-  const usaTransferencia =
-    metodosPago.includes(
-      'Transferencia'
-    );
-
-  const seleccionarMetodoPago = (
-    metodo
-  ) => {
-    setMetodosPago(
-      (actuales) => {
-        if (
-          actuales.includes(
-            metodo
-          )
-        ) {
-          if (
-            metodo ===
-            'Efectivo'
-          ) {
-            setPagoEfectivo(
-              ''
-            );
-          }
-
-          if (
-            metodo ===
-            'Transferencia'
-          ) {
-            setPagoTransferencia(
-              ''
-            );
-          }
-
-          return actuales.filter(
-            (item) =>
-              item !== metodo
-          );
-        }
-
-        return [
-          ...actuales,
-          metodo,
-        ];
-      }
-    );
-  };
+  const numeroReemplazos =
+    historialReemplazos.length >
+    0
+      ? historialReemplazos.length
+      : Number(
+          entrega
+            ?.numeroEdiciones
+        ) || 0;
 
   // ==========================================
-  // PRODUCTOS
+  // RENDER
   // ==========================================
-
-  const cambiarCantidad = (
-    id,
-    cambio
-  ) => {
-    setProductosEntrega(
-      (actuales) =>
-        actuales.map(
-          (producto) => {
-            if (
-              producto.id !==
-              id
-            ) {
-              return producto;
-            }
-
-            const actual =
-              Number(
-                producto.cantidad
-              ) || 0;
-
-            const nueva =
-              actual +
-              cambio;
-
-            return {
-              ...producto,
-
-              cantidad:
-                nueva < 0
-                  ? 0
-                  : nueva,
-            };
-          }
-        )
-    );
-  };
-
-  const escribirCantidad = (
-    id,
-    texto
-  ) => {
-    const numeros =
-      texto.replace(
-        /[^0-9]/g,
-        ''
-      );
-
-    setProductosEntrega(
-      (actuales) =>
-        actuales.map(
-          (producto) =>
-            producto.id === id
-              ? {
-                  ...producto,
-
-                  cantidad:
-                    numeros === ''
-                      ? ''
-                      : Number(
-                          numeros
-                        ),
-                }
-              : producto
-        )
-    );
-  };
-
-  const cambiarPrecio = (
-    id,
-    texto
-  ) => {
-    setProductosEntrega(
-      (actuales) =>
-        actuales.map(
-          (producto) =>
-            producto.id === id
-              ? {
-                  ...producto,
-                  precio:
-                    texto,
-                }
-              : producto
-        )
-    );
-  };
-
-  // ==========================================
-  // TOTAL
-  // ==========================================
-
-  const total =
-    productosEntrega.reduce(
-      (
-        acumulado,
-        producto
-      ) => {
-        const cantidad =
-          Number(
-            producto.cantidad
-          ) || 0;
-
-        const precio =
-          Number(
-            String(
-              producto.precio
-            ).replace(
-              ',',
-              '.'
-            )
-          ) || 0;
-
-        return (
-          acumulado +
-          cantidad *
-            precio
-        );
-      },
-      0
-    );
-
-  // ==========================================
-  // NUEVOS ABONOS
-  // ==========================================
-
-  const efectivoNuevo =
-    usaEfectivo
-      ? Number(
-          String(
-            pagoEfectivo
-          ).replace(
-            ',',
-            '.'
-          )
-        ) || 0
-      : 0;
-
-  const transferenciaNueva =
-    usaTransferencia
-      ? Number(
-          String(
-            pagoTransferencia
-          ).replace(
-            ',',
-            '.'
-          )
-        ) || 0
-      : 0;
-
-  const nuevoAbono =
-    (
-      aCentavos(efectivoNuevo) +
-      aCentavos(transferenciaNueva)
-    ) / 100;
-
-  const abonoAcumulado =
-    (
-      aCentavos(abonoAnterior) +
-      aCentavos(nuevoAbono)
-    ) / 100;
-
-  const saldoPendiente =
-    (
-      aCentavos(total) -
-      aCentavos(abonoAcumulado)
-    ) / 100;
-
-  // ==========================================
-  // ACTUALIZAR
-  // ==========================================
-
-  const actualizarEntrega = async () => {
-      const productosSeleccionados =
-        productosEntrega.filter(
-          (producto) =>
-            Number(
-              producto.cantidad
-            ) > 0
-        );
-
-      if (
-        productosSeleccionados.length ===
-        0
-      ) {
-        mostrarToast(
-          'Seleccione al menos un producto.',
-          'warning'
-        );
-
-        return;
-      }
-
-      const precioInvalido =
-        productosSeleccionados.some(
-          (producto) => {
-            const precio =
-              Number(
-                String(
-                  producto.precio
-                ).replace(
-                  ',',
-                  '.'
-                )
-              );
-
-            return (
-              Number.isNaN(
-                precio
-              ) ||
-              precio <= 0
-            );
-          }
-        );
-
-      if (
-        precioInvalido
-      ) {
-        mostrarToast(
-          'Revise los precios de los productos.',
-          'warning'
-        );
-
-        return;
-      }
-
-      if (
-        usaEfectivo &&
-        efectivoNuevo <= 0
-      ) {
-        mostrarToast(
-          'Ingrese el valor del nuevo pago en efectivo.',
-          'warning'
-        );
-
-        return;
-      }
-
-      if (
-        usaTransferencia &&
-        transferenciaNueva <=
-          0
-      ) {
-        mostrarToast(
-          'Ingrese el valor de la nueva transferencia.',
-          'warning'
-        );
-
-        return;
-      }
-
-      // ======================================
-      // EVITAR SOBREPAGO
-      // ======================================
-
-      if (
-        aCentavos(abonoAcumulado) >
-        aCentavos(total)
-      ) {
-        mostrarToast(
-          'El total abonado no puede superar el total de la entrega.',
-          'warning'
-        );
-
-        return;
-      }
-
-      const momentoEdicion =
-        obtenerFechaHoraActual();
-
-      const nuevoNumeroEdiciones =
-        numeroEdiciones + 1;
-
-      const metodosActualizados =
-        Array.from(
-          new Set([
-            ...metodosPagoAnteriores,
-            ...metodosPago,
-          ])
-        );
-
-      const entregaActualizada = {
-        ...entrega,
-
-        fecha:
-          fechaOriginal,
-
-        hora:
-          horaOriginal,
-
-        numeroEdiciones:
-          nuevoNumeroEdiciones,
-
-        fechaEdicion:
-          momentoEdicion.fecha,
-
-        horaEdicion:
-          momentoEdicion.hora,
-
-        productos:
-          productosSeleccionados.map(
-            (producto) => ({
-              id:
-                producto.id,
-
-              nombre:
-                producto.nombre,
-
-              cantidad:
-                Number(
-                  producto.cantidad
-                ),
-
-              precio:
-                Number(
-                  String(
-                    producto.precio
-                  ).replace(
-                    ',',
-                    '.'
-                  )
-                ),
-            })
-          ),
-
-        total:
-          Number(
-            total.toFixed(
-              2
-            )
-          ),
-
-        abona:
-          Number(
-            abonoAcumulado.toFixed(
-              2
-            )
-          ),
-
-        saldoPendiente:
-          Number(
-            saldoPendiente.toFixed(
-              2
-            )
-          ),
-
-        metodosPago:
-          metodosActualizados,
-
-        pagoEfectivo:
-          Number(
-            (
-              pagoEfectivoAnterior +
-              efectivoNuevo
-            ).toFixed(
-              2
-            )
-          ),
-
-        pagoTransferencia:
-          Number(
-            (
-              pagoTransferenciaAnterior +
-              transferenciaNueva
-            ).toFixed(
-              2
-            )
-          ),
-      };
-
-      try {
-
-        const resultado =
-          await actualizarEntregaContext(
-            entregaActualizada
-          );
-
-        if (!resultado) {
-          mostrarToast(
-            'No se pudo actualizar la entrega.',
-            'error'
-          );
-
-          return;
-        }
-
-        mostrarToast(
-          'Entrega actualizada correctamente.',
-          'success'
-        );
-
-        navigation.goBack();
-
-      } catch (error) {
-
-        mostrarToast(
-          'No se pudo actualizar la entrega.',
-          'error'
-        );
-      }
-    };
 
   return (
+
     <View
       style={
         styles.container
       }
     >
+
       <StatusBar
         barStyle="light-content"
         backgroundColor="#08752F"
       />
+
+      {/* HEADER */}
 
       <View
         style={
           styles.header
         }
       >
+
         <TouchableOpacity
           style={
             styles.regresar
@@ -850,12 +497,13 @@ export default function EditarEntregaScreen({
             styles.headerCentro
           }
         >
+
           <Text
             style={
               styles.tituloHeader
             }
           >
-            Editar entrega
+            Detalle de entrega
           </Text>
 
           <Text
@@ -865,40 +513,57 @@ export default function EditarEntregaScreen({
           >
             Cliente: {nombreCliente}
           </Text>
+
         </View>
-        <BotonHome navigation={navigation} />
+
+        <BotonHome
+          navigation={
+            navigation
+          }
+        />
+
       </View>
 
       <ScrollView
         contentContainerStyle={[
           styles.contenido,
           {
-            paddingBottom: 40 + insets.bottom,
+            paddingBottom:
+              35 +
+              insets.bottom,
           },
         ]}
-        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={
           false
         }
       >
+
+        {/* SOLO LECTURA */}
+
         <View
           style={
             styles.aviso
           }
         >
+
           <Ionicons
-            name="lock-closed-outline"
-            size={24}
+            name="eye-outline"
+            size={25}
             color="#08752F"
           />
 
-          <View>
+          <View
+            style={
+              styles.avisoContenido
+            }
+          >
+
             <Text
               style={
                 styles.avisoTitulo
               }
             >
-              Registro original
+              Información de la entrega
             </Text>
 
             <Text
@@ -906,168 +571,67 @@ export default function EditarEntregaScreen({
                 styles.avisoTexto
               }
             >
-              La fecha, hora y abonos anteriores se conservan.
+              Este registro es solo de consulta.
             </Text>
+
           </View>
+
+          <Ionicons
+            name="lock-closed-outline"
+            size={19}
+            color="#777777"
+          />
+
         </View>
+
+        {/* FECHA DE ENTREGA */}
 
         <Text
           style={
-            styles.label
+            styles.tituloSeccion
           }
         >
-          Fecha y hora de registro
+          Fecha de entrega
         </Text>
 
         <View
           style={
-            styles.fechaOriginal
+            styles.fechaEntregaCard
           }
         >
+
           <View
             style={
               styles.fechaDato
             }
           >
+
             <Ionicons
               name="calendar-outline"
-              size={19}
-              color="#777777"
-            />
-
-            <Text>
-              {fechaEntrega}
-            </Text>
-          </View>
-
-          <View
-            style={
-              styles.fechaDato
-            }
-          >
-            <Ionicons
-              name="time-outline"
-              size={19}
+              size={21}
               color="#08752F"
             />
 
-            <Text
-              style={
-                styles.horaOriginal
-              }
-            >
-              {horaEntrega}
-            </Text>
-          </View>
-        </View>
+            <View>
 
-        {mostrarUltimaEdicion && (
-          <>
-            <Text
-              style={
-                styles.labelUltima
-              }
-            >
-              Última edición registrada
-            </Text>
-
-            <View
-              style={
-                styles.ultimaEdicion
-              }
-            >
               <Text
                 style={
-                  styles.numeroEdiciones
+                  styles.datoLabel
                 }
               >
-                (
-                {
-                  numeroEdiciones
-                }
-                )
+                Fecha
               </Text>
 
-              <View
+              <Text
                 style={
-                  styles.fechaDato
+                  styles.datoValor
                 }
               >
-                <Ionicons
-                  name="calendar-outline"
-                  size={18}
-                  color="#B71C1C"
-                />
+                {fechaEntrega}
+              </Text>
 
-                <Text
-                  style={
-                    styles.textoRojo
-                  }
-                >
-                  {
-                    fechaUltimaEdicion
-                  }
-                </Text>
-              </View>
-
-              <View
-                style={
-                  styles.fechaDato
-                }
-              >
-                <Ionicons
-                  name="time-outline"
-                  size={18}
-                  color="#B71C1C"
-                />
-
-                <Text
-                  style={
-                    styles.textoRojo
-                  }
-                >
-                  {
-                    horaUltimaEdicion
-                  }
-                </Text>
-              </View>
             </View>
-          </>
-        )}
 
-        <Text
-          style={
-            styles.labelActual
-          }
-        >
-          Edición actual
-        </Text>
-
-        <View
-          style={
-            styles.edicionActual
-          }
-        >
-          <View
-            style={
-              styles.fechaDato
-            }
-          >
-            <Ionicons
-              name="calendar-outline"
-              size={19}
-              color="#D32F2F"
-            />
-
-            <Text
-              style={
-                styles.textoRojo
-              }
-            >
-              {
-                fechaHoraActual.fecha
-              }
-            </Text>
           </View>
 
           <View
@@ -1075,31 +639,38 @@ export default function EditarEntregaScreen({
               styles.fechaDato
             }
           >
+
             <Ionicons
               name="time-outline"
-              size={19}
-              color="#D32F2F"
+              size={21}
+              color="#08752F"
             />
 
-            <Text
-              style={
-                styles.textoRojo
-              }
-            >
-              {
-                fechaHoraActual.hora
-              }
-            </Text>
+            <View>
+
+              <Text
+                style={
+                  styles.datoLabel
+                }
+              >
+                Hora
+              </Text>
+
+              <Text
+                style={
+                  styles.datoValor
+                }
+              >
+                {horaEntrega}
+              </Text>
+
+            </View>
+
           </View>
+
         </View>
 
-        <Text
-          style={
-            styles.ayuda
-          }
-        >
-          Solo se registrará si presiona Actualizar entrega.
-        </Text>
+        {/* PRODUCTOS */}
 
         <Text
           style={
@@ -1114,448 +685,880 @@ export default function EditarEntregaScreen({
             styles.productosContainer
           }
         >
-          {productosEntrega.map(
-            (
-              producto,
-              index
-            ) => (
-              <View
-                key={
-                  producto.id
+
+          {productosEntrega.length ===
+          0 ? (
+
+            <View
+              style={
+                styles.sinDatos
+              }
+            >
+
+              <Text
+                style={
+                  styles.sinDatosTexto
                 }
-                style={[
-                  styles.productoFila,
-
-                  index ===
-                    productosEntrega.length -
-                      1 &&
-                    styles.ultimaFila,
-                ]}
               >
-                <View
-                  style={
-                    styles.productoInfo
-                  }
-                >
-                  <Text
-                    style={
-                      styles.productoNombre
+                No hay productos registrados.
+              </Text>
+
+            </View>
+
+          ) : (
+
+            productosEntrega.map(
+              (
+                producto,
+                index
+              ) => {
+
+                const cantidad =
+                  Number(
+                    producto.cantidad
+                  ) || 0;
+
+                const precio =
+                  Number(
+                    producto.precio
+                  ) || 0;
+
+                const subtotal =
+                  cantidad *
+                  precio;
+
+                return (
+
+                  <View
+                    key={
+                      producto.id ||
+                      producto.productoId ||
+                      `${producto.nombre}-${index}`
                     }
+                    style={[
+                      styles.productoFila,
+
+                      index ===
+                        productosEntrega.length -
+                          1 &&
+                        styles.ultimaFila,
+                    ]}
                   >
-                    {
-                      producto.nombre
-                    }
-                  </Text>
 
-                  <Text
-                    style={
-                      styles.precioGeneral
-                    }
-                  >
-                    Precio general: $
-                    {Number(
-                      producto.precioGeneral
-                    ).toFixed(
-                      2
-                    )}
-                  </Text>
-                </View>
+                    <View
+                      style={
+                        styles.productoInfo
+                      }
+                    >
 
-                <View
-                  style={
-                    styles.precioContainer
-                  }
-                >
-                  <TextInput
-                    style={
-                      styles.precioInput
-                    }
-                    value={String(
-                      producto.precio
-                    )}
-                    onChangeText={(
-                      texto
-                    ) =>
-                      cambiarPrecio(
-                        producto.id,
-                        texto
-                      )
-                    }
-                    keyboardType="decimal-pad"
-                    selectTextOnFocus
-                  />
+                      <Text
+                        style={
+                          styles.productoNombre
+                        }
+                      >
+                        {producto.nombre}
+                      </Text>
 
-                  <Ionicons
-                    name="pencil"
-                    size={15}
-                    color="#08752F"
-                  />
-                </View>
+                      <Text
+                        style={
+                          styles.productoDetalle
+                        }
+                      >
+                        {cantidad}{' '}
+                        {cantidad === 1
+                          ? 'unidad'
+                          : 'unidades'}
+                        {'  ×  '}
+                        {dinero(
+                          precio
+                        )}
+                      </Text>
 
-                <View
-                  style={
-                    styles.cantidadContainer
-                  }
-                >
-                  <TouchableOpacity
-                    style={
-                      styles.botonCantidad
-                    }
-                    onPress={() =>
-                      cambiarCantidad(
-                        producto.id,
-                        -1
-                      )
-                    }
-                  >
-                    <Ionicons
-                      name="remove"
-                      size={18}
-                      color="#08752F"
-                    />
-                  </TouchableOpacity>
+                    </View>
 
-                  <TextInput
-                    style={
-                      styles.cantidadInput
-                    }
-                    value={String(
-                      producto.cantidad
-                    )}
-                    onChangeText={(
-                      texto
-                    ) =>
-                      escribirCantidad(
-                        producto.id,
-                        texto
-                      )
-                    }
-                    keyboardType="numeric"
-                    selectTextOnFocus
-                  />
+                    <Text
+                      style={
+                        styles.productoSubtotal
+                      }
+                    >
+                      {dinero(
+                        subtotal
+                      )}
+                    </Text>
 
-                  <TouchableOpacity
-                    style={
-                      styles.botonCantidad
-                    }
-                    onPress={() =>
-                      cambiarCantidad(
-                        producto.id,
-                        1
-                      )
-                    }
-                  >
-                    <Ionicons
-                      name="add"
-                      size={18}
-                      color="#08752F"
-                    />
-                  </TouchableOpacity>
-                </View>
-              </View>
+                  </View>
+
+                );
+              }
             )
+
           )}
+
         </View>
+
+        {/* TOTAL */}
 
         <View
           style={
-            styles.resumenFila
+            styles.totalCard
           }
         >
+
           <Text
             style={
-              styles.resumenLabel
+              styles.totalLabel
             }
           >
-            Total:
+            Total
           </Text>
 
           <Text
             style={
-              styles.total
+              styles.totalValor
             }
           >
-            $
-            {total.toFixed(
-              2
+            {dinero(
+              total
             )}
           </Text>
+
         </View>
 
-        <View
-          style={
-            styles.abonoAnterior
-          }
-        >
-          <View>
-            <Text
-              style={
-                styles.resumenLabel
-              }
-            >
-              Abono registrado
-            </Text>
-
-            <Text
-              style={
-                styles.descripcion
-              }
-            >
-              Total pagado anteriormente
-            </Text>
-          </View>
-
-          <Text
-            style={
-              styles.valorAbonoAnterior
-            }
-          >
-            $
-            {abonoAnterior.toFixed(
-              2
-            )}
-          </Text>
-        </View>
+        {/* ABONO REGISTRADO */}
 
         <Text
           style={
             styles.tituloSeccion
           }
         >
-          Registrar nuevo abono
+          Pago de la entrega
         </Text>
 
-        <TouchableOpacity
-          style={[
-            styles.metodo,
-
-            usaEfectivo &&
-              styles.metodoActivo,
-          ]}
-          onPress={() =>
-            seleccionarMetodoPago(
-              'Efectivo'
-            )
+        <View
+          style={
+            styles.abonoCard
           }
         >
-          <Text
-            style={
-              styles.metodoTexto
-            }
-          >
-            Efectivo
-          </Text>
 
-          <Ionicons
-            name={
-              usaEfectivo
-                ? 'checkbox'
-                : 'square-outline'
-            }
-            size={24}
-            color="#08752F"
-          />
-        </TouchableOpacity>
-
-        {usaEfectivo && (
           <View
             style={
-              styles.pagoContainer
+              styles.abonoIzquierda
             }
           >
-            <Text>
-              Nuevo pago en efectivo
+
+            <View
+              style={
+                styles.abonoTituloFila
+              }
+            >
+
+              <Ionicons
+                name="wallet-outline"
+                size={21}
+                color="#08752F"
+              />
+
+              <Text
+                style={
+                  styles.abonoTitulo
+                }
+              >
+                Abono registrado
+              </Text>
+
+            </View>
+
+            <Text
+              style={
+                styles.abonoMetodo
+              }
+            >
+              {textoMetodosPago}
             </Text>
 
-            <TextInput
-              style={
-                styles.pagoInput
-              }
-              value={
-                pagoEfectivo
-              }
-              onChangeText={
-                setPagoEfectivo
-              }
-              keyboardType="decimal-pad"
-              placeholder="0.00"
-              selectTextOnFocus
-            />
           </View>
-        )}
 
-        <TouchableOpacity
-          style={[
-            styles.metodo,
-
-            usaTransferencia &&
-              styles.metodoActivo,
-          ]}
-          onPress={() =>
-            seleccionarMetodoPago(
-              'Transferencia'
-            )
-          }
-        >
           <Text
             style={
-              styles.metodoTexto
+              styles.abonoValor
             }
           >
-            Transferencia
+            {dinero(
+              abonoRegistrado
+            )}
           </Text>
 
-          <Ionicons
-            name={
-              usaTransferencia
-                ? 'checkbox'
-                : 'square-outline'
-            }
-            size={24}
-            color="#08752F"
-          />
-        </TouchableOpacity>
+        </View>
 
-        {usaTransferencia && (
+        {/* DESGLOSE DE PAGO */}
+
+        {(pagoEfectivo > 0 ||
+          pagoTransferencia >
+            0) && (
+
           <View
             style={
-              styles.pagoContainer
+              styles.metodosContainer
             }
           >
-            <Text>
-              Nueva transferencia
-            </Text>
 
-            <TextInput
-              style={
-                styles.pagoInput
-              }
-              value={
-                pagoTransferencia
-              }
-              onChangeText={
-                setPagoTransferencia
-              }
-              keyboardType="decimal-pad"
-              placeholder="0.00"
-              selectTextOnFocus
-            />
+            {pagoEfectivo >
+              0 && (
+
+              <View
+                style={
+                  styles.metodoFila
+                }
+              >
+
+                <View
+                  style={
+                    styles.metodoNombre
+                  }
+                >
+
+                  <Ionicons
+                    name="cash-outline"
+                    size={20}
+                    color="#08752F"
+                  />
+
+                  <Text
+                    style={
+                      styles.metodoTexto
+                    }
+                  >
+                    Efectivo
+                  </Text>
+
+                </View>
+
+                <Text
+                  style={
+                    styles.metodoValor
+                  }
+                >
+                  {dinero(
+                    pagoEfectivo
+                  )}
+                </Text>
+
+              </View>
+
+            )}
+
+            {pagoTransferencia >
+              0 && (
+
+              <View
+                style={
+                  styles.metodoFila
+                }
+              >
+
+                <View
+                  style={
+                    styles.metodoNombre
+                  }
+                >
+
+                  <Ionicons
+                    name="swap-horizontal-outline"
+                    size={20}
+                    color="#08752F"
+                  />
+
+                  <View>
+
+                    <Text
+                      style={
+                        styles.metodoTexto
+                      }
+                    >
+                      Transferencia
+                    </Text>
+
+                    <Text
+                      style={[
+                        styles.estadoTransferencia,
+
+                        transferenciaConfirmada
+                          ? styles.estadoConfirmado
+                          : styles.estadoPendiente,
+                      ]}
+                    >
+
+                      {transferenciaConfirmada
+                        ? transferenciaConDiferencia &&
+                          fechaConfirmacionTransferencia
+                          ? `Confirmada - ${fechaConfirmacionTransferencia}`
+                          : 'Confirmada'
+                        : 'Pendiente de confirmación'}
+
+                    </Text>
+
+                  </View>
+
+                </View>
+
+                <Text
+                  style={
+                    styles.metodoValor
+                  }
+                >
+                  {dinero(
+                    pagoTransferencia
+                  )}
+                </Text>
+
+              </View>
+
+            )}
+
           </View>
+
         )}
 
-        <View
-          style={
-            styles.resumenFila
-          }
-        >
-          <Text
-            style={
-              styles.resumenLabel
-            }
-          >
-            Nuevo abono:
-          </Text>
-
-          <Text
-            style={
-              styles.nuevoAbono
-            }
-          >
-            $
-            {nuevoAbono.toFixed(
-              2
-            )}
-          </Text>
-        </View>
+        {/* SALDO */}
 
         <View
           style={
-            styles.resumenFila
+            styles.resumenContainer
           }
         >
-          <Text
+
+          <View
             style={
-              styles.resumenLabel
+              styles.resumenFila
             }
           >
-            Total abonado:
-          </Text>
 
-          <Text
+            <Text
+              style={
+                styles.resumenLabel
+              }
+            >
+              Total
+            </Text>
+
+            <Text
+              style={
+                styles.resumenValor
+              }
+            >
+              {dinero(
+                total
+              )}
+            </Text>
+
+          </View>
+
+          <View
             style={
-              styles.abonado
+              styles.resumenFila
             }
           >
-            $
-            {abonoAcumulado.toFixed(
-              2
-            )}
-          </Text>
-        </View>
 
-        <View
-          style={
-            styles.resumenFila
-          }
-        >
-          <Text
-            style={
-              styles.resumenLabel
-            }
-          >
-            Saldo pendiente:
-          </Text>
+            <Text
+              style={
+                styles.resumenLabel
+              }
+            >
+              Abonado
+            </Text>
 
-          <Text
+            <Text
+              style={
+                styles.abonadoValor
+              }
+            >
+              {dinero(
+                abonoRegistrado
+              )}
+            </Text>
+
+          </View>
+
+          <View
             style={[
-              styles.saldo,
-
-              saldoPendiente <=
-                0 &&
-                styles.saldoCero,
+              styles.resumenFila,
+              styles.resumenUltimaFila,
             ]}
           >
-            $
-            {saldoPendiente.toFixed(
-              2
-            )}
-          </Text>
+
+            <Text
+              style={
+                styles.resumenLabel
+              }
+            >
+              Saldo pendiente
+            </Text>
+
+            <Text
+              style={[
+                styles.saldoValor,
+
+                saldoPendiente <=
+                  0 &&
+                  styles.saldoCero,
+              ]}
+            >
+              {dinero(
+                saldoPendiente
+              )}
+            </Text>
+
+          </View>
+
         </View>
 
-        <TouchableOpacity
+        {/* ABONOS POSTERIORES */}
+
+        {abonosPosteriores.length >
+          0 && (
+
+          <>
+
+            <Text
+              style={
+                styles.tituloSeccion
+              }
+            >
+              Abonos posteriores
+            </Text>
+
+            <View
+              style={
+                styles.abonosPosterioresCard
+              }
+            >
+
+              {abonosPosteriores.map(
+                (
+                  abono,
+                  index
+                ) => {
+
+                  const monto =
+                    Number(
+                      abono.monto
+                    ) || 0;
+
+                  const efectivo =
+                    Number(
+                      abono.pagoEfectivo
+                    ) || 0;
+
+                  const transferencia =
+                    Number(
+                      abono.pagoTransferencia
+                    ) || 0;
+
+                  const metodo =
+
+                    efectivo > 0 &&
+                    transferencia > 0
+                      ? 'Efectivo + Transferencia'
+
+                      : efectivo > 0
+                        ? 'Efectivo'
+
+                        : transferencia > 0
+                          ? 'Transferencia'
+
+                          : 'Abono';
+
+                  return (
+
+                    <View
+                      key={
+                        abono.id ||
+                        `abono-${index}`
+                      }
+                      style={[
+                        styles.abonoPosteriorFila,
+
+                        index ===
+                          abonosPosteriores.length -
+                            1 &&
+                          styles.ultimaFila,
+                      ]}
+                    >
+
+                      <View
+                        style={
+                          styles.abonoPosteriorInfo
+                        }
+                      >
+
+                        <Text
+                          style={
+                            styles.abonoPosteriorFecha
+                          }
+                        >
+                          {abono.fecha ||
+                            'Sin fecha'}
+                        </Text>
+
+                        <Text
+                          style={
+                            styles.abonoPosteriorMetodo
+                          }
+                        >
+                          {metodo}
+                        </Text>
+
+                      </View>
+
+                      <Text
+                        style={
+                          styles.abonoPosteriorValor
+                        }
+                      >
+                        {dinero(
+                          monto
+                        )}
+                      </Text>
+
+                    </View>
+
+                  );
+                }
+              )}
+
+            </View>
+
+          </>
+
+        )}
+
+        {/* HISTORIAL DEL REGISTRO */}
+
+        <Text
           style={
-            styles.botonActualizar
-          }
-          onPress={
-            actualizarEntrega
+            styles.tituloSeccion
           }
         >
+          Historial del registro
+        </Text>
+
+        {/* REGISTRO ORIGINAL */}
+
+        <View
+          style={
+            styles.historialCard
+          }
+        >
+
+          <View
+            style={
+              styles.historialIcono
+            }
+          >
+
+            <Ionicons
+              name="document-text-outline"
+              size={23}
+              color="#08752F"
+            />
+
+          </View>
+
+          <View
+            style={
+              styles.historialInfo
+            }
+          >
+
+            <Text
+              style={
+                styles.historialTitulo
+              }
+            >
+              Registro original
+            </Text>
+
+            <Text
+              style={
+                styles.historialDescripcion
+              }
+            >
+              Momento en que se registró esta entrega.
+            </Text>
+
+            <View
+              style={
+                styles.historialFechaFila
+              }
+            >
+
+              <View
+                style={
+                  styles.historialDato
+                }
+              >
+
+                <Ionicons
+                  name="calendar-outline"
+                  size={16}
+                  color="#666666"
+                />
+
+                <Text
+                  style={
+                    styles.historialFecha
+                  }
+                >
+                  {fechaRegistroOriginal}
+                </Text>
+
+              </View>
+
+              <View
+                style={
+                  styles.historialDato
+                }
+              >
+
+                <Ionicons
+                  name="time-outline"
+                  size={16}
+                  color="#666666"
+                />
+
+                <Text
+                  style={
+                    styles.historialFecha
+                  }
+                >
+                  {horaRegistroOriginal}
+                </Text>
+
+              </View>
+
+            </View>
+
+          </View>
+
+        </View>
+
+        {/* REEMPLAZOS */}
+
+        {historialReemplazos.length >
+          0 ? (
+
+          <>
+
+            <View
+              style={
+                styles.reemplazosEncabezado
+              }
+            >
+
+              <Text
+                style={
+                  styles.reemplazosTitulo
+                }
+              >
+                Reemplazos
+              </Text>
+
+              <View
+                style={
+                  styles.contadorReemplazos
+                }
+              >
+
+                <Text
+                  style={
+                    styles.contadorReemplazosTexto
+                  }
+                >
+                  {numeroReemplazos}
+                </Text>
+
+              </View>
+
+            </View>
+
+            {historialReemplazos.map(
+              (
+                reemplazo,
+                index
+              ) => (
+
+                <View
+                  key={
+                    reemplazo.id
+                  }
+                  style={
+                    styles.reemplazoCard
+                  }
+                >
+
+                  <View
+                    style={
+                      styles.reemplazoNumero
+                    }
+                  >
+
+                    <Text
+                      style={
+                        styles.reemplazoNumeroTexto
+                      }
+                    >
+                      {index + 1}
+                    </Text>
+
+                  </View>
+
+                  <View
+                    style={
+                      styles.reemplazoInfo
+                    }
+                  >
+
+                    <Text
+                      style={
+                        styles.reemplazoTitulo
+                      }
+                    >
+                      Reemplazo de entrega
+                    </Text>
+
+                    <View
+                      style={
+                        styles.historialFechaFila
+                      }
+                    >
+
+                      <View
+                        style={
+                          styles.historialDato
+                        }
+                      >
+
+                        <Ionicons
+                          name="calendar-outline"
+                          size={16}
+                          color="#B76E00"
+                        />
+
+                        <Text
+                          style={
+                            styles.reemplazoFecha
+                          }
+                        >
+                          {reemplazo.fecha}
+                        </Text>
+
+                      </View>
+
+                      <View
+                        style={
+                          styles.historialDato
+                        }
+                      >
+
+                        <Ionicons
+                          name="time-outline"
+                          size={16}
+                          color="#B76E00"
+                        />
+
+                        <Text
+                          style={
+                            styles.reemplazoFecha
+                          }
+                        >
+                          {reemplazo.hora}
+                        </Text>
+
+                      </View>
+
+                    </View>
+
+                  </View>
+
+                </View>
+
+              )
+            )}
+
+          </>
+
+        ) : (
+
+          <View
+            style={
+              styles.sinReemplazos
+            }
+          >
+
+            <Ionicons
+              name="checkmark-circle-outline"
+              size={21}
+              color="#08752F"
+            />
+
+            <Text
+              style={
+                styles.sinReemplazosTexto
+              }
+            >
+              Esta entrega no ha sido reemplazada.
+            </Text>
+
+          </View>
+
+        )}
+
+        {/* MENSAJE FINAL */}
+
+        <View
+          style={
+            styles.notaFinal
+          }
+        >
+
           <Ionicons
-            name="save-outline"
+            name="information-circle-outline"
             size={22}
-            color="#FFFFFF"
+            color="#08752F"
           />
 
           <Text
             style={
-              styles.botonTexto
+              styles.notaFinalTexto
             }
           >
-            Actualizar entrega
+            Para corregir una entrega,
+            registre nuevamente al mismo
+            cliente en la misma fecha y
+            utilice la opción Reemplazar
+            entrega.
           </Text>
-        </TouchableOpacity>
+
+        </View>
+
       </ScrollView>
+
     </View>
   );
 }
 
 const styles =
   StyleSheet.create({
+
     container: {
       flex: 1,
       backgroundColor:
         '#FFFFFF',
     },
+
+    // ==========================================
+    // HEADER
+    // ==========================================
 
     header: {
       height: 105,
@@ -1569,10 +1572,13 @@ const styles =
     },
 
     regresar: {
-      position:
-        'absolute',
+      position: 'absolute',
       left: 17,
       bottom: 15,
+      width: 40,
+      height: 40,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
 
     headerCentro: {
@@ -1592,28 +1598,36 @@ const styles =
       color:
         '#DDEEE2',
       fontSize: 11,
+      marginTop: 2,
     },
 
     contenido: {
       padding: 18,
-      paddingBottom: 40,
     },
 
+    // ==========================================
+    // AVISO
+    // ==========================================
+
     aviso: {
-      minHeight: 62,
+      minHeight: 66,
       backgroundColor:
         '#EDF7F0',
       borderWidth: 1,
       borderColor:
         '#D7EBDD',
-      borderRadius: 9,
+      borderRadius: 10,
       flexDirection:
         'row',
       alignItems:
         'center',
-      gap: 10,
       paddingHorizontal: 13,
-      marginBottom: 13,
+      gap: 10,
+      marginBottom: 5,
+    },
+
+    avisoContenido: {
+      flex: 1,
     },
 
     avisoTitulo: {
@@ -1631,121 +1645,9 @@ const styles =
       marginTop: 2,
     },
 
-    label: {
-      fontSize: 13,
-      fontWeight:
-        '700',
-      marginBottom: 6,
-    },
-
-    fechaOriginal: {
-      minHeight: 49,
-      backgroundColor:
-        '#F3F3F5',
-      borderWidth: 1,
-      borderColor:
-        '#E0E0E0',
-      borderRadius: 8,
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
-      justifyContent:
-        'space-between',
-      paddingHorizontal: 12,
-    },
-
-    fechaDato: {
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
-      gap: 6,
-    },
-
-    horaOriginal: {
-      color:
-        '#08752F',
-      fontWeight:
-        '700',
-    },
-
-    labelUltima: {
-      fontSize: 12,
-      fontWeight:
-        '700',
-      color:
-        '#B71C1C',
-      marginTop: 12,
-      marginBottom: 6,
-    },
-
-    ultimaEdicion: {
-      minHeight: 48,
-      backgroundColor:
-        '#FFF9F9',
-      borderWidth: 1,
-      borderColor:
-        '#E4B6B6',
-      borderRadius: 8,
-      paddingHorizontal: 11,
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
-      justifyContent:
-        'space-between',
-    },
-
-    numeroEdiciones: {
-      color:
-        '#B71C1C',
-      fontSize: 14,
-      fontWeight:
-        '800',
-    },
-
-    labelActual: {
-      color:
-        '#D32F2F',
-      fontSize: 13,
-      fontWeight:
-        '700',
-      marginTop: 12,
-      marginBottom: 6,
-    },
-
-    edicionActual: {
-      minHeight: 49,
-      backgroundColor:
-        '#FFF5F5',
-      borderWidth: 1,
-      borderColor:
-        '#F0B7B7',
-      borderRadius: 8,
-      paddingHorizontal: 12,
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
-      justifyContent:
-        'space-between',
-    },
-
-    textoRojo: {
-      color:
-        '#D32F2F',
-      fontSize: 12,
-      fontWeight:
-        '700',
-    },
-
-    ayuda: {
-      fontSize: 9,
-      color:
-        '#888888',
-      marginTop: 4,
-    },
+    // ==========================================
+    // SECCIONES
+    // ==========================================
 
     tituloSeccion: {
       fontSize: 15,
@@ -1753,9 +1655,57 @@ const styles =
         '700',
       color:
         '#08752F',
-      marginTop: 16,
-      marginBottom: 7,
+      marginTop: 18,
+      marginBottom: 8,
     },
+
+    // ==========================================
+    // FECHA
+    // ==========================================
+
+    fechaEntregaCard: {
+      minHeight: 65,
+      backgroundColor:
+        '#F8F8F8',
+      borderWidth: 1,
+      borderColor:
+        '#E1E1E1',
+      borderRadius: 10,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      justifyContent:
+        'space-between',
+      paddingHorizontal: 15,
+    },
+
+    fechaDato: {
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      gap: 8,
+    },
+
+    datoLabel: {
+      color:
+        '#777777',
+      fontSize: 9,
+    },
+
+    datoValor: {
+      color:
+        '#222222',
+      fontSize: 12,
+      fontWeight:
+        '700',
+      marginTop: 1,
+    },
+
+    // ==========================================
+    // PRODUCTOS
+    // ==========================================
 
     productosContainer: {
       borderWidth: 1,
@@ -1767,7 +1717,7 @@ const styles =
     },
 
     productoFila: {
-      minHeight: 73,
+      minHeight: 66,
       borderBottomWidth: 1,
       borderBottomColor:
         '#EEEEEE',
@@ -1775,8 +1725,7 @@ const styles =
         'row',
       alignItems:
         'center',
-      paddingHorizontal: 9,
-      gap: 6,
+      paddingHorizontal: 13,
     },
 
     ultimaFila: {
@@ -1788,75 +1737,51 @@ const styles =
     },
 
     productoNombre: {
-      fontSize: 12,
+      fontSize: 13,
       fontWeight:
         '700',
+      color:
+        '#222222',
     },
 
-    precioGeneral: {
-      fontSize: 9,
+    productoDetalle: {
+      fontSize: 10,
       color:
         '#777777',
-      marginTop: 3,
+      marginTop: 4,
     },
 
-    precioContainer: {
-      width: 75,
-      height: 38,
-      borderWidth: 1,
-      borderColor:
-        '#DDDDDD',
-      borderRadius: 7,
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
-      paddingHorizontal: 5,
+    productoSubtotal: {
+      fontSize: 14,
+      fontWeight:
+        '700',
+      color:
+        '#08752F',
     },
 
-    precioInput: {
-      flex: 1,
-      padding: 0,
-      fontSize: 11,
-    },
-
-    cantidadContainer: {
-      height: 38,
-      borderWidth: 1,
-      borderColor:
-        '#DDDDDD',
-      borderRadius: 7,
-      flexDirection:
-        'row',
-      overflow:
-        'hidden',
-    },
-
-    botonCantidad: {
-      width: 29,
-      justifyContent:
-        'center',
+    sinDatos: {
+      padding: 18,
       alignItems:
         'center',
     },
 
-    cantidadInput: {
-      width: 42,
-      textAlign:
-        'center',
-      padding: 0,
-      borderLeftWidth: 1,
-      borderRightWidth: 1,
-      borderColor:
-        '#DDDDDD',
+    sinDatosTexto: {
+      color:
+        '#777777',
+      fontSize: 12,
     },
 
-    resumenFila: {
-      minHeight: 56,
-      borderTopWidth: 1,
-      borderTopColor:
-        '#EEEEEE',
+    // ==========================================
+    // TOTAL
+    // ==========================================
+
+    totalCard: {
+      minHeight: 61,
       marginTop: 10,
+      backgroundColor:
+        '#F6FAF7',
+      borderRadius: 10,
+      paddingHorizontal: 14,
       flexDirection:
         'row',
       justifyContent:
@@ -1865,20 +1790,68 @@ const styles =
         'center',
     },
 
-    resumenLabel: {
+    totalLabel: {
+      fontSize: 14,
+      fontWeight:
+        '700',
+    },
+
+    totalValor: {
+      fontSize: 21,
+      fontWeight:
+        '800',
+      color:
+        '#08752F',
+    },
+
+    // ==========================================
+    // ABONO
+    // ==========================================
+
+    abonoCard: {
+      minHeight: 70,
+      backgroundColor:
+        '#F6FAF7',
+      borderWidth: 1,
+      borderColor:
+        '#DCE9DF',
+      borderRadius: 10,
+      paddingHorizontal: 13,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      justifyContent:
+        'space-between',
+    },
+
+    abonoIzquierda: {
+      flex: 1,
+    },
+
+    abonoTituloFila: {
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      gap: 7,
+    },
+
+    abonoTitulo: {
       fontSize: 13,
       fontWeight:
         '700',
     },
 
-    descripcion: {
-      fontSize: 9,
+    abonoMetodo: {
       color:
         '#777777',
-      marginTop: 2,
+      fontSize: 10,
+      marginTop: 5,
+      marginLeft: 28,
     },
 
-    total: {
+    abonoValor: {
       fontSize: 20,
       fontWeight:
         '800',
@@ -1886,108 +1859,127 @@ const styles =
         '#08752F',
     },
 
-    abonoAnterior: {
-      minHeight: 61,
-      backgroundColor:
-        '#F6FAF7',
-      borderWidth: 1,
-      borderColor:
-        '#DCE9DF',
-      borderRadius: 9,
-      paddingHorizontal: 12,
+    // ==========================================
+    // MÉTODOS
+    // ==========================================
+
+    metodosContainer: {
       marginTop: 8,
-      flexDirection:
-        'row',
-      justifyContent:
-        'space-between',
-      alignItems:
-        'center',
-    },
-
-    valorAbonoAnterior: {
-      fontSize: 19,
-      fontWeight:
-        '800',
-      color:
-        '#08752F',
-    },
-
-    metodo: {
-      height: 48,
       borderWidth: 1,
       borderColor:
-        '#E1E1E1',
-      borderRadius: 9,
-      marginBottom: 7,
-      paddingHorizontal: 12,
+        '#E5E5E5',
+      borderRadius: 10,
+      overflow:
+        'hidden',
+    },
+
+    metodoFila: {
+      minHeight: 58,
+      paddingHorizontal: 13,
       flexDirection:
         'row',
       justifyContent:
         'space-between',
       alignItems:
         'center',
+      borderBottomWidth: 1,
+      borderBottomColor:
+        '#EEEEEE',
     },
 
-    metodoActivo: {
-      backgroundColor:
-        '#F0F8F2',
-      borderColor:
-        '#87C99A',
+    metodoNombre: {
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      gap: 9,
     },
 
     metodoTexto: {
-      fontSize: 13,
+      fontSize: 12,
       fontWeight:
         '600',
     },
 
-    pagoContainer: {
-      minHeight: 52,
-      backgroundColor:
-        '#F5FAF6',
-      borderRadius: 8,
-      marginBottom: 7,
-      paddingHorizontal: 12,
-      flexDirection:
-        'row',
-      justifyContent:
-        'space-between',
-      alignItems:
-        'center',
-    },
-
-    pagoInput: {
-      width: 100,
-      height: 38,
-      backgroundColor:
-        '#FFFFFF',
-      borderWidth: 1,
-      borderColor:
-        '#DADADA',
-      borderRadius: 7,
-      textAlign:
-        'right',
-      paddingHorizontal: 9,
-    },
-
-    nuevoAbono: {
-      fontSize: 18,
+    metodoValor: {
+      fontSize: 14,
       fontWeight:
-        '800',
-      color:
-        '#3E7D50',
-    },
-
-    abonado: {
-      fontSize: 19,
-      fontWeight:
-        '800',
+        '700',
       color:
         '#08752F',
     },
 
-    saldo: {
-      fontSize: 19,
+    estadoTransferencia: {
+      fontSize: 9,
+      marginTop: 2,
+    },
+
+    estadoConfirmado: {
+      color:
+        '#08752F',
+    },
+
+    estadoPendiente: {
+      color:
+        '#B76E00',
+    },
+
+    // ==========================================
+    // RESUMEN
+    // ==========================================
+
+    resumenContainer: {
+      marginTop: 15,
+      borderWidth: 1,
+      borderColor:
+        '#E4E4E4',
+      borderRadius: 10,
+      overflow:
+        'hidden',
+    },
+
+    resumenFila: {
+      minHeight: 52,
+      paddingHorizontal: 13,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      justifyContent:
+        'space-between',
+      borderBottomWidth: 1,
+      borderBottomColor:
+        '#EEEEEE',
+    },
+
+    resumenUltimaFila: {
+      borderBottomWidth: 0,
+    },
+
+    resumenLabel: {
+      fontSize: 12,
+      fontWeight:
+        '600',
+      color:
+        '#444444',
+    },
+
+    resumenValor: {
+      fontSize: 15,
+      fontWeight:
+        '700',
+    },
+
+    abonadoValor: {
+      fontSize: 15,
+      fontWeight:
+        '700',
+      color:
+        '#08752F',
+    },
+
+    saldoValor: {
+      fontSize: 17,
       fontWeight:
         '800',
       color:
@@ -1999,26 +1991,282 @@ const styles =
         '#08752F',
     },
 
-    botonActualizar: {
-      height: 54,
-      borderRadius: 9,
-      backgroundColor:
-        '#08752F',
-      marginTop: 14,
+    // ==========================================
+    // ABONOS POSTERIORES
+    // ==========================================
+
+    abonosPosterioresCard: {
+      borderWidth: 1,
+      borderColor:
+        '#E4E4E4',
+      borderRadius: 10,
+      overflow:
+        'hidden',
+    },
+
+    abonoPosteriorFila: {
+      minHeight: 58,
+      paddingHorizontal: 13,
       flexDirection:
         'row',
       alignItems:
         'center',
       justifyContent:
-        'center',
-      gap: 8,
+        'space-between',
+      borderBottomWidth: 1,
+      borderBottomColor:
+        '#EEEEEE',
     },
 
-    botonTexto: {
-      color:
-        '#FFFFFF',
-      fontSize: 15,
+    abonoPosteriorInfo: {
+      flex: 1,
+    },
+
+    abonoPosteriorFecha: {
+      fontSize: 12,
       fontWeight:
         '700',
     },
+
+    abonoPosteriorMetodo: {
+      fontSize: 9,
+      color:
+        '#777777',
+      marginTop: 3,
+    },
+
+    abonoPosteriorValor: {
+      fontSize: 15,
+      fontWeight:
+        '800',
+      color:
+        '#08752F',
+    },
+
+    // ==========================================
+    // HISTORIAL
+    // ==========================================
+
+    historialCard: {
+      minHeight: 95,
+      borderWidth: 1,
+      borderColor:
+        '#DCE9DF',
+      backgroundColor:
+        '#F6FAF7',
+      borderRadius: 10,
+      flexDirection:
+        'row',
+      padding: 13,
+    },
+
+    historialIcono: {
+      width: 39,
+      height: 39,
+      borderRadius: 20,
+      backgroundColor:
+        '#E3F2E7',
+      justifyContent:
+        'center',
+      alignItems:
+        'center',
+      marginRight: 10,
+    },
+
+    historialInfo: {
+      flex: 1,
+    },
+
+    historialTitulo: {
+      fontSize: 13,
+      fontWeight:
+        '700',
+      color:
+        '#08752F',
+    },
+
+    historialDescripcion: {
+      fontSize: 9,
+      color:
+        '#777777',
+      marginTop: 2,
+      marginBottom: 8,
+    },
+
+    historialFechaFila: {
+      flexDirection:
+        'row',
+      flexWrap:
+        'wrap',
+      gap: 14,
+    },
+
+    historialDato: {
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      gap: 5,
+    },
+
+    historialFecha: {
+      fontSize: 10,
+      color:
+        '#555555',
+      fontWeight:
+        '600',
+    },
+
+    // ==========================================
+    // REEMPLAZOS
+    // ==========================================
+
+    reemplazosEncabezado: {
+      marginTop: 13,
+      marginBottom: 7,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      justifyContent:
+        'space-between',
+    },
+
+    reemplazosTitulo: {
+      fontSize: 12,
+      fontWeight:
+        '700',
+      color:
+        '#555555',
+    },
+
+    contadorReemplazos: {
+      minWidth: 27,
+      height: 23,
+      borderRadius: 12,
+      backgroundColor:
+        '#FFF3DD',
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+      paddingHorizontal: 7,
+    },
+
+    contadorReemplazosTexto: {
+      color:
+        '#B76E00',
+      fontSize: 11,
+      fontWeight:
+        '800',
+    },
+
+    reemplazoCard: {
+      minHeight: 72,
+      backgroundColor:
+        '#FFFAF2',
+      borderWidth: 1,
+      borderColor:
+        '#F1D6A7',
+      borderRadius: 10,
+      marginBottom: 7,
+      padding: 11,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+    },
+
+    reemplazoNumero: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor:
+        '#FFF0D4',
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+      marginRight: 10,
+    },
+
+    reemplazoNumeroTexto: {
+      color:
+        '#B76E00',
+      fontWeight:
+        '800',
+      fontSize: 12,
+    },
+
+    reemplazoInfo: {
+      flex: 1,
+    },
+
+    reemplazoTitulo: {
+      color:
+        '#9A5B00',
+      fontSize: 12,
+      fontWeight:
+        '700',
+      marginBottom: 7,
+    },
+
+    reemplazoFecha: {
+      fontSize: 10,
+      color:
+        '#8B5C17',
+      fontWeight:
+        '600',
+    },
+
+    sinReemplazos: {
+      minHeight: 52,
+      borderWidth: 1,
+      borderColor:
+        '#DCE9DF',
+      backgroundColor:
+        '#F6FAF7',
+      borderRadius: 9,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      paddingHorizontal: 12,
+      gap: 8,
+      marginTop: 8,
+    },
+
+    sinReemplazosTexto: {
+      fontSize: 10,
+      color:
+        '#666666',
+      flex: 1,
+    },
+
+    // ==========================================
+    // NOTA
+    // ==========================================
+
+    notaFinal: {
+      marginTop: 18,
+      minHeight: 62,
+      backgroundColor:
+        '#F5F7F5',
+      borderRadius: 9,
+      padding: 12,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      gap: 9,
+    },
+
+    notaFinalTexto: {
+      flex: 1,
+      fontSize: 10,
+      color:
+        '#666666',
+      lineHeight: 15,
+    },
+
   });

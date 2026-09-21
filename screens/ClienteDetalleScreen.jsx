@@ -802,8 +802,8 @@ const abonoAutomaticoPendiente =
           >
 
             <Ionicons
-              name="pencil"
-              size={21}
+              name="eye-outline"
+              size={27}
               color="#08752F"
             />
 

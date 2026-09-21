@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  ScrollView,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -441,6 +442,12 @@ navigation.goBack();
         <BotonHome navigation={navigation} />
       </View>
 
+       <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContenido}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
 
       {/* FECHA */}
 
@@ -786,7 +793,8 @@ navigation.goBack();
         </Text>
 
       </TouchableOpacity>
-
+      
+      </ScrollView>
 
       {/* MODAL PRODUCTOS */}
 
@@ -910,9 +918,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    paddingBottom: 20,
   },
 
+  scroll: {
+    flex: 1,
+  },
+
+  scrollContenido: {
+    paddingBottom: 30,
+  },
 
   header: {
     height: 110,

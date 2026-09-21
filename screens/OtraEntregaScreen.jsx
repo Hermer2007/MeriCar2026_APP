@@ -396,6 +396,53 @@ export default function OtraEntregaScreen({
     productosIniciales
   );
 
+  const [
+  busquedaProducto,
+  setBusquedaProducto,
+] = useState('');
+
+const productosFiltrados =
+  useMemo(() => {
+
+    const texto =
+      busquedaProducto
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(
+          /[\u0300-\u036f]/g,
+          ''
+        );
+
+    if (!texto) {
+      return productosEntrega;
+    }
+
+    return productosEntrega.filter(
+      (producto) => {
+
+        const nombre =
+          String(
+            producto.nombre || ''
+          )
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(
+              /[\u0300-\u036f]/g,
+              ''
+            );
+
+        return nombre.includes(
+          texto
+        );
+      }
+    );
+
+  }, [
+    productosEntrega,
+    busquedaProducto,
+  ]);
+
   // ==========================================
 // CENTAVOS
 // ==========================================
@@ -1157,10 +1204,48 @@ export default function OtraEntregaScreen({
 
         <View
           style={
+            styles.buscadorProductos
+          }
+        >
+          <Ionicons
+            name="search-outline"
+            size={19}
+            color="#777777"
+          />
+
+          <TextInput
+            style={
+              styles.inputBuscadorProductos
+            }
+            placeholder="Buscar producto..."
+            placeholderTextColor="#999999"
+            value={busquedaProducto}
+            onChangeText={
+              setBusquedaProducto
+            }
+          />
+
+          {busquedaProducto.length > 0 && (
+            <TouchableOpacity
+              onPress={() =>
+                setBusquedaProducto('')
+              }
+            >
+              <Ionicons
+                name="close-circle"
+                size={20}
+                color="#999999"
+              />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <View
+          style={
             styles.productosContainer
           }
         >
-          {productosEntrega.map(
+          {productosFiltrados.map(
             (
               producto,
               index
@@ -1173,7 +1258,7 @@ export default function OtraEntregaScreen({
                   styles.productoFila,
 
                   index ===
-                    productosEntrega.length -
+                    productosFiltrados.length -
                       1 &&
                     styles.ultimaFila,
                 ]}
@@ -1986,6 +2071,27 @@ const styles =
       color:
         '#777777',
       marginTop: 2,
+    },
+
+    buscadorProductos: {
+      height: 46,
+      borderWidth: 1,
+      borderColor: '#E1E1E1',
+      borderRadius: 9,
+      backgroundColor: '#F8F9F8',
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 12,
+      marginBottom: 9,
+      gap: 8,
+    },
+
+    inputBuscadorProductos: {
+      flex: 1,
+      height: '100%',
+      fontSize: 13,
+      color: '#222222',
+      paddingVertical: 0,
     },
 
     productosContainer: {

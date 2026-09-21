@@ -144,6 +144,32 @@ export const EntregasProvider = ({
   }, []);
 
   // ==========================================
+  // BUSCAR ENTREGA DEL CLIENTE POR FECHA
+  // ==========================================
+
+  const buscarEntregaPorFecha = (
+    clienteId,
+    fecha
+  ) => {
+
+    if (
+      !clienteId ||
+      !fecha
+    ) {
+      return null;
+    }
+
+    return (
+      entregas.find(
+        (entrega) =>
+          String(entrega.clienteId) ===
+            String(clienteId) &&
+          entrega.fecha === fecha
+      ) || null
+    );
+  };
+
+  // ==========================================
   // AGREGAR ENTREGA
   // ==========================================
 
@@ -198,6 +224,126 @@ export const EntregasProvider = ({
       );
 
       return false;
+    }
+  };
+
+  // ==========================================
+  // REEMPLAZAR ENTREGA
+  // ==========================================
+
+  const reemplazarEntrega = async (
+    entregaAnterior,
+    nuevaEntrega
+  ) => {
+
+    try {
+
+      if (
+        !entregaAnterior?.id
+      ) {
+        return {
+          ok: false,
+          mensaje:
+            'No se encontró la entrega que se desea reemplazar.',
+        };
+      }
+
+      const referenciaEntrega =
+        doc(
+          db,
+          'entregas',
+          entregaAnterior.id
+        );
+
+      const {
+        fechaSeleccionada,
+        ...datosNuevaEntrega
+      } = nuevaEntrega;
+
+      const ahora =
+        new Date();
+
+      const fechaReemplazo =
+        Timestamp.fromDate(
+          ahora
+        );
+
+      const historialAnterior =
+        Array.isArray(
+          entregaAnterior.historialReemplazos
+        )
+          ? entregaAnterior.historialReemplazos
+          : [];
+
+      const numeroReemplazos =
+        Number(
+          entregaAnterior.numeroEdiciones
+        ) || 0;
+
+      await updateDoc(
+        referenciaEntrega,
+        {
+          ...datosNuevaEntrega,
+
+          // ==================================
+          // CONSERVAR REGISTRO ORIGINAL
+          // ==================================
+
+          fechaCreacion:
+            entregaAnterior.fechaCreacion,
+
+          // ==================================
+          // HISTORIAL DE REEMPLAZOS
+          // ==================================
+
+          numeroEdiciones:
+            numeroReemplazos + 1,
+
+          historialReemplazos: [
+            ...historialAnterior,
+            fechaReemplazo,
+          ],
+
+          fechaUltimoReemplazo:
+            fechaReemplazo,
+
+          // ==================================
+          // NUEVA TRANSFERENCIA
+          // ==================================
+
+          transferenciaConfirmada:
+            Number(
+              datosNuevaEntrega.pagoTransferencia
+            ) > 0
+              ? false
+              : null,
+
+          transferenciaConDiferencia:
+            false,
+
+          fechaConfirmacionTransferencia:
+            null,
+        }
+      );
+
+      return {
+        ok: true,
+        mensaje:
+          'Entrega reemplazada correctamente.',
+      };
+
+    } catch (error) {
+
+      console.log(
+        'Error al reemplazar entrega:',
+        error
+      );
+
+      return {
+        ok: false,
+        mensaje:
+          'No se pudo reemplazar la entrega.',
+      };
     }
   };
 
@@ -1535,7 +1681,9 @@ const confirmarTransferenciaAbono = async ({
         abonos,
 
         agregarEntrega,
+        reemplazarEntrega,
         actualizarEntrega,
+        buscarEntregaPorFecha,
 
         obtenerEntregasCliente,
         obtenerDeudasCliente,

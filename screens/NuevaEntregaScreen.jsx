@@ -38,8 +38,11 @@ export default function NuevaEntregaScreen({
 
   const {
     agregarEntrega,
+    reemplazarEntrega,
+    buscarEntregaPorFecha,
     obtenerDeudasCliente,
     obtenerSaldoCliente,
+    obtenerAbonosEntrega,
     registrarAbono,
   } = useEntregas();
 
@@ -72,6 +75,8 @@ export default function NuevaEntregaScreen({
 
   const [abonoTransferencia, setAbonoTransferencia] =
     useState('');
+
+  const [guardandoEntrega, setGuardandoEntrega] = useState(false);
 
   const [guardandoAbono, setGuardandoAbono] =
     useState(false);
@@ -308,19 +313,90 @@ export default function NuevaEntregaScreen({
 
   const formatearFecha = (fecha) => {
 
-    const dia = String(
-      fecha.getDate()
-    ).padStart(2, '0');
+  const dia = String(
+    fecha.getDate()
+  ).padStart(2, '0');
 
-    const mes = String(
-      fecha.getMonth() + 1
-    ).padStart(2, '0');
+  const mes = String(
+    fecha.getMonth() + 1
+  ).padStart(2, '0');
 
-    const anio =
-      fecha.getFullYear();
+  const anio =
+    fecha.getFullYear();
 
-    return `${dia}/${mes}/${anio}`;
-  };
+  return `${dia}/${mes}/${anio}`;
+};
+
+  const entregaExistente =
+    cliente?.id
+      ? buscarEntregaPorFecha(
+          cliente.id,
+          formatearFecha(fechaSeleccionada)
+        )
+      : null;
+
+  const esPosibleReemplazo =
+    Boolean(entregaExistente);
+
+  const abonosEntregaExistente =
+    entregaExistente?.id
+      ? obtenerAbonosEntrega(
+          entregaExistente.id
+        )
+      : [];
+
+  const totalAbonosPosteriores =
+    abonosEntregaExistente.reduce(
+      (total, abono) => {
+
+        if (
+          Array.isArray(abono.distribucion)
+        ) {
+
+          const aplicadoEntrega =
+            abono.distribucion
+              .filter(
+                (detalle) =>
+                  String(
+                    detalle.entregaId
+                  ) ===
+                  String(
+                    entregaExistente.id
+                  )
+              )
+              .reduce(
+                (suma, detalle) =>
+                  suma +
+                  (
+                    Number(
+                      detalle.montoAplicado
+                    ) || 0
+                  ),
+                0
+              );
+
+          return (
+            total +
+            aplicadoEntrega
+          );
+        }
+
+        if (
+          String(abono.entregaId) ===
+          String(entregaExistente.id)
+        ) {
+          return (
+            total +
+            (
+              Number(abono.monto) || 0
+            )
+          );
+        }
+
+        return total;
+      },
+      0
+    );
 
   const abrirCalendario = () => {
     DateTimePickerAndroid.open({
@@ -393,12 +469,59 @@ export default function NuevaEntregaScreen({
     productosIniciales
   );
 
+  const [
+    busquedaProducto,
+    setBusquedaProducto,
+  ] = useState('');
+
   useEffect(() => {
     setProductosEntrega(
       productosIniciales
     );
   }, [productosIniciales]);
-  
+
+  const productosFiltrados =
+    useMemo(() => {
+
+      const texto =
+        busquedaProducto
+          .trim()
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(
+            /[\u0300-\u036f]/g,
+            ''
+          );
+
+      if (!texto) {
+        return productosEntrega;
+      }
+
+      return productosEntrega.filter(
+        (producto) => {
+
+          const nombre =
+            String(
+              producto.nombre || ''
+            )
+              .toLowerCase()
+              .normalize('NFD')
+              .replace(
+                /[\u0300-\u036f]/g,
+                ''
+              );
+
+          return nombre.includes(
+            texto
+          );
+        }
+      );
+
+    }, [
+      productosEntrega,
+      busquedaProducto,
+    ]);
+    
   // ==========================================
   //CENTAVOS
   // ==========================================
@@ -657,8 +780,12 @@ export default function NuevaEntregaScreen({
 // ==========================================
 
 const guardarEntrega = async (
-  confirmarSinPago = false
+  confirmarSinPago = false,
+  confirmarReemplazo = false
 ) => {
+  if (guardandoEntrega) {
+  return;
+}
 
   const productosSeleccionados =
     productosEntrega.filter(
@@ -876,36 +1003,116 @@ const guardarEntrega = async (
     numeroEdiciones: 0,
   };
 
-  try {
+  // ========================================
+// CONFIRMAR REEMPLAZO
+// ========================================
 
-    const resultado =
-      await agregarEntrega(
-        nuevaEntrega
+if (
+  entregaExistente &&
+  !confirmarReemplazo
+) {
+
+  mostrarAlert({
+    titulo:
+      'Reemplazar entrega',
+
+    mensaje:
+      `Ya existe una entrega de este cliente para el ${formatearFecha(
+        fechaSeleccionada
+      )}. La información actual será reemplazada por la nueva entrega.`,
+
+    tipo:
+      'warning',
+
+    textoCancelar:
+      'Cancelar',
+
+    textoConfirmar:
+      'Reemplazar',
+
+    mostrarCancelar:
+      true,
+
+    onConfirmar: () => {
+      guardarEntrega(
+        confirmarSinPago,
+        true
       );
+    },
+  });
 
-    if (!resultado) {
+  return;
+}
+
+// ========================================
+// GUARDAR O REEMPLAZAR
+// ========================================
+
+try {
+
+  setGuardandoEntrega(true);
+
+    if (entregaExistente) {
+
+      const resultado =
+        await reemplazarEntrega(
+          entregaExistente,
+          nuevaEntrega
+        );
+
+      if (!resultado?.ok) {
+
+        mostrarToast(
+          resultado?.mensaje ||
+            'No se pudo reemplazar la entrega.',
+          'error'
+        );
+
+        return;
+      }
 
       mostrarToast(
-        'No se pudo registrar la entrega.',
-        'error'
+        'Entrega reemplazada correctamente.',
+        'success'
       );
 
-      return;
-    }
+    } else {
 
-    mostrarToast(
-      'Entrega registrada correctamente.',
-      'success'
-    );
+      const resultado =
+        await agregarEntrega(
+          nuevaEntrega
+        );
+
+      if (!resultado) {
+
+        mostrarToast(
+          'No se pudo registrar la entrega.',
+          'error'
+        );
+
+        return;
+      }
+
+      mostrarToast(
+        'Entrega registrada correctamente.',
+        'success'
+      );
+    }
 
     navigation.goBack();
 
   } catch (error) {
 
     mostrarToast(
-      'No se pudo registrar la entrega.',
+      entregaExistente
+        ? 'No se pudo reemplazar la entrega.'
+        : 'No se pudo registrar la entrega.',
       'error'
     );
+
+  } finally {
+
+    setGuardandoEntrega(false);
   }
 };
 
@@ -985,9 +1192,11 @@ const guardarEntrega = async (
       >
 
         <View
-          style={
-            styles.fechaContainer
-          }
+          style={[
+            styles.fechaContainer,
+            esPosibleReemplazo &&
+              styles.fechaContainerReemplazo,
+          ]}
         >
 
           <TouchableOpacity
@@ -1000,13 +1209,19 @@ const guardarEntrega = async (
             <Ionicons
               name="calendar-outline"
               size={20}
-              color="#08752F"
+              color={
+                esPosibleReemplazo
+                  ? '#C62828'
+                  : '#08752F'
+              }
             />
 
             <Text
-              style={
-                styles.fechaTexto
-              }
+              style={[
+                styles.fechaTexto,
+                esPosibleReemplazo &&
+                  styles.fechaTextoReemplazo,
+              ]}
             >
               {formatearFecha(
                 fechaSeleccionada
@@ -1016,7 +1231,11 @@ const guardarEntrega = async (
             <Ionicons
               name="chevron-down"
               size={15}
-              color="#08752F"
+              color={
+                esPosibleReemplazo
+                  ? '#C62828'
+                  : '#08752F'
+              }
             />
 
           </TouchableOpacity>
@@ -1030,13 +1249,19 @@ const guardarEntrega = async (
             <Ionicons
               name="time-outline"
               size={20}
-              color="#08752F"
+              color={
+                esPosibleReemplazo
+                  ? '#C62828'
+                  : '#08752F'
+              }
             />
 
             <Text
-              style={
-                styles.fechaTexto
-              }
+              style={[
+                styles.fechaTexto,
+                esPosibleReemplazo &&
+                  styles.fechaTextoReemplazo,
+              ]}
             >
               {horaActual}
             </Text>
@@ -1055,11 +1280,49 @@ const guardarEntrega = async (
 
         <View
           style={
+            styles.buscadorProductos
+          }
+        >
+          <Ionicons
+            name="search-outline"
+            size={19}
+            color="#777777"
+          />
+
+          <TextInput
+            style={
+              styles.inputBuscadorProductos
+            }
+            placeholder="Buscar producto..."
+            placeholderTextColor="#999999"
+            value={busquedaProducto}
+            onChangeText={
+              setBusquedaProducto
+            }
+          />
+
+          {busquedaProducto.length > 0 && (
+            <TouchableOpacity
+              onPress={() =>
+                setBusquedaProducto('')
+              }
+            >
+              <Ionicons
+                name="close-circle"
+                size={20}
+                color="#999999"
+              />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <View
+          style={
             styles.productosContainer
           }
         >
 
-          {productosEntrega.map(
+          {productosFiltrados.map(
             (
               producto,
               index
@@ -1073,7 +1336,7 @@ const guardarEntrega = async (
                   styles.productoFila,
 
                   index ===
-                    productosEntrega.length -
+                    productosFiltrados.length -
                       1 &&
                     styles.ultimaFila,
                 ]}
@@ -1853,6 +2116,11 @@ const styles =
         'space-between',
     },
 
+    fechaContainerReemplazo: {
+      borderColor: '#C62828',
+      backgroundColor: '#FFF1F1',
+    },
+
     fechaDato: {
       flexDirection:
         'row',
@@ -1869,6 +2137,10 @@ const styles =
         '700',
     },
 
+    fechaTextoReemplazo: {
+      color: '#C62828',
+    },
+
     tituloSeccion: {
       fontSize: 15,
       fontWeight:
@@ -1877,6 +2149,27 @@ const styles =
         '#08752F',
       marginTop: 16,
       marginBottom: 7,
+    },
+
+    buscadorProductos: {
+      height: 46,
+      borderWidth: 1,
+      borderColor: '#E1E1E1',
+      borderRadius: 9,
+      backgroundColor: '#F8F9F8',
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 12,
+      marginBottom: 9,
+      gap: 8,
+    },
+
+    inputBuscadorProductos: {
+      flex: 1,
+      height: '100%',
+      fontSize: 13,
+      color: '#222222',
+      paddingVertical: 0,
     },
 
     productosContainer: {
