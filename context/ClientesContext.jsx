@@ -9,6 +9,7 @@ import {
   collection,
   addDoc,
   doc,
+  deleteDoc,
   updateDoc,
   onSnapshot,
 } from 'firebase/firestore';
@@ -72,12 +73,15 @@ export const ClientesProvider = ({ children }) => {
         ...cliente,
       };
 
-      await addDoc(
+      const documentoCliente = await addDoc(
         collection(db, 'clientes'),
         nuevoCliente
       );
 
-      return true;
+      return {
+        ok: true,
+        id: documentoCliente.id,
+      };
 
     } catch (error) {
 
@@ -86,7 +90,10 @@ export const ClientesProvider = ({ children }) => {
         error
       );
 
-      return false;
+      return {
+        ok: false,
+        id: null,
+      };
     }
   };
 
@@ -190,11 +197,41 @@ export const ClientesProvider = ({ children }) => {
     }
   };
 
+  const eliminarCliente = async (
+    clienteId
+  ) => {
+    try {
+      if (!clienteId) {
+        return false;
+      }
+
+      const referenciaCliente = doc(
+        db,
+        'clientes',
+        clienteId
+      );
+
+      await deleteDoc(
+        referenciaCliente
+      );
+
+      return true;
+    } catch (error) {
+      console.log(
+        'Error al eliminar cliente:',
+        error
+      );
+
+      return false;
+    }
+  };
+
   return (
     <ClientesContext.Provider
       value={{
         clientes,
         agregarCliente,
+        eliminarCliente,
         editarCliente,
         guardarOrdenClientes,
       }}

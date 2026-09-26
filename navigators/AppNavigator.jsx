@@ -38,6 +38,7 @@ import EditarEntregaScreen from '../screens/EditarEntregaScreen';
 import EntregasScreen from '../screens/EntregasScreen';
 import EntregasDiaScreen from '../screens/EntregasDiaScreen';
 import OtraEntregaScreen from '../screens/OtraEntregaScreen';
+import OtrasEntregasHistorialScreen from '../screens/OtrasEntregasHistorialScreen';
 
 import ReportesScreen from '../screens/ReportesScreen';
 import ReporteDetalleScreen from '../screens/ReporteDetalleScreen';
@@ -216,6 +217,12 @@ export default function AppNavigator() {
         <Stack.Screen
           name="OtraEntrega"
           component={OtraEntregaScreen}
+        />
+
+        <Stack.Screen
+          name="OtrasEntregasHistorial"
+          component={OtrasEntregasHistorialScreen}
+          options={{ headerShown: false }}
         />
 
         {/* PERFIL */}

@@ -8,7 +8,8 @@ import {
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
-import { useClientes } from '../context/ClientesContext';
+import { useClientes } from '../context/ClientesContext'
+import { useEntregas } from '../context/EntregasContext';
 import BotonHome from '../components/BotonHome';
 
 const DIAS = [
@@ -36,6 +37,7 @@ const DIAS = [
 
 const EntregasScreen = ({ navigation }) => {
   const { clientes } = useClientes();
+  const { entregas } = useEntregas();
 
   // ==========================================
   // CLIENTES POR DÍA
@@ -63,6 +65,29 @@ const EntregasScreen = ({ navigation }) => {
       );
     }).length;
   };
+
+  const obtenerFechaHoy = () => {
+    const hoy = new Date();
+
+    const dia = String(
+      hoy.getDate()
+    ).padStart(2, '0');
+
+    const mes = String(
+      hoy.getMonth() + 1
+    ).padStart(2, '0');
+
+    const anio = hoy.getFullYear();
+
+    return `${dia}/${mes}/${anio}`;
+  };
+
+  const otrasEntregasHoy = entregas.filter(
+    (entrega) =>
+      entrega.tipo === 'OTRA_ENTREGA' &&
+      !entrega.clienteId &&
+      entrega.fecha === obtenerFechaHoy()
+  );
 
   const abrirDia = (dia) => {
     navigation.navigate('EntregasDia', {
@@ -139,6 +164,41 @@ const EntregasScreen = ({ navigation }) => {
             </TouchableOpacity>
           );
         })}
+
+        <TouchableOpacity
+          style={styles.tarjetaOtraEntrega}
+          activeOpacity={0.75}
+          onPress={() =>
+            navigation.navigate('OtrasEntregasHistorial')
+          }
+        >
+          <View style={styles.iconoOtraEntrega}>
+            <Ionicons
+              name="receipt-outline"
+              size={38}
+              color="#B86A00"
+            />
+          </View>
+
+          <View style={styles.informacionDia}>
+            <Text style={styles.nombreOtraEntrega}>
+              Otras entregas de hoy
+            </Text>
+
+            <Text style={styles.cantidad}>
+              {otrasEntregasHoy.length}{' '}
+              {otrasEntregasHoy.length === 1
+                ? 'entrega'
+                : 'entregas'}
+            </Text>
+          </View>
+
+          <Ionicons
+            name="chevron-forward"
+            size={22}
+            color="#B86A00"
+          />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -213,5 +273,29 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#555555',
     marginTop: 7,
+  },
+
+  tarjetaOtraEntrega: {
+    minHeight: 90,
+    borderWidth: 1,
+    borderColor: '#E8C98D',
+    borderRadius: 13,
+    marginTop: 3,
+    marginBottom: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    backgroundColor: '#FFF9ED',
+  },
+
+  iconoOtraEntrega: {
+    width: 60,
+    alignItems: 'center',
+  },
+
+  nombreOtraEntrega: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#B86A00',
   },
 });

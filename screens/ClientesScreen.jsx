@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
+  Alert,
   FlatList,
   Modal,
   Pressable,
@@ -27,7 +28,7 @@ const DIAS = [
 
 const ClientesScreen = ({ navigation }) => {
   const { mostrarToast } = useToast();
-  const { clientes } = useClientes();
+  const { clientes, eliminarCliente, } = useClientes();
 
   const {
     entregas,
@@ -45,6 +46,15 @@ const ClientesScreen = ({ navigation }) => {
 
   const [estadoFiltro, setEstadoFiltro] =
     useState('Todos');
+
+  const [modalEliminar, setModalEliminar] =
+    useState(false);
+
+  const [clienteEliminar, setClienteEliminar] =
+    useState(null);
+
+  const [saldoClienteEliminar, setSaldoClienteEliminar] =
+    useState(0);
 
   const obtenerFechaEntrega = (entrega) => {
     if (!entrega) {
@@ -342,12 +352,53 @@ const ClientesScreen = ({ navigation }) => {
     setEstadoFiltro('Todos');
   };
 
+  const solicitarEliminarCliente = (
+    cliente
+  ) => {
+    const saldo =
+      Number(
+        obtenerSaldoCliente(
+          cliente.id
+        )
+      ) || 0;
+
+    setClienteEliminar(cliente);
+    setSaldoClienteEliminar(saldo);
+    setModalEliminar(true);
+  };
+
+  const confirmarEliminarCliente =
+    async () => {
+      if (!clienteEliminar) return;
+
+      const eliminado =
+        await eliminarCliente(
+          clienteEliminar.id
+        );
+
+      if (eliminado) {
+        setModalEliminar(false);
+        setClienteEliminar(null);
+
+        mostrarToast(
+          'Cliente eliminado correctamente.',
+          'success'
+        );
+      } else {
+        mostrarToast(
+          'No se pudo eliminar el cliente.',
+          'error'
+        );
+      }
+    };
+
   const renderCliente = ({
     item,
   }) => (
     <TouchableOpacity
       style={styles.cliente}
       activeOpacity={0.7}
+
       onPress={() =>
         navigation.navigate(
           'EditarCliente',
@@ -356,6 +407,14 @@ const ClientesScreen = ({ navigation }) => {
           }
         )
       }
+
+      onLongPress={() =>
+        solicitarEliminarCliente(
+          item
+        )
+      }
+
+      delayLongPress={600}
     >
       <View style={styles.avatar}>
         <Text
@@ -610,6 +669,155 @@ const ClientesScreen = ({ navigation }) => {
           color="#FFFFFF"
         />
       </TouchableOpacity>
+
+      {/* MODAL ELIMINAR CLIENTE */}
+
+      <Modal
+        visible={modalEliminar}
+        transparent
+        animationType="fade"
+        onRequestClose={() =>
+          setModalEliminar(false)
+        }
+      >
+        <Pressable
+          style={styles.modalEliminarFondo}
+          onPress={() =>
+            setModalEliminar(false)
+          }
+        >
+          <Pressable
+            style={styles.modalEliminarContenido}
+            onPress={() => {}}
+          >
+            <View
+              style={[
+                styles.iconoEliminar,
+                saldoClienteEliminar > 0 &&
+                  styles.iconoEliminarBloqueado,
+              ]}
+            >
+              <Ionicons
+                name={
+                  saldoClienteEliminar > 0
+                    ? 'lock-closed-outline'
+                    : 'trash-outline'
+                }
+                size={34}
+                color={
+                  saldoClienteEliminar > 0
+                    ? '#D97706'
+                    : '#D64545'
+                }
+              />
+            </View>
+
+            <Text style={styles.tituloEliminar}>
+              {saldoClienteEliminar > 0
+                ? 'No se puede eliminar'
+                : 'Eliminar cliente'}
+            </Text>
+
+            <Text style={styles.nombreEliminar}>
+              {clienteEliminar?.nombre ||
+                `${
+                  clienteEliminar?.nombres || ''
+                } ${
+                  clienteEliminar?.apellidos || ''
+                }`.trim()}
+            </Text>
+
+            {saldoClienteEliminar > 0 ? (
+              <>
+                <Text
+                  style={styles.descripcionEliminar}
+                >
+                  Este cliente mantiene un saldo
+                  pendiente y no puede ser eliminado.
+                </Text>
+
+                <View
+                  style={styles.saldoEliminar}
+                >
+                  <Text
+                    style={styles.saldoEliminarLabel}
+                  >
+                    Saldo pendiente
+                  </Text>
+
+                  <Text
+                    style={styles.saldoEliminarValor}
+                  >
+                    $
+                    {saldoClienteEliminar.toFixed(
+                      2
+                    )}
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.botonEntendido}
+                  onPress={() =>
+                    setModalEliminar(false)
+                  }
+                >
+                  <Text
+                    style={styles.textoEntendido}
+                  >
+                    Entendido
+                  </Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text
+                  style={styles.descripcionEliminar}
+                >
+                  ¿Está seguro de eliminar este
+                  cliente? Esta acción no se puede
+                  deshacer.
+                </Text>
+
+                <View
+                  style={styles.botonesEliminar}
+                >
+                  <TouchableOpacity
+                    style={styles.botonCancelarEliminar}
+                    onPress={() =>
+                      setModalEliminar(false)
+                    }
+                  >
+                    <Text
+                      style={styles.textoCancelarEliminar}
+                    >
+                      Cancelar
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.botonConfirmarEliminar}
+                    onPress={
+                      confirmarEliminarCliente
+                    }
+                  >
+                    <Ionicons
+                      name="trash-outline"
+                      size={18}
+                      color="#FFFFFF"
+                    />
+
+                    <Text
+                      style={styles.textoConfirmarEliminar}
+                    >
+                      Eliminar
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* MODAL FILTRO */}
       <Modal
@@ -1209,6 +1417,143 @@ const styles = StyleSheet.create({
 
   textoAplicar: {
     color: '#FFFFFF',
+    fontWeight: '700',
+  },
+
+  modalEliminarFondo: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 25,
+  },
+
+  modalEliminarContenido: {
+    width: '100%',
+    maxWidth: 370,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    paddingHorizontal: 24,
+    paddingTop: 25,
+    paddingBottom: 22,
+    alignItems: 'center',
+    elevation: 10,
+  },
+
+  iconoEliminar: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: '#FDECEC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+
+  iconoEliminarBloqueado: {
+    backgroundColor: '#FFF4E5',
+  },
+
+  tituloEliminar: {
+    fontSize: 21,
+    fontWeight: '700',
+    color: '#222222',
+    textAlign: 'center',
+  },
+
+  nombreEliminar: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#08752F',
+    textAlign: 'center',
+    marginTop: 6,
+  },
+
+  descripcionEliminar: {
+    fontSize: 14,
+    color: '#6B6B6B',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginTop: 10,
+  },
+
+  saldoEliminar: {
+    width: '100%',
+    backgroundColor: '#FFF7E8',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    marginTop: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+
+  saldoEliminarLabel: {
+    fontSize: 13,
+    color: '#6B6B6B',
+    fontWeight: '600',
+  },
+
+  saldoEliminarValor: {
+    fontSize: 18,
+    color: '#D97706',
+    fontWeight: '700',
+  },
+
+  botonesEliminar: {
+    width: '100%',
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 22,
+  },
+
+  botonCancelarEliminar: {
+    flex: 1,
+    height: 48,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#D5D5D5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  textoCancelarEliminar: {
+    color: '#555555',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+
+  botonConfirmarEliminar: {
+    flex: 1,
+    height: 48,
+    borderRadius: 10,
+    backgroundColor: '#D64545',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+  },
+
+  textoConfirmarEliminar: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+
+  botonEntendido: {
+    width: '100%',
+    height: 48,
+    backgroundColor: '#08752F',
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 20,
+  },
+
+  textoEntendido: {
+    color: '#FFFFFF',
+    fontSize: 14,
     fontWeight: '700',
   },
 });

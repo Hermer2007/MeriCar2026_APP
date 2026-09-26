@@ -147,6 +147,16 @@ const EntregasDiaScreen = ({ navigation, route }) => {
       clientes,
       dia,
     ]);
+    
+  // ==========================================
+  // CLIENTES ATENDIDOS
+  // ==========================================
+
+    const clientesAtendidos = useMemo(() => {
+      return clientesDelDia.filter((cliente) =>
+        clienteEntregadoHoy(cliente.id)
+      ).length;
+    }, [clientesDelDia, entregas]);
 
   // ==========================================
   // BUSCADOR
@@ -337,10 +347,7 @@ const EntregasDiaScreen = ({ navigation, route }) => {
           </Text>
 
           <Text style={styles.subtituloHeader}>
-            {clientesDelDia.length}{' '}
-            {clientesDelDia.length === 1
-              ? 'cliente'
-              : 'clientes'}
+            {clientesAtendidos}/{clientesDelDia.length} clientes
           </Text>
         </View>
         <BotonHome navigation={navigation} />

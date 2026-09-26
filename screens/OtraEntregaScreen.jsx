@@ -68,6 +68,8 @@ export default function OtraEntregaScreen({
     setMostrarResultados,
   ] = useState(false);
 
+  const [nombreTemporal, setNombreTemporal] = useState('');
+
   const nombreCliente = (cliente) =>
   cliente?.nombre ||
   `${cliente?.nombres || ''} ${cliente?.apellidos || ''}`.trim() ||
@@ -798,12 +800,29 @@ const productosFiltrados =
             ? 'CLIENTE'
             : 'OTRA_ENTREGA',
 
+        origenEntrega:
+          clienteSeleccionado
+            ? 'CLIENTE'
+            : 'OTRA_ENTREGA',
+
+        nombreTemporal:
+          clienteSeleccionado
+            ? null
+            : nombreTemporal.trim() || null,
+
         nombreCliente:
           clienteSeleccionado
             ? nombreCliente(
                 clienteSeleccionado
               )
-            : 'Cliente no registrado',
+            : nombreTemporal.trim() ||
+              'Cliente no registrado',
+
+        convertidoACliente: false,
+
+        clienteConvertidoId: null,
+
+        fechaConversionCliente: null,
 
         fecha:
           momentoRegistro.fecha,
@@ -1155,6 +1174,8 @@ const productosFiltrados =
                               ''
                             );
 
+                            setNombreTemporal('');
+
                             setMostrarResultados(
                               false
                             );
@@ -1193,6 +1214,27 @@ const productosFiltrados =
               )}
           </>
         )}
+
+        <View style={styles.seccionNombreTemporal}>
+          <Text style={styles.labelNombreTemporal}>
+            Nombre temporal (opcional)
+          </Text>
+
+          <TextInput
+            style={styles.inputNombreTemporal}
+            placeholder="Ej. María Paz"
+            placeholderTextColor="#9CA3AF"
+            value={nombreTemporal}
+            onChangeText={setNombreTemporal}
+            editable={!clienteSeleccionado}
+          />
+
+          {!clienteSeleccionado && (
+            <Text style={styles.ayudaNombreTemporal}>
+              Úsalo únicamente si la persona no está registrada como cliente.
+            </Text>
+          )}
+        </View>
 
         <Text
           style={
@@ -2614,5 +2656,34 @@ const styles =
 
     botonAbonoDeshabilitado: {
       opacity: 0.6,
+    },
+
+    seccionNombreTemporal: {
+      marginTop: 15,
+      marginBottom: 0,
+    },
+
+    labelNombreTemporal: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: '#203e2b',
+      marginBottom: 8,
+    },
+
+    inputNombreTemporal: {
+      height: 50,
+      backgroundColor: '#FFFFFF',
+      borderWidth: 1,
+      borderColor: '#D1D5DB',
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      fontSize: 15,
+      color: '#1F2937',
+    },
+
+    ayudaNombreTemporal: {
+      marginTop: 2,
+      fontSize: 12,
+      color: '#6B7280',
     },
   });

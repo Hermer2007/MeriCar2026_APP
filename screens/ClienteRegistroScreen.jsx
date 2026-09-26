@@ -13,25 +13,32 @@ import {
 
 import { Ionicons } from '@expo/vector-icons';
 import { useClientes } from '../context/ClientesContext';
+import { useEntregas } from '../context/EntregasContext';
 import { useToast } from '../context/ToastContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BotonHome from '../components/BotonHome';
 
 const DIAS = ['Lunes', 'Miércoles', 'Jueves', 'Sábado', 'Domingo'];
 
-const ClienteRegistroScreen = ({ navigation }) => {
+const ClienteRegistroScreen = ({navigation,route,}) => {
   const { mostrarToast } = useToast();
   const { agregarCliente } = useClientes();
+  const {vincularEntregaACliente,} = useEntregas();
 
   const insets = useSafeAreaInsets()
 
-  const [nombre, setNombre] = useState('');
+  const [nombre, setNombre] = useState(
+    route.params?.nombreTemporal || ''
+  );
   const [cedula, setCedula] = useState('');
   const [telefono, setTelefono] = useState('');
   const [correo, setCorreo] = useState('');
   const [direccion, setDireccion] = useState('');
   const [diasTrabajo, setDiasTrabajo] = useState([]);
   const [observaciones, setObservaciones] = useState('');
+
+  const entregaTemporalId =
+  route.params?.entregaTemporalId || null;
 
   const cambiarDia = (dia) => {
     setDiasTrabajo((actuales) =>
@@ -41,7 +48,7 @@ const ClienteRegistroScreen = ({ navigation }) => {
     );
   };
 
-  const guardarCliente = () => {
+  const guardarCliente = async () => {
     const nombreLimpio = nombre.trim();
 
     if (!nombreLimpio) {
@@ -70,7 +77,34 @@ const ClienteRegistroScreen = ({ navigation }) => {
       observaciones: observaciones.trim(),
     };
 
-    agregarCliente(nuevoCliente);
+    const resultado =
+      await agregarCliente(nuevoCliente);
+
+    if (!resultado?.ok) {
+      mostrarToast(
+        'No se pudo registrar el cliente.',
+        'error'
+      );
+
+      return;
+    }
+
+    if (entregaTemporalId) {
+      const resultadoVinculacion =
+        await vincularEntregaACliente(
+          entregaTemporalId,
+          resultado.id
+        );
+
+      if (!resultadoVinculacion?.ok) {
+        mostrarToast(
+          'El cliente fue registrado, pero no se pudo vincular la entrega.',
+          'warning'
+        );
+
+        return;
+      }
+    }
 
     mostrarToast(
       'Cliente registrado correctamente.',

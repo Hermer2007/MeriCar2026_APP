@@ -388,6 +388,55 @@ export const EntregasProvider = ({
     }
   };
 
+  const vincularEntregaACliente = async (
+    entregaId,
+    clienteId
+  ) => {
+    try {
+      if (!entregaId || !clienteId) {
+        return {
+          ok: false,
+          mensaje:
+            'No se pudo identificar la entrega o el cliente.',
+        };
+      }
+
+      const referenciaEntrega = doc(
+        db,
+        'entregas',
+        entregaId
+      );
+
+      await updateDoc(
+        referenciaEntrega,
+        {
+          clienteId: clienteId,
+
+          convertidoACliente: true,
+
+          clienteConvertidoId:
+            clienteId,
+
+          fechaConversionCliente:
+            Timestamp.now(),
+        }
+      );
+
+      return {
+        ok: true,
+      };
+    } catch (error) {
+      console.log(
+        'Error al vincular entrega con cliente:',
+        error
+      );
+
+      return {
+        ok: false,
+      };
+    }
+  };
+
   // ==========================================
   // OBTENER ENTREGAS DE UN CLIENTE
   // ==========================================
@@ -1694,6 +1743,7 @@ const confirmarTransferenciaAbono = async ({
         confirmarTransferenciaAbono,
         confirmarTransferenciaEntrega,
         eliminarEntregas,
+        vincularEntregaACliente,
       }}
     >
       {children}
