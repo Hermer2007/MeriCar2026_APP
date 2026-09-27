@@ -1,8 +1,8 @@
-import React, {
-  useMemo,
-} from 'react';
+import React, {useEffect, useMemo, useState,} from 'react';
 
 import {
+  Image,
+  Modal,
   ScrollView,
   StatusBar,
   TouchableOpacity,
@@ -11,20 +11,12 @@ import {
   View,
 } from 'react-native';
 
-import {
-  Ionicons,
-} from '@expo/vector-icons';
+import {Ionicons,} from '@expo/vector-icons';
+import {useSafeAreaInsets,} from 'react-native-safe-area-context';
+import {useEntregas,} from '../context/EntregasContext';
 
-import {
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
-
-import {
-  useEntregas,
-} from '../context/EntregasContext';
-
-import BotonHome
-  from '../components/BotonHome';
+import BotonHome from '../components/BotonHome';
+import * as FileSystem from 'expo-file-system/legacy';
 
 export default function EditarEntregaScreen({
   navigation,
@@ -33,6 +25,16 @@ export default function EditarEntregaScreen({
 
   const insets =
     useSafeAreaInsets();
+  
+  const [
+    comprobanteDisponible,
+    setComprobanteDisponible,
+  ] = useState(false);
+
+  const [
+    modalComprobante,
+    setModalComprobante,
+  ] = useState(false);
 
   const cliente =
     route.params?.cliente;
@@ -369,6 +371,49 @@ export default function EditarEntregaScreen({
     entrega
       ?.fechaConfirmacionTransferencia ||
     null;
+  
+  // ==========================================
+  // COMPROBANTE LOCAL
+  // ==========================================
+
+  useEffect(() => {
+
+    const verificarComprobante = async () => {
+
+      try {
+
+        if (
+          !entrega?.tieneComprobanteTransferencia ||
+          !entrega?.comprobanteTransferencia
+        ) {
+          setComprobanteDisponible(false);
+          return;
+        }
+
+        const informacion =
+          await FileSystem.getInfoAsync(
+            entrega.comprobanteTransferencia
+          );
+
+        setComprobanteDisponible(
+          informacion.exists
+        );
+
+      } catch (error) {
+
+        setComprobanteDisponible(false);
+
+      }
+
+    };
+
+    verificarComprobante();
+
+  }, [
+    entrega?.id,
+    entrega?.comprobanteTransferencia,
+    entrega?.tieneComprobanteTransferencia,
+  ]);
 
   // ==========================================
   // ABONOS POSTERIORES
@@ -1112,6 +1157,188 @@ export default function EditarEntregaScreen({
 
         </View>
 
+        {/* COMPROBANTE DE TRANSFERENCIA */}
+
+          {entrega?.tieneComprobanteTransferencia &&
+            tieneTransferencia && (
+            <>
+              <Text style={styles.tituloSeccion}>
+                Comprobante de transferencia
+              </Text>
+
+              <View style={styles.comprobanteCard}>
+
+                {/* ENCABEZADO */}
+
+                <View style={styles.comprobanteHeader}>
+
+                  <View style={styles.comprobanteHeaderIzquierda}>
+
+                    <View style={styles.comprobanteIcono}>
+                      <Ionicons
+                        name="image-outline"
+                        size={25}
+                        color="#08752F"
+                      />
+                    </View>
+
+                    <View>
+                      <Text style={styles.comprobanteRegistrado}>
+                        Comprobante registrado
+                      </Text>
+
+                      <Text style={styles.comprobanteFecha}>
+                        {entrega?.fecha || 'Sin fecha'}
+                        {'  •  '}
+                        {entrega?.hora || ''}
+                      </Text>
+                    </View>
+
+                  </View>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.botonVerComprobante,
+                      !comprobanteDisponible &&
+                        styles.botonVerComprobanteDeshabilitado,
+                    ]}
+                    disabled={!comprobanteDisponible}
+                    onPress={() =>
+                      setModalComprobante(true)
+                    }
+                  >
+                    <Ionicons
+                      name={
+                        comprobanteDisponible
+                          ? 'eye'
+                          : 'eye-off'
+                      }
+                      size={18}
+                      color={
+                        comprobanteDisponible
+                          ? '#08752F'
+                          : '#999999'
+                      }
+                    />
+
+                    <Text
+                      style={[
+                        styles.textoVerComprobante,
+                        !comprobanteDisponible &&
+                          styles.textoVerComprobanteDeshabilitado,
+                      ]}
+                    >
+                      Ver comprobante
+                    </Text>
+                  </TouchableOpacity>
+
+                </View>
+
+
+                {/* CONTENIDO */}
+
+                <View style={styles.comprobanteContenido}>
+
+                  {/* FOTO */}
+
+                  {comprobanteDisponible ? (
+
+                    <Image
+                      source={{
+                        uri: entrega.comprobanteTransferencia,
+                      }}
+                      style={styles.comprobanteImagen}
+                      resizeMode="cover"
+                    />
+
+                  ) : (
+
+                    <View style={styles.comprobanteNoDisponible}>
+
+                      <Ionicons
+                        name="image-outline"
+                        size={35}
+                        color="#888888"
+                      />
+
+                      <Text
+                        style={
+                          styles.comprobanteNoDisponibleTitulo
+                        }
+                      >
+                        Comprobante no disponible
+                        {'\n'}
+                        en este dispositivo
+                      </Text>
+
+                      <Text
+                        style={
+                          styles.comprobanteNoDisponibleTexto
+                        }
+                      >
+                        Foto del comprobante tomada por{' '}
+                        {entrega?.comprobanteTomadoPorNombre ||
+                          'otro usuario'}
+                      </Text>
+
+                    </View>
+
+                  )}
+
+
+                  {/* INFORMACIÓN */}
+
+                  <View style={styles.comprobanteDatos}>
+
+                    <Text style={styles.comprobanteMontoLabel}>
+                      Monto por transferencia
+                    </Text>
+
+                    <Text style={styles.comprobanteMontoValor}>
+                      {dinero(pagoTransferencia)}
+                    </Text>
+
+
+                    <View style={styles.comprobanteConfirmacion}>
+
+                      <View style={styles.comprobanteCheck}>
+                        <Ionicons
+                          name="checkmark"
+                          size={16}
+                          color="#FFFFFF"
+                        />
+                      </View>
+
+                      <View style={styles.comprobanteConfirmacionInfo}>
+
+                        <Text
+                          style={
+                            styles.comprobanteConfirmacionTitulo
+                          }
+                        >
+                          Transferencia confirmada
+                        </Text>
+
+                        <Text
+                          style={
+                            styles.comprobanteConfirmacionTexto
+                          }
+                        >
+                          Comprobante registrado como respaldo.
+                        </Text>
+
+                      </View>
+
+                    </View>
+
+                  </View>
+
+                </View>
+
+              </View>
+            </>
+          )}
+
         {/* ABONOS POSTERIORES */}
 
         {abonosPosteriores.length >
@@ -1543,6 +1770,58 @@ export default function EditarEntregaScreen({
 
       </ScrollView>
 
+      {/* MODAL COMPROBANTE */}
+
+        <Modal
+          visible={modalComprobante}
+          transparent
+          animationType="fade"
+          statusBarTranslucent
+          onRequestClose={() =>
+            setModalComprobante(false)
+          }
+        >
+          <View style={styles.modalComprobanteFondo}>
+
+            <View style={styles.modalComprobanteContenido}>
+
+              <View style={styles.modalComprobanteHeader}>
+
+                <Text style={styles.modalComprobanteTitulo}>
+                  Comprobante de transferencia
+                </Text>
+
+                <TouchableOpacity
+                  style={styles.modalComprobanteCerrar}
+                  onPress={() =>
+                    setModalComprobante(false)
+                  }
+                >
+                  <Ionicons
+                    name="close"
+                    size={27}
+                    color="#FFFFFF"
+                  />
+                </TouchableOpacity>
+
+              </View>
+
+              {comprobanteDisponible &&
+                entrega?.comprobanteTransferencia && (
+
+                  <Image
+                    source={{
+                      uri: entrega.comprobanteTransferencia,
+                    }}
+                    style={styles.modalComprobanteImagen}
+                    resizeMode="contain"
+                  />
+
+                )}
+
+            </View>
+          </View>
+        </Modal>
     </View>
   );
 }
@@ -2269,4 +2548,231 @@ const styles =
       lineHeight: 15,
     },
 
+    // ==========================================
+    // COMPROBANTE DE TRANSFERENCIA
+    // ==========================================
+
+    comprobanteCard: {
+      borderWidth: 1,
+      borderColor: '#D6EBDD',
+      backgroundColor: '#F4FAF6',
+      borderRadius: 12,
+      padding: 14,
+    },
+
+    comprobanteHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 14,
+      gap: 10,
+    },
+
+    comprobanteHeaderIzquierda: {
+      flex: 1,
+      minWidth: 0,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+
+    comprobanteIcono: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: '#E1F3E6',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    comprobanteRegistrado: {
+      color: '#222222',
+      fontSize: 11,
+      fontWeight: '700',
+      flexShrink: 1,
+    },
+
+    comprobanteFecha: {
+      marginTop: 3,
+      color: '#666666',
+      fontSize: 9,
+    },
+
+    botonVerComprobante: {
+      minHeight: 40,
+      borderWidth: 1.5,
+      borderColor: '#08752F',
+      borderRadius: 8,
+      paddingHorizontal: 11,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      flexShrink: 0,
+    },
+
+    botonVerComprobanteDeshabilitado: {
+      borderColor: '#C5C5C5',
+      backgroundColor: '#EFEFEF',
+    },
+
+    textoVerComprobante: {
+      color: '#08752F',
+      fontSize: 10,
+      fontWeight: '700',
+    },
+
+    textoVerComprobanteDeshabilitado: {
+      color: '#999999',
+    },
+
+    comprobanteContenido: {
+      flexDirection: 'row',
+      alignItems: 'stretch',
+      gap: 10,
+    },
+
+    comprobanteImagen: {
+      width: '43%',
+      height: 205,
+      borderRadius: 10,
+      backgroundColor: '#E5E5E5',
+    },
+
+    comprobanteNoDisponible: {
+      width: '43%',
+      height: 205,
+      borderRadius: 10,
+      backgroundColor: '#E4E7E5',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 12,
+    },
+
+    comprobanteNoDisponibleTitulo: {
+      marginTop: 8,
+      color: '#555555',
+      fontSize: 10,
+      fontWeight: '700',
+      textAlign: 'center',
+    },
+
+    comprobanteNoDisponibleTexto: {
+      marginTop: 7,
+      color: '#777777',
+      fontSize: 8,
+      lineHeight: 12,
+      textAlign: 'center',
+    },
+
+    comprobanteDatos: {
+      flex: 1,
+      justifyContent: 'center',
+    },
+
+    comprobanteMontoLabel: {
+      color: '#666666',
+      fontSize: 11,
+      marginBottom: 3,
+    },
+
+    comprobanteMontoValor: {
+      color: '#08752F',
+      fontSize: 20,
+      fontWeight: '800',
+      marginTop: 2,
+      marginBottom: 14,
+    },
+
+    comprobanteConfirmacion: {
+      width: '100%',
+      backgroundColor: '#DDF3E3',
+      borderRadius: 9,
+      paddingVertical: 10,
+      paddingHorizontal: 9,
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 7,
+    },
+
+    comprobanteCheck: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: '#08752F',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+    },
+
+    comprobanteConfirmacionInfo: {
+      flex: 1,
+      minWidth: 0,
+    },
+
+    comprobanteConfirmacionTitulo: {
+      color: '#08752F',
+      fontSize: 9,
+      fontWeight: '800',
+      flexShrink: 1,
+    },
+
+    comprobanteConfirmacionTexto: {
+      color: '#4D7359',
+      fontSize: 7.5,
+      lineHeight: 10,
+      marginTop: 3,
+      flexShrink: 1,
+    },
+
+    // ==========================================
+    // MODAL COMPROBANTE
+    // ==========================================
+
+    modalComprobanteFondo: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.88)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 15,
+      paddingVertical: 35,
+    },
+
+    modalComprobanteContenido: {
+      width: '100%',
+      height: '85%',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+
+    modalComprobanteHeader: {
+      width: '100%',
+      minHeight: 50,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 10,
+    },
+
+    modalComprobanteTitulo: {
+      flex: 1,
+      color: '#FFFFFF',
+      fontSize: 16,
+      fontWeight: '700',
+    },
+
+    modalComprobanteCerrar: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      backgroundColor: 'rgba(255, 255, 255, 0.15)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    modalComprobanteImagen: {
+      width: '100%',
+      flex: 1,
+      borderRadius: 10,
+    },
   });

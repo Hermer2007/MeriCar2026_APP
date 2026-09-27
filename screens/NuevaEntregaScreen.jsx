@@ -5,6 +5,7 @@ import React, {
 } from 'react';
 
 import {
+  Image,
   Modal,
   ScrollView,
   StatusBar,
@@ -16,22 +17,25 @@ import {
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
-
-import {
-  DateTimePickerAndroid,
-} from '@react-native-community/datetimepicker';
+import {DateTimePickerAndroid,} from '@react-native-community/datetimepicker';
 
 import { useProductos } from '../context/ProductosContext';
 import { useEntregas } from '../context/EntregasContext';
 import { useToast } from '../context/ToastContext';
 import { useAlert } from '../context/AlertContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useUsuarios } from '../context/UsuariosContext';
+
 import BotonHome from '../components/BotonHome';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 
 export default function NuevaEntregaScreen({
   navigation,
   route,
 }) {
+
+  const { usuarioActual } = useUsuarios();
 
   const { productos } =
     useProductos();
@@ -551,6 +555,11 @@ export default function NuevaEntregaScreen({
     setPagoTransferencia,
   ] = useState('');
 
+  const [
+    comprobanteTransferencia,
+    setComprobanteTransferencia,
+  ] = useState(null);
+
   const usaEfectivo =
     metodosPago.includes(
       'Efectivo'
@@ -586,6 +595,7 @@ export default function NuevaEntregaScreen({
             'Transferencia'
           ) {
             setPagoTransferencia('');
+            setComprobanteTransferencia(null);
           }
 
           return actuales.filter(
@@ -602,6 +612,179 @@ export default function NuevaEntregaScreen({
     );
   };
 
+  const tomarFotoComprobante = async () => {
+    const permiso =
+      await ImagePicker.requestCameraPermissionsAsync();
+
+    if (!permiso.granted) {
+      mostrarToast(
+        'Se necesita permiso para usar la cámara.',
+        'warning'
+      );
+
+      return;
+    }
+
+    const resultado =
+      await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.8,
+      });
+
+    if (
+      !resultado.canceled &&
+      resultado.assets?.length > 0
+    ) {
+      setComprobanteTransferencia(
+        resultado.assets[0]
+      );
+    }
+  };
+
+  const elegirComprobanteGaleria =
+    async () => {
+      const permiso =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permiso.granted) {
+        mostrarToast(
+          'Se necesita permiso para acceder a la galería.',
+          'warning'
+        );
+
+        return;
+      }
+
+      const resultado =
+        await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          allowsEditing: false,
+          quality: 0.8,
+        });
+
+      if (
+        !resultado.canceled &&
+        resultado.assets?.length > 0
+      ) {
+        setComprobanteTransferencia(
+          resultado.assets[0]
+        );
+      }
+    };
+
+  const eliminarComprobante = () => {
+    setComprobanteTransferencia(null);
+  };
+
+  const guardarComprobanteLocal = async (imagen) => {
+  if (!imagen?.uri) {
+    return null;
+  }
+
+  const carpetaComprobantes =
+    `${FileSystem.documentDirectory}comprobantes/`;
+
+  const informacionCarpeta =
+    await FileSystem.getInfoAsync(
+      carpetaComprobantes
+    );
+
+  if (!informacionCarpeta.exists) {
+    await FileSystem.makeDirectoryAsync(
+      carpetaComprobantes,
+      {
+        intermediates: true,
+      }
+    );
+  }
+
+  const extension =
+    imagen.fileName
+      ?.split('.')
+      .pop()
+      ?.toLowerCase() || 'jpg';
+
+  const nombreArchivo =
+    `comprobante_${cliente?.id || 'cliente'}_${Date.now()}.${extension}`;
+
+  const uriDestino =
+    `${carpetaComprobantes}${nombreArchivo}`;
+
+  await FileSystem.copyAsync({
+    from: imagen.uri,
+    to: uriDestino,
+  });
+
+  return {
+    uri: uriDestino,
+    nombre: nombreArchivo,
+  };
+};
+
+const limpiarComprobantesVencidos = async () => {
+  try {
+    const carpetaComprobantes =
+      `${FileSystem.documentDirectory}comprobantes/`;
+
+    const informacionCarpeta =
+      await FileSystem.getInfoAsync(
+        carpetaComprobantes
+      );
+
+    if (!informacionCarpeta.exists) {
+      return;
+    }
+
+    const archivos =
+      await FileSystem.readDirectoryAsync(
+        carpetaComprobantes
+      );
+
+    const ahora = Date.now();
+
+    const treintaDias =
+      30 * 24 * 60 * 60 * 1000;
+
+    for (const archivo of archivos) {
+      const uriArchivo =
+        `${carpetaComprobantes}${archivo}`;
+
+      const informacionArchivo =
+        await FileSystem.getInfoAsync(
+          uriArchivo
+        );
+
+      if (
+        !informacionArchivo.exists ||
+        !informacionArchivo.modificationTime
+      ) {
+        continue;
+      }
+
+      const fechaModificacion =
+        informacionArchivo.modificationTime * 1000;
+
+      const antiguedad =
+        ahora - fechaModificacion;
+
+      if (antiguedad >= treintaDias) {
+        await FileSystem.deleteAsync(
+          uriArchivo,
+          {
+            idempotent: true,
+          }
+        );
+      }
+    }
+  } catch (error) {
+    // La limpieza no debe impedir el uso de la app.
+  }
+};
+
+useEffect(() => {
+  limpiarComprobantesVencidos();
+}, []);
   // ==========================================
   // CANTIDAD
   // ==========================================
@@ -764,10 +947,10 @@ export default function NuevaEntregaScreen({
       : 0;
 
   const abonoNumerico =
-    (
-      aCentavos(efectivoNumerico) +
-      aCentavos(transferenciaNumerica)
-    ) / 100;
+  (
+    aCentavos(efectivoNumerico) +
+    aCentavos(transferenciaNumerica)
+  ) / 100;
 
   const saldoPendiente =
     (
@@ -843,6 +1026,30 @@ const guardarEntrega = async (
     return;
   }
 
+  if (
+  comprobanteTransferencia &&
+  !usaTransferencia
+) {
+  mostrarToast(
+    'El comprobante requiere el método de pago Transferencia.',
+    'warning'
+  );
+
+  return;
+}
+
+if (
+  comprobanteTransferencia &&
+  aCentavos(transferenciaNumerica) <= 0
+) {
+  mostrarToast(
+    'Ingrese el monto por transferencia.',
+    'warning'
+  );
+
+  return;
+}
+
   // ========================================
   // ENTREGA SIN MÉTODO DE PAGO
   // ========================================
@@ -913,6 +1120,9 @@ const guardarEntrega = async (
     0
   );
 
+  const tieneComprobante =
+    Boolean(comprobanteTransferencia);
+
   const nuevaEntrega = {
 
     clienteId:
@@ -982,25 +1192,51 @@ const guardarEntrega = async (
     metodosPago,
 
     pagoEfectivo: Number(
-      efectivoNumerico.toFixed(2)
-    ),
+  efectivoNumerico.toFixed(2)
+),
 
-    pagoTransferencia: Number(
-      transferenciaNumerica.toFixed(2)
-    ),
+pagoTransferencia: Number(
+  transferenciaNumerica.toFixed(2)
+),
 
-    transferenciaConfirmada:
-      transferenciaNumerica > 0
-        ? false
-        : null,
+tieneComprobanteTransferencia:
+  tieneComprobante,
 
-    transferenciaConDiferencia:
-      false,
+comprobanteTransferencia:
+  null,
 
-    fechaConfirmacionTransferencia:
-      null,
+comprobanteTransferenciaRuta:
+  null,
 
-    numeroEdiciones: 0,
+comprobanteTransferenciaFecha:
+  null,
+
+comprobanteTomadoPorId:
+  tieneComprobante
+    ? usuarioActual?.id || null
+    : null,
+
+comprobanteTomadoPorNombre:
+  tieneComprobante
+    ? usuarioActual?.nombre || 'Usuario'
+    : null,
+
+transferenciaConfirmada:
+  transferenciaNumerica > 0
+    ? tieneComprobante
+      ? true
+      : false
+    : null,
+
+transferenciaConDiferencia:
+  false,
+
+fechaConfirmacionTransferencia:
+  tieneComprobante
+    ? new Date()
+    : null,
+
+numeroEdiciones: 0,
   };
 
   // ========================================
@@ -1052,8 +1288,31 @@ try {
 
   setGuardandoEntrega(true);
 
-    if (entregaExistente) {
+  if (tieneComprobante) {
+  const comprobanteGuardado =
+    await guardarComprobanteLocal(
+      comprobanteTransferencia
+    );
 
+    if (!comprobanteGuardado?.uri) {
+      mostrarToast(
+        'No se pudo guardar el comprobante.',
+        'error'
+      );
+
+      return;
+    }
+
+    nuevaEntrega.comprobanteTransferencia =
+      comprobanteGuardado.uri;
+
+    nuevaEntrega.comprobanteTransferenciaRuta =
+      comprobanteGuardado.nombre;
+
+    nuevaEntrega.comprobanteTransferenciaFecha =
+      new Date();
+  }
+  if (entregaExistente) {
       const resultado =
         await reemplazarEntrega(
           entregaExistente,
@@ -1103,17 +1362,17 @@ try {
 
   } catch (error) {
 
-    mostrarToast(
-      entregaExistente
-        ? 'No se pudo reemplazar la entrega.'
-        : 'No se pudo registrar la entrega.',
-      'error'
-    );
+  mostrarToast(
+    entregaExistente
+      ? 'No se pudo reemplazar la entrega.'
+      : 'No se pudo registrar la entrega.',
+    'error'
+  );
 
-  } finally {
+} finally {
 
-    setGuardandoEntrega(false);
-  }
+  setGuardandoEntrega(false);
+}
 };
 
   return (
@@ -1680,39 +1939,109 @@ try {
         </TouchableOpacity>
 
         {usaTransferencia && (
+          <View style={styles.transferenciaContainer}>
 
-          <View
-            style={
-              styles.pagoContainer
-            }
-          >
+            <View style={styles.pagoContainer}>
+              <Text style={styles.pagoLabel}>
+                Monto por transferencia
+              </Text>
 
-            <Text
-              style={
-                styles.pagoLabel
-              }
-            >
-              Monto por transferencia
+              <TextInput
+                style={styles.pagoInput}
+                value={pagoTransferencia}
+                onChangeText={setPagoTransferencia}
+                keyboardType="decimal-pad"
+                placeholder="0.00"
+                placeholderTextColor="#999999"
+                selectTextOnFocus
+              />
+            </View>
+
+            <View style={styles.comprobanteSeparador} />
+
+            <Text style={styles.comprobanteTitulo}>
+              Comprobante de transferencia
             </Text>
 
-            <TextInput
-              style={
-                styles.pagoInput
-              }
-              value={
-                pagoTransferencia
-              }
-              onChangeText={
-                setPagoTransferencia
-              }
-              keyboardType="decimal-pad"
-              placeholder="0.00"
-              placeholderTextColor="#999999"
-              selectTextOnFocus
-            />
+            <View style={styles.botonesComprobante}>
+              <TouchableOpacity
+                style={styles.botonComprobante}
+                onPress={tomarFotoComprobante}
+              >
+                <Ionicons
+                  name="camera-outline"
+                  size={24}
+                  color="#08752F"
+                />
+
+                <Text style={styles.botonComprobanteTexto}>
+                  Tomar foto
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.botonComprobante}
+                onPress={elegirComprobanteGaleria}
+              >
+                <Ionicons
+                  name="images-outline"
+                  size={24}
+                  color="#08752F"
+                />
+
+                <Text style={styles.botonComprobanteTexto}>
+                  Elegir de galería
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {comprobanteTransferencia && (
+              <>
+                <View style={styles.comprobanteAgregado}>
+                  <Image
+                    source={{
+                      uri: comprobanteTransferencia.uri,
+                    }}
+                    style={styles.comprobanteMiniatura}
+                  />
+
+                  <View style={styles.comprobanteInfo}>
+                    <View style={styles.comprobanteNombreFila}>
+                      <Text style={styles.comprobanteNombre}>
+                        Comprobante agregado
+                      </Text>
+
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={20}
+                        color="#08752F"
+                      />
+                    </View>
+
+                    <Text
+                      style={styles.comprobanteArchivo}
+                      numberOfLines={1}
+                    >
+                      {comprobanteTransferencia.fileName ||
+                        'Imagen seleccionada'}
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.botonEliminarComprobante}
+                    onPress={eliminarComprobante}
+                  >
+                    <Ionicons
+                      name="trash-outline"
+                      size={23}
+                      color="#D71920"
+                    />
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
 
           </View>
-
         )}
 
         <View
@@ -2713,4 +3042,95 @@ const styles =
       opacity: 0.6,
     },
 
+    transferenciaContainer: {
+      backgroundColor: '#F1FBF4',
+      borderRadius: 12,
+      padding: 12,
+      marginTop: 8,
+    },
+
+    comprobanteSeparador: {
+      height: 1,
+      backgroundColor: '#DDEEE2',
+      marginVertical: 12,
+    },
+
+    comprobanteTitulo: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: '#222222',
+      marginBottom: 10,
+    },
+
+    botonesComprobante: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+
+    botonComprobante: {
+      flex: 1,
+      minHeight: 48,
+      borderWidth: 1,
+      borderColor: '#08752F',
+      borderRadius: 9,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: 7,
+      paddingHorizontal: 8,
+      backgroundColor: '#ffff'
+    },
+
+    botonComprobanteTexto: {
+      color: '#222222',
+      fontSize: 12,
+      fontWeight: '600',
+      textAlign: 'center',
+    },
+
+    comprobanteAgregado: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 12,
+      paddingVertical: 5,
+    },
+
+    comprobanteMiniatura: {
+      width: 54,
+      height: 54,
+      borderRadius: 9,
+      backgroundColor: '#E1E1E1',
+    },
+
+    comprobanteInfo: {
+      flex: 1,
+      marginLeft: 10,
+    },
+
+    comprobanteNombreFila: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+    },
+
+    comprobanteNombre: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: '#333333',
+    },
+
+    comprobanteArchivo: {
+      fontSize: 11,
+      color: '#777777',
+      marginTop: 2,
+    },
+
+    botonEliminarComprobante: {
+      width: 48,
+      height: 48,
+      borderRadius: 9,
+      backgroundColor: '#FDECEC',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
   });
