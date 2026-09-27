@@ -1483,6 +1483,7 @@ const confirmarTransferenciaAbono = async ({
     entregaId,
     montoRecibido,
     fechaTransferencia,
+    comprobante = null,
   }) => {
 
     try {
@@ -1624,6 +1625,27 @@ const confirmarTransferenciaAbono = async ({
             valoresCoinciden
               ? null
               : fechaTransferencia,
+
+          ...(comprobante
+            ? {
+                tieneComprobanteTransferencia: true,
+
+                comprobanteTransferencia:
+                  comprobante.uri,
+
+                comprobanteTransferenciaRuta:
+                  comprobante.nombre,
+
+                comprobanteTransferenciaFecha:
+                  Timestamp.now(),
+
+                comprobanteTomadoPorId:
+                  comprobante.usuarioId || null,
+
+                comprobanteTomadoPorNombre:
+                  comprobante.usuarioNombre || 'Usuario',
+              }
+            : {}),
         }
       );
 

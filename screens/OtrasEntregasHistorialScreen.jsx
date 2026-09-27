@@ -230,6 +230,29 @@ export default function OtrasEntregasHistorialScreen({
             </View>
 
             <TouchableOpacity
+              style={styles.botonDetalle}
+              activeOpacity={0.8}
+              onPress={() => {
+                navigation.navigate(
+                  'EditarEntrega',
+                  {
+                    entrega: entrega,
+                  }
+                );
+              }}
+            >
+              <Ionicons
+                name="eye-outline"
+                size={19}
+                color="#08752F"
+              />
+
+              <Text style={styles.botonDetalleTexto}>
+                Ver detalle
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
               style={styles.botonAgregar}
               activeOpacity={0.8}
               onPress={() => {
@@ -454,7 +477,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E8C98D',
     borderRadius: 9,
-    marginTop: 14,
+    marginTop: 8,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
@@ -466,5 +489,24 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#B86A00',
+  },
+
+  botonDetalle: {
+    height: 43,
+    borderWidth: 1,
+    borderColor: '#B8D9C1',
+    borderRadius: 9,
+    marginTop: 14,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 7,
+    backgroundColor: '#F3FAF5',
+  },
+
+  botonDetalleTexto: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#08752F',
   },
 });

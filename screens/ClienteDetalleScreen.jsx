@@ -1,6 +1,7 @@
 import React, {useMemo, useState,} from 'react';
 
 import {
+  Image,
   FlatList,
   StatusBar,
   StyleSheet,
@@ -13,11 +14,15 @@ import {
 
 import { Ionicons } from '@expo/vector-icons';
 import {DateTimePickerAndroid,} from '@react-native-community/datetimepicker';
+import { useUsuarios } from '../context/UsuariosContext';
 
 import { useEntregas } from '../context/EntregasContext';
 import { useAlert } from '../context/AlertContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BotonHome from '../components/BotonHome';
+
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 
 const ClienteDetalleScreen = ({
   navigation,
@@ -35,6 +40,8 @@ const ClienteDetalleScreen = ({
     confirmarTransferenciaEntrega,
     confirmarTransferenciaAbono,
   } = useEntregas();
+
+  const { usuarioActual } = useUsuarios();
 
     // ==========================================
     // CONFIRMACIÓN DE TRANSFERENCIA
@@ -76,6 +83,11 @@ const ClienteDetalleScreen = ({
             cliente.id
           )
         : [];
+    
+    const [
+      comprobanteConfirmacion,
+      setComprobanteConfirmacion,
+    ] = useState(null);
 
   // ==========================================
   // ABONOS POSTERIORES DE UNA ENTREGA
@@ -196,6 +208,127 @@ const ClienteDetalleScreen = ({
     );
 
     return resultado;
+  };
+
+  const tomarFotoConfirmacion = async () => {
+    const permiso =
+      await ImagePicker.requestCameraPermissionsAsync();
+
+    if (!permiso.granted) {
+      mostrarToast(
+        'Se necesita permiso para usar la cámara.',
+        'warning'
+      );
+
+      return;
+    }
+
+    const resultado =
+      await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.8,
+      });
+
+    if (
+      !resultado.canceled &&
+      resultado.assets?.length > 0
+    ) {
+      setComprobanteConfirmacion(
+        resultado.assets[0]
+      );
+    }
+  };
+
+
+  const elegirFotoConfirmacion = async () => {
+    const permiso =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permiso.granted) {
+      mostrarToast(
+        'Se necesita permiso para acceder a la galería.',
+        'warning'
+      );
+
+      return;
+    }
+
+    const resultado =
+      await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.8,
+      });
+
+    if (
+      !resultado.canceled &&
+      resultado.assets?.length > 0
+    ) {
+      setComprobanteConfirmacion(
+        resultado.assets[0]
+      );
+    }
+  };
+
+
+  const eliminarFotoConfirmacion = () => {
+    setComprobanteConfirmacion(null);
+  };
+
+  const guardarComprobanteConfirmacion = async (
+    comprobante
+  ) => {
+    try {
+      if (!comprobante?.uri) {
+        return null;
+      }
+
+      const carpeta =
+        `${FileSystem.documentDirectory}comprobantes/`;
+
+      const informacionCarpeta =
+        await FileSystem.getInfoAsync(carpeta);
+
+      if (!informacionCarpeta.exists) {
+        await FileSystem.makeDirectoryAsync(
+          carpeta,
+          {
+            intermediates: true,
+          }
+        );
+      }
+
+      const extension =
+        comprobante.uri
+          .split('.')
+          .pop()
+          ?.split('?')[0] || 'jpg';
+
+      const nombre =
+        `comprobante_${Date.now()}.${extension}`;
+
+      const destino =
+        `${carpeta}${nombre}`;
+
+      await FileSystem.copyAsync({
+        from: comprobante.uri,
+        to: destino,
+      });
+
+      return {
+        uri: destino,
+        nombre,
+      };
+
+    } catch (error) {
+      console.log(
+        'Error al guardar comprobante:',
+        error
+      );
+
+      return null;
+    }
   };
 
   // ==========================================
@@ -331,6 +464,8 @@ const abonoAutomaticoPendiente =
 
       entrega
     ) => {
+      setComprobanteConfirmacion(null);
+
       setAbonoTransferencia(
         null
       );
@@ -349,6 +484,8 @@ const abonoAutomaticoPendiente =
         null
       );
 
+      setComprobanteConfirmacion(null);
+
       setModalTransferenciaVisible(
         true
       );
@@ -357,6 +494,7 @@ const abonoAutomaticoPendiente =
     const abrirConfirmacionAbono = (
       abono
     ) => {
+      setComprobanteConfirmacion(null);
 
       setEntregaTransferencia(
         null
@@ -383,6 +521,7 @@ const abonoAutomaticoPendiente =
 
     const abrirConfirmacionAutomatica =
   () => {
+    setComprobanteConfirmacion(null);
 
     if (
       !abonoAutomaticoPendiente
@@ -588,6 +727,37 @@ const abonoAutomaticoPendiente =
 
         let resultado;
 
+        let comprobanteGuardado = null;
+          if (
+            entregaTransferencia &&
+            comprobanteConfirmacion
+          ) {
+            comprobanteGuardado =
+              await guardarComprobanteConfirmacion(
+                comprobanteConfirmacion
+              );
+
+            if (!comprobanteGuardado?.uri) {
+              setGuardandoTransferencia(false);
+
+              mostrarAlert({
+                titulo:
+                  'No se pudo guardar el comprobante',
+
+                mensaje:
+                  'La transferencia no fue confirmada. Intente nuevamente.',
+
+                tipo:
+                  'warning',
+
+                textoConfirmar:
+                  'Aceptar',
+              });
+
+              return;
+            }
+          }
+
         if (abonoTransferencia) {
 
           resultado =
@@ -618,6 +788,20 @@ const abonoAutomaticoPendiente =
                 formatearFechaTransferencia(
                   fechaTransferencia
                 ),
+
+              comprobante:
+                comprobanteGuardado
+                  ? {
+                      ...comprobanteGuardado,
+
+                      usuarioId:
+                        usuarioActual?.id || null,
+
+                      usuarioNombre:
+                        usuarioActual?.nombre ||
+                        'Usuario',
+                    }
+                  : null,
             });
         }
 
@@ -1815,6 +1999,105 @@ const abonoAutomaticoPendiente =
 
                   </View>
 
+                  {entregaTransferencia && (
+                    <View style={styles.comprobanteConfirmacionContainer}>
+
+                      <Text style={styles.modalLabel}>
+                        Comprobante (opcional)
+                      </Text>
+
+                      {!comprobanteConfirmacion ? (
+                        <View style={styles.comprobanteConfirmacionBotones}>
+
+                          <TouchableOpacity
+                            style={styles.botonComprobanteConfirmacion}
+                            onPress={tomarFotoConfirmacion}
+                            disabled={guardandoTransferencia}
+                          >
+                            <Ionicons
+                              name="camera-outline"
+                              size={20}
+                              color="#08752F"
+                            />
+
+                            <Text style={styles.textoComprobanteConfirmacion}>
+                              Tomar foto
+                            </Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={styles.botonComprobanteConfirmacion}
+                            onPress={elegirFotoConfirmacion}
+                            disabled={guardandoTransferencia}
+                          >
+                            <Ionicons
+                              name="images-outline"
+                              size={20}
+                              color="#08752F"
+                            />
+
+                            <Text style={styles.textoComprobanteConfirmacion}>
+                              Galería
+                            </Text>
+                          </TouchableOpacity>
+
+                        </View>
+                      ) : (
+                        <View style={styles.comprobanteConfirmacionSeleccionado}>
+                          <Image
+                            source={{
+                              uri: comprobanteConfirmacion.uri,
+                            }}
+                            style={styles.comprobanteConfirmacionMiniatura}
+                            resizeMode="cover"
+                          />
+
+                          <View style={styles.comprobanteConfirmacionInfo}>
+
+                            <View style={styles.comprobanteConfirmacionTituloFila}>
+                              <Text style={styles.comprobanteConfirmacionTitulo}>
+                                Comprobante agregado
+                              </Text>
+
+                              <Ionicons
+                                name="checkmark-circle"
+                                size={21}
+                                color="#08752F"
+                              />
+                            </View>
+
+                            <Text
+                              style={styles.comprobanteConfirmacionArchivo}
+                              numberOfLines={1}
+                            >
+                              {comprobanteConfirmacion.fileName ||
+                                comprobanteConfirmacion.uri
+                                  ?.split('/')
+                                  .pop() ||
+                                'imagen.jpg'}
+                            </Text>
+
+                          </View>
+
+                          <TouchableOpacity
+                            style={styles.botonEliminarComprobanteConfirmacion}
+                            onPress={eliminarFotoConfirmacion}
+                            disabled={guardandoTransferencia}
+                            activeOpacity={0.8}
+                          >
+                            <Ionicons
+                              name="trash-outline"
+                              size={24}
+                              color="#D71920"
+                            />
+                          </TouchableOpacity>
+
+                        </View>
+                      )}
+
+                    </View>
+                  )}
+
                   <View
                     style={
                       styles.modalBotones
@@ -2591,5 +2874,137 @@ textoConfirmarHistorial: {
   fontSize: 10,
   fontWeight:
     '700',
+},
+
+comprobanteConfirmacionContainer: {
+  width: '100%',
+  marginTop: 14,
+},
+
+comprobanteConfirmacionBotones: {
+  flexDirection: 'row',
+  gap: 10,
+},
+
+botonComprobanteConfirmacion: {
+  flex: 1,
+  minHeight: 45,
+  borderWidth: 1,
+  borderColor: '#B8D9C1',
+  backgroundColor: '#F3FAF5',
+  borderRadius: 9,
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 7,
+  paddingHorizontal: 8,
+},
+
+textoComprobanteConfirmacion: {
+  color: '#08752F',
+  fontSize: 11,
+  fontWeight: '700',
+},
+
+comprobanteSeleccionado: {
+  width: '100%',
+  minHeight: 55,
+  borderWidth: 1,
+  borderColor: '#B8D9C1',
+  backgroundColor: '#F3FAF5',
+  borderRadius: 9,
+  paddingHorizontal: 11,
+  paddingVertical: 9,
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+},
+
+comprobanteSeleccionadoInfo: {
+  flex: 1,
+  minWidth: 0,
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 8,
+},
+
+comprobanteSeleccionadoTexto: {
+  flex: 1,
+  minWidth: 0,
+},
+
+comprobanteSeleccionadoTitulo: {
+  color: '#08752F',
+  fontSize: 11,
+  fontWeight: '700',
+},
+
+comprobanteSeleccionadoSubtitulo: {
+  color: '#666666',
+  fontSize: 9,
+  marginTop: 2,
+},
+
+botonEliminarComprobante: {
+  width: 36,
+  height: 36,
+  borderRadius: 18,
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginLeft: 8,
+},
+
+comprobanteConfirmacionSeleccionado: {
+  minHeight: 78,
+  borderWidth: 1,
+  borderColor: '#D7ECDD',
+  backgroundColor: '#F7FBF8',
+  borderRadius: 12,
+  padding: 9,
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginTop: 8,
+},
+
+comprobanteConfirmacionMiniatura: {
+  width: 58,
+  height: 58,
+  borderRadius: 10,
+  backgroundColor: '#E5E7EB',
+},
+
+comprobanteConfirmacionInfo: {
+  flex: 1,
+  marginLeft: 12,
+  marginRight: 10,
+  justifyContent: 'center',
+},
+
+comprobanteConfirmacionTituloFila: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 7,
+  paddingRight: 45,
+},
+
+comprobanteConfirmacionTitulo: {
+  fontSize: 14,
+  fontWeight: '700',
+  color: '#333333',
+},
+
+comprobanteConfirmacionArchivo: {
+  fontSize: 11,
+  color: '#777777',
+  marginTop: 3,
+},
+
+botonEliminarComprobanteConfirmacion: {
+  width: 48,
+  height: 48,
+  borderRadius: 10,
+  backgroundColor: '#FFF0F0',
+  justifyContent: 'center',
+  alignItems: 'center',
 },
   });

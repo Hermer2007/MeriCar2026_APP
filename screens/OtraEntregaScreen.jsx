@@ -5,6 +5,7 @@ import React, {
 } from 'react';
 
 import {
+  Image,
   Modal,
   ScrollView,
   StatusBar,
@@ -23,6 +24,10 @@ import { useEntregas } from '../context/EntregasContext';
 import { useToast } from '../context/ToastContext';
 import { useAlert } from '../context/AlertContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useUsuarios } from '../context/UsuariosContext';
+
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import BotonHome from '../components/BotonHome';
 
 export default function OtraEntregaScreen({
@@ -46,6 +51,9 @@ export default function OtraEntregaScreen({
 
   const { mostrarAlert } =
     useAlert();
+
+  const { usuarioActual } =
+  useUsuarios();
 
   const insets = useSafeAreaInsets();
 
@@ -456,6 +464,134 @@ const productosFiltrados =
   };
 
   // ==========================================
+  // COMPROBANTE DE TRANSFERENCIA
+  // ==========================================
+
+  const [
+    comprobanteTransferencia,
+    setComprobanteTransferencia,
+  ] = useState(null);
+
+  const tomarFotoComprobante = async () => {
+    const permiso =
+      await ImagePicker.requestCameraPermissionsAsync();
+
+    if (!permiso.granted) {
+      mostrarToast(
+        'Se necesita permiso para usar la cámara.',
+        'warning'
+      );
+      return;
+    }
+
+    const resultado =
+      await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.8,
+      });
+
+    if (
+      !resultado.canceled &&
+      resultado.assets?.length > 0
+    ) {
+      setComprobanteTransferencia(
+        resultado.assets[0]
+      );
+    }
+  };
+
+
+  const elegirFotoComprobante = async () => {
+    const permiso =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permiso.granted) {
+      mostrarToast(
+        'Se necesita permiso para acceder a la galería.',
+        'warning'
+      );
+      return;
+    }
+
+    const resultado =
+      await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.8,
+      });
+
+    if (
+      !resultado.canceled &&
+      resultado.assets?.length > 0
+    ) {
+      setComprobanteTransferencia(
+        resultado.assets[0]
+      );
+    }
+  };
+
+
+  const eliminarComprobante = () => {
+    setComprobanteTransferencia(null);
+  };
+
+  const guardarComprobanteLocal = async (
+  comprobante
+) => {
+  try {
+    if (!comprobante?.uri) {
+      return null;
+    }
+
+    const carpeta =
+      `${FileSystem.documentDirectory}comprobantes/`;
+
+    const informacionCarpeta =
+      await FileSystem.getInfoAsync(carpeta);
+
+    if (!informacionCarpeta.exists) {
+      await FileSystem.makeDirectoryAsync(
+        carpeta,
+        {
+          intermediates: true,
+        }
+      );
+    }
+
+    const extension =
+      comprobante.uri
+        .split('.')
+        .pop()
+        ?.split('?')[0] || 'jpg';
+
+    const nombre =
+      `comprobante_${Date.now()}.${extension}`;
+
+    const destino =
+      `${carpeta}${nombre}`;
+
+    await FileSystem.copyAsync({
+      from: comprobante.uri,
+      to: destino,
+    });
+
+    return {
+      uri: destino,
+      nombre,
+    };
+
+  } catch (error) {
+    console.log(
+      'Error al guardar comprobante:',
+      error
+    );
+
+    return null;
+  }
+};
+
+  // ==========================================
   // PAGOS
   // ==========================================
 
@@ -786,9 +922,36 @@ const productosFiltrados =
 
         return;
       }
+      
+      if (
+        comprobanteTransferencia &&
+        !usaTransferencia
+      ) {
+        mostrarToast(
+          'El comprobante requiere el método de pago Transferencia.',
+          'warning'
+        );
+
+        return;
+      }
+
+      if (
+        comprobanteTransferencia &&
+        aCentavos(transferenciaNumerica) <= 0
+      ) {
+        mostrarToast(
+          'Ingrese el monto por transferencia.',
+          'warning'
+        );
+
+        return;
+      }
 
       const momentoRegistro =
         obtenerFechaHora();
+
+      const tieneComprobante =
+        Boolean(comprobanteTransferencia);
 
       const nuevaEntrega = {
         clienteId:
@@ -887,21 +1050,72 @@ const productosFiltrados =
           transferenciaNumerica.toFixed(2)
         ),
 
+        tieneComprobanteTransferencia:
+          tieneComprobante,
+
+        comprobanteTransferencia:
+          null,
+
+        comprobanteTransferenciaRuta:
+          null,
+
+        comprobanteTransferenciaFecha:
+          null,
+
+        comprobanteTomadoPorId:
+          tieneComprobante
+            ? usuarioActual?.id || null
+            : null,
+
+        comprobanteTomadoPorNombre:
+          tieneComprobante
+            ? usuarioActual?.nombre || 'Usuario'
+            : null,
+
         transferenciaConfirmada:
           transferenciaNumerica > 0
-            ? false
+            ? tieneComprobante
+              ? true
+              : false
             : null,
 
         transferenciaConDiferencia:
           false,
 
         fechaConfirmacionTransferencia:
-          null,
+          tieneComprobante
+            ? new Date()
+            : null,
 
         numeroEdiciones: 0,
       };
 
       try {
+
+        if (tieneComprobante) {
+          const comprobanteGuardado =
+            await guardarComprobanteLocal(
+              comprobanteTransferencia
+            );
+
+          if (!comprobanteGuardado?.uri) {
+            mostrarToast(
+              'No se pudo guardar el comprobante.',
+              'error'
+            );
+
+            return;
+          }
+
+          nuevaEntrega.comprobanteTransferencia =
+            comprobanteGuardado.uri;
+
+          nuevaEntrega.comprobanteTransferenciaRuta =
+            comprobanteGuardado.nombre;
+
+          nuevaEntrega.comprobanteTransferenciaFecha =
+            new Date();
+        }
 
         const resultado =
           await agregarEntrega(
@@ -1615,6 +1829,100 @@ const productosFiltrados =
               placeholder="0.00"
               selectTextOnFocus
             />
+          </View>
+        )}
+
+        {usaTransferencia && (
+          <View style={styles.comprobanteContainer}>
+
+            <Text style={styles.comprobanteTitulo}>
+              Comprobante (opcional)
+            </Text>
+
+            {!comprobanteTransferencia ? (
+              <View style={styles.comprobanteBotones}>
+
+                <TouchableOpacity
+                  style={styles.botonComprobante}
+                  onPress={tomarFotoComprobante}
+                >
+                  <Ionicons
+                    name="camera-outline"
+                    size={20}
+                    color="#08752F"
+                  />
+
+                  <Text style={styles.botonComprobanteTexto}>
+                    Tomar foto
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.botonComprobante}
+                  onPress={elegirFotoComprobante}
+                >
+                  <Ionicons
+                    name="images-outline"
+                    size={20}
+                    color="#08752F"
+                  />
+
+                  <Text style={styles.botonComprobanteTexto}>
+                    Galería
+                  </Text>
+                </TouchableOpacity>
+
+              </View>
+            ) : (
+              <View style={styles.comprobanteSeleccionado}>
+                <Image
+                  source={{
+                    uri: comprobanteTransferencia.uri,
+                  }}
+                  style={styles.comprobanteMiniatura}
+                  resizeMode="cover"
+                />
+
+                <View style={styles.comprobanteInfo}>
+                  <View style={styles.comprobanteTituloFila}>
+                    <Text style={styles.comprobanteAgregadoTitulo}>
+                      Comprobante agregado
+                    </Text>
+
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={21}
+                      color="#08752F"
+                    />
+                  </View>
+
+                  <Text
+                    style={styles.comprobanteNombreArchivo}
+                    numberOfLines={1}
+                  >
+                    {comprobanteTransferencia.fileName ||
+                      comprobanteTransferencia.uri
+                        ?.split('/')
+                        .pop() ||
+                      'imagen.jpg'}
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.eliminarComprobante}
+                  onPress={eliminarComprobante}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name="trash-outline"
+                    size={24}
+                    color="#D71920"
+                  />
+                </TouchableOpacity>
+
+              </View>
+            )}
+
           </View>
         )}
 
@@ -2685,5 +2993,115 @@ const styles =
       marginTop: 2,
       fontSize: 12,
       color: '#6B7280',
+    },
+
+    comprobanteContainer: {
+      marginTop: 10,
+      marginBottom: 5,
+    },
+
+    comprobanteTitulo: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: '#444444',
+      marginBottom: 8,
+    },
+
+    comprobanteBotones: {
+      flexDirection: 'row',
+      gap: 10,
+    },
+
+    botonComprobante: {
+      flex: 1,
+      minHeight: 45,
+      borderWidth: 1,
+      borderColor: '#B8D9C1',
+      backgroundColor: '#F3FAF5',
+      borderRadius: 9,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 7,
+      paddingHorizontal: 8,
+    },
+
+    botonComprobanteTexto: {
+      color: '#08752F',
+      fontSize: 11,
+      fontWeight: '700',
+    },
+
+    comprobanteSeleccionado: {
+  minHeight: 78,
+  borderWidth: 1,
+  borderColor: '#D7ECDD',
+  backgroundColor: '#F7FBF8',
+  borderRadius: 12,
+  padding: 9,
+  flexDirection: 'row',
+  alignItems: 'center',
+},
+
+comprobanteMiniatura: {
+  width: 58,
+  height: 58,
+  borderRadius: 10,
+  backgroundColor: '#E5E7EB',
+},
+
+comprobanteInfo: {
+  flex: 1,
+  marginLeft: 12,
+  marginRight: 10,
+  justifyContent: 'center',
+},
+
+comprobanteTituloFila: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 7,
+},
+
+comprobanteAgregadoTitulo: {
+  fontSize: 14,
+  fontWeight: '700',
+  color: '#333333',
+},
+
+comprobanteNombreArchivo: {
+  fontSize: 11,
+  color: '#777777',
+  marginTop: 3,
+},
+
+eliminarComprobante: {
+  width: 48,
+  height: 48,
+  borderRadius: 10,
+  backgroundColor: '#FFF0F0',
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+
+eliminarComprobante: {
+  position: 'absolute',
+  right: 10,
+  bottom: 10,
+  width: 36,
+  height: 36,
+  borderRadius: 18,
+  alignItems: 'center',
+  justifyContent: 'center',
+  backgroundColor: '#FFFFFF',
+},
+
+    eliminarComprobante: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginLeft: 8,
     },
   });
