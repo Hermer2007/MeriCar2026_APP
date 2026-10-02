@@ -586,6 +586,7 @@ export const EntregasProvider = ({
     pagoEfectivo = 0,
     pagoTransferencia = 0,
     fechaTrabajo = null,
+    comprobante = null,
   }) => {
 
     try {
@@ -611,6 +612,10 @@ export const EntregasProvider = ({
             transferencia
           ).toFixed(2)
         );
+
+      const tieneComprobante =
+        transferencia > 0 &&
+        comprobante?.uri;  
 
       // ======================================
       // VALIDACIONES GENERALES
@@ -1038,14 +1043,76 @@ export const EntregasProvider = ({
 
               transferenciaConfirmada:
                 transferencia > 0
-                  ? false
+                  ? tieneComprobante
+                    ? true
+                    : false
                   : null,
 
               transferenciaConDiferencia:
                 false,
 
               fechaConfirmacionTransferencia:
-                null,
+                tieneComprobante
+                  ? fechaPago
+                  : null,
+
+              tieneComprobanteTransferencia:
+                tieneComprobante
+                  ? true
+                  : false,
+
+              comprobanteTransferencia:
+                tieneComprobante
+                  ? comprobante.uri
+                  : null,
+
+              comprobanteTransferenciaRuta:
+                tieneComprobante
+                  ? comprobante.nombre || null
+                  : null,
+
+              comprobanteTransferenciaFecha:
+                tieneComprobante
+                  ? fechaPago
+                  : null,
+
+              comprobanteTomadoPorId:
+                tieneComprobante
+                  ? comprobante.usuarioId || null
+                  : null,
+
+              comprobanteTomadoPorNombre:
+                tieneComprobante
+                  ? comprobante.usuarioNombre || null
+                  : null,tieneComprobanteTransferencia:
+                tieneComprobante
+                  ? true
+                  : false,
+
+              comprobanteTransferencia:
+                tieneComprobante
+                  ? comprobante.uri
+                  : null,
+
+              comprobanteTransferenciaRuta:
+                tieneComprobante
+                  ? comprobante.nombre || null
+                  : null,
+
+              comprobanteTransferenciaFecha:
+                tieneComprobante
+                  ? fechaPago
+                  : null,
+
+              comprobanteTomadoPorId:
+                tieneComprobante
+                  ? comprobante.usuarioId || null
+                  : null,
+
+              comprobanteTomadoPorNombre:
+                tieneComprobante
+                  ? comprobante.usuarioNombre || null
+                  : null,
 
               fecha:
                 fechaPago,
@@ -1676,6 +1743,164 @@ const confirmarTransferenciaAbono = async ({
   };
 
   // ==========================================
+  // ELIMINAR ENTREGA DEL HISTORIAL
+  // SOLO ENTREGA DEL DÍA ACTUAL
+  // ==========================================
+
+  const eliminarEntregaHistorial = async (
+    entregaId
+  ) => {
+    try {
+      if (!entregaId) {
+        return {
+          ok: false,
+          mensaje:
+            'No se pudo identificar la entrega.',
+        };
+      }
+
+      // ======================================
+      // BUSCAR ENTREGA
+      // ======================================
+
+      const entregaActual =
+        entregas.find(
+          (entrega) =>
+            String(entrega.id) ===
+            String(entregaId)
+        );
+
+      if (!entregaActual) {
+        return {
+          ok: false,
+          mensaje:
+            'No se encontró la entrega.',
+        };
+      }
+
+      // ======================================
+      // OBTENER FECHA ACTUAL
+      // FORMATO DD/MM/YYYY
+      // ======================================
+
+      const ahora = new Date();
+
+      const dia = String(
+        ahora.getDate()
+      ).padStart(2, '0');
+
+      const mes = String(
+        ahora.getMonth() + 1
+      ).padStart(2, '0');
+
+      const anio =
+        ahora.getFullYear();
+
+      const fechaHoy =
+        `${dia}/${mes}/${anio}`;
+
+      // ======================================
+      // SOLO SE PUEDE ELIMINAR HOY
+      // ======================================
+
+      if (
+        entregaActual.fecha !== fechaHoy
+      ) {
+        return {
+          ok: false,
+          mensaje:
+            'Solo se pueden eliminar entregas registradas en la fecha actual.',
+        };
+      }
+
+      // ======================================
+      // VERIFICAR ABONOS POSTERIORES
+      // ======================================
+
+      const tieneAbonos =
+        (abonos || []).some(
+          (abono) => {
+            // Abono específico
+            if (
+              String(
+                abono.entregaId
+              ) ===
+              String(entregaId)
+            ) {
+              return true;
+            }
+
+            // Abono distribuido
+            if (
+              Array.isArray(
+                abono.distribucion
+              )
+            ) {
+              return (
+                abono.distribucion.some(
+                  (detalle) =>
+                    String(
+                      detalle.entregaId
+                    ) ===
+                    String(entregaId) &&
+                    Number(
+                      detalle.montoAplicado ||
+                        0
+                    ) > 0
+                )
+              );
+            }
+
+            return false;
+          }
+        );
+
+      if (tieneAbonos) {
+        return {
+          ok: false,
+          codigo:
+            'TIENE_ABONOS',
+          mensaje:
+            'Esta entrega posee abonos posteriores y no puede eliminarse.',
+        };
+      }
+
+      // ======================================
+      // ELIMINAR ENTREGA
+      // ======================================
+
+      const referenciaEntrega =
+        doc(
+          db,
+          'entregas',
+          entregaId
+        );
+
+      await deleteDoc(
+        referenciaEntrega
+      );
+
+      return {
+        ok: true,
+        mensaje:
+          'Entrega eliminada correctamente.',
+      };
+
+    } catch (error) {
+      console.log(
+        'Error al eliminar entrega del historial:',
+        error
+      );
+
+      return {
+        ok: false,
+        mensaje:
+          'No se pudo eliminar la entrega.',
+      };
+    }
+  };
+
+  // ==========================================
 // ELIMINAR ENTREGAS
 // ==========================================
 
@@ -1764,6 +1989,7 @@ const confirmarTransferenciaAbono = async ({
         registrarAbono,
         confirmarTransferenciaAbono,
         confirmarTransferenciaEntrega,
+        eliminarEntregaHistorial,
         eliminarEntregas,
         vincularEntregaACliente,
       }}

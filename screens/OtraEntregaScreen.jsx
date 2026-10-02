@@ -29,6 +29,7 @@ import { useUsuarios } from '../context/UsuariosContext';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import BotonHome from '../components/BotonHome';
+import QRTransferencia from '../components/QRTransferencia';
 
 export default function OtraEntregaScreen({
   navigation,
@@ -131,6 +132,9 @@ export default function OtraEntregaScreen({
   const [abonoTransferencia, setAbonoTransferencia] =
     useState('');
 
+  const [comprobanteAbono, setComprobanteAbono] =
+    useState(null);
+
   const [guardandoAbono, setGuardandoAbono] =
     useState(false);
 
@@ -166,11 +170,13 @@ export default function OtraEntregaScreen({
     efectivoAbonoNumerico +
     transferenciaAbonoNumerico;
 
+
   const abrirModalAbono = () => {
     setDeudaSeleccionadaId(null);
     setMetodosAbono([]);
     setAbonoEfectivo('');
     setAbonoTransferencia('');
+    setComprobanteAbono(null);
     setModalAbonoVisible(true);
   };
 
@@ -184,6 +190,7 @@ export default function OtraEntregaScreen({
     setMetodosAbono([]);
     setAbonoEfectivo('');
     setAbonoTransferencia('');
+    setComprobanteAbono(null);
   };
 
   const seleccionarDeudaAbono = (entregaId) => {
@@ -203,6 +210,7 @@ export default function OtraEntregaScreen({
 
         if (metodo === 'Transferencia') {
           setAbonoTransferencia('');
+          setComprobanteAbono(null);
         }
 
         return actuales.filter(
@@ -212,6 +220,64 @@ export default function OtraEntregaScreen({
 
       return [...actuales, metodo];
     });
+  };
+
+  const tomarFotoComprobanteAbono = async () => {
+    const permiso =
+      await ImagePicker.requestCameraPermissionsAsync();
+
+    if (!permiso.granted) {
+      mostrarToast(
+        'Se necesita permiso para usar la cámara.',
+        'warning'
+      );
+      return;
+    }
+
+    const resultado =
+      await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.8,
+      });
+
+    if (
+      !resultado.canceled &&
+      resultado.assets?.length > 0
+    ) {
+      setComprobanteAbono(resultado.assets[0]);
+    }
+  };
+
+  const elegirComprobanteGaleriaAbono = async () => {
+    const permiso =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permiso.granted) {
+      mostrarToast(
+        'Se necesita permiso para acceder a la galería.',
+        'warning'
+      );
+      return;
+    }
+
+    const resultado =
+      await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.8,
+      });
+
+    if (
+      !resultado.canceled &&
+      resultado.assets?.length > 0
+    ) {
+      setComprobanteAbono(resultado.assets[0]);
+    }
+  };
+
+  const eliminarComprobanteAbono = () => {
+    setComprobanteAbono(null);
   };
 
   const guardarAbonoSaldo = async () => {
@@ -269,12 +335,44 @@ export default function OtraEntregaScreen({
     try {
       setGuardandoAbono(true);
 
+      let comprobanteGuardado = null;
+
+if (
+  transferenciaAbonoNumerico > 0 &&
+  comprobanteAbono
+) {
+  comprobanteGuardado =
+    await guardarComprobanteLocal(
+      comprobanteAbono
+    );
+
+  if (!comprobanteGuardado?.uri) {
+    mostrarToast(
+      'No se pudo guardar el comprobante.',
+      'warning'
+    );
+    return;
+  }
+}
+
       const resultado = await registrarAbono({
         clienteId: clienteSeleccionado.id,
         entregaId: deudaSeleccionadaId,
         pagoEfectivo: efectivoAbonoNumerico,
         pagoTransferencia:
           transferenciaAbonoNumerico,
+
+        comprobante:
+          comprobanteGuardado
+            ? {
+                uri: comprobanteGuardado.uri,
+                nombre: comprobanteGuardado.nombre,
+                usuarioId:
+                  usuarioActual?.id || null,
+                usuarioNombre:
+                  usuarioActual?.nombre || 'Usuario',
+              }
+            : null,
       });
 
       if (!resultado?.ok) {
@@ -291,6 +389,7 @@ export default function OtraEntregaScreen({
       setMetodosAbono([]);
       setAbonoEfectivo('');
       setAbonoTransferencia('');
+      setComprobanteAbono(null);
 
       mostrarToast(
         'Abono registrado correctamente.',
@@ -500,37 +599,6 @@ const productosFiltrados =
       );
     }
   };
-
-
-  const elegirFotoComprobante = async () => {
-    const permiso =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-    if (!permiso.granted) {
-      mostrarToast(
-        'Se necesita permiso para acceder a la galería.',
-        'warning'
-      );
-      return;
-    }
-
-    const resultado =
-      await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: false,
-        quality: 0.8,
-      });
-
-    if (
-      !resultado.canceled &&
-      resultado.assets?.length > 0
-    ) {
-      setComprobanteTransferencia(
-        resultado.assets[0]
-      );
-    }
-  };
-
 
   const eliminarComprobante = () => {
     setComprobanteTransferencia(null);
@@ -1805,41 +1873,57 @@ const productosFiltrados =
           />
         </TouchableOpacity>
 
-        {usaTransferencia && (
-          <View
-            style={
-              styles.pagoContainer
-            }
-          >
-            <Text>
-              Monto por transferencia
-            </Text>
+                {usaTransferencia && (
+                  <View style={styles.pagoContainer}>
+                  <View style={styles.tituloTransferenciaFila}>
+                    <QRTransferencia />
 
-            <TextInput
-              style={
-                styles.pagoInput
-              }
-              value={
-                pagoTransferencia
-              }
-              onChangeText={
-                setPagoTransferencia
-              }
-              keyboardType="decimal-pad"
-              placeholder="0.00"
-              selectTextOnFocus
-            />
-          </View>
-        )}
+                    <Text>
+                      Monto por transferencia
+                    </Text>
+                  </View>
+
+                    <TextInput
+                      style={
+                        styles.pagoInput
+                      }
+                      value={
+                        pagoTransferencia
+                      }
+                      onChangeText={
+                        setPagoTransferencia
+                      }
+                      keyboardType="decimal-pad"
+                      placeholder="0.00"
+                      selectTextOnFocus
+                    />
+                  </View>
+                )}
+
+                {usaTransferencia &&
+                  Number(pagoTransferencia || 0) > 0 &&
+                  !comprobanteTransferencia && (
+                    <View style={styles.avisoTransferenciaPendiente}>
+                      <Text style={styles.avisoTransferenciaIcono}>
+                        ⚠️
+                      </Text>
+
+                      <Text style={styles.avisoTransferenciaPendienteTexto}>
+                        Transferencia pendiente de confirmación. Este valor no se incluirá
+                        en el total diario hasta ser confirmado.
+                      </Text>
+                    </View>
+                  )}
 
         {usaTransferencia && (
           <View style={styles.comprobanteContainer}>
 
-            <Text style={styles.comprobanteTitulo}>
-              Comprobante (opcional)
-            </Text>
+              <Text style={styles.pagoAbonoLabel}>
+                Monto por transferencia
+              </Text>
 
             {!comprobanteTransferencia ? (
+
               <View style={styles.comprobanteBotones}>
 
                 <TouchableOpacity
@@ -1856,22 +1940,6 @@ const productosFiltrados =
                     Tomar foto
                   </Text>
                 </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.botonComprobante}
-                  onPress={elegirFotoComprobante}
-                >
-                  <Ionicons
-                    name="images-outline"
-                    size={20}
-                    color="#08752F"
-                  />
-
-                  <Text style={styles.botonComprobanteTexto}>
-                    Galería
-                  </Text>
-                </TouchableOpacity>
-
               </View>
             ) : (
               <View style={styles.comprobanteSeleccionado}>
@@ -2127,6 +2195,7 @@ const productosFiltrados =
 
               {usaEfectivoAbono && (
                 <View style={styles.pagoAbonoContainer}>
+                  
                   <Text style={styles.pagoAbonoLabel}>
                     Monto en efectivo
                   </Text>
@@ -2177,20 +2246,109 @@ const productosFiltrados =
               </TouchableOpacity>
 
               {usaTransferenciaAbono && (
-                <View style={styles.pagoAbonoContainer}>
-                  <Text style={styles.pagoAbonoLabel}>
-                    Monto por transferencia
-                  </Text>
+                <View style={styles.transferenciaAbonoContainer}>
 
-                  <TextInput
-                    style={styles.pagoAbonoInput}
-                    value={abonoTransferencia}
-                    onChangeText={setAbonoTransferencia}
-                    keyboardType="decimal-pad"
-                    placeholder="0.00"
-                    placeholderTextColor="#999999"
-                    selectTextOnFocus
-                  />
+                  <View style={styles.pagoAbonoContainer}>
+                    <View style={styles.tituloTransferenciaAbonoFila}>
+                      <QRTransferencia />
+
+                      <Text style={styles.pagoAbonoLabel}>
+                        Monto por transferencia
+                      </Text>
+                    </View>
+
+                    <TextInput
+                      style={styles.pagoAbonoInput}
+                      value={abonoTransferencia}
+                      onChangeText={setAbonoTransferencia}
+                      keyboardType="decimal-pad"
+                      placeholder="0.00"
+                      placeholderTextColor="#999999" 
+                    />
+                  </View>
+
+                  <View style={styles.comprobanteAbonoContainer}>
+                    <Text style={styles.comprobanteAbonoTitulo}>
+                      Comprobante de transferencia
+                    </Text>
+
+                    <View style={styles.botonesComprobanteAbono}>
+                      <TouchableOpacity
+                        style={styles.botonComprobanteAbono}
+                        onPress={tomarFotoComprobanteAbono}
+                      >
+                        <Ionicons
+                          name="camera-outline"
+                          size={20}
+                          color="#08752F"
+                        />
+
+                        <Text style={styles.botonComprobanteAbonoTexto}>
+                          Tomar foto
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.botonComprobanteAbono}
+                        onPress={elegirComprobanteGaleriaAbono}
+                      >
+                        <Ionicons
+                          name="images-outline"
+                          size={20}
+                          color="#08752F"
+                        />
+
+                        <Text style={styles.botonComprobanteAbonoTexto}>
+                          Galería
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {comprobanteAbono && (
+                      <View style={styles.comprobanteAbonoAgregado}>
+                        <Image
+                          source={{
+                            uri: comprobanteAbono.uri,
+                          }}
+                          style={styles.comprobanteAbonoMiniatura}
+                        />
+
+                        <View style={styles.comprobanteAbonoInfo}>
+                          <View style={styles.comprobanteAbonoNombreFila}>
+                            <Text style={styles.comprobanteAbonoNombre}>
+                              Comprobante agregado
+                            </Text>
+
+                            <Ionicons
+                              name="checkmark-circle"
+                              size={18}
+                              color="#08752F"
+                            />
+                          </View>
+
+                          <Text
+                            style={styles.comprobanteAbonoArchivo}
+                            numberOfLines={1}
+                          >
+                            {comprobanteAbono.fileName ||
+                              'Imagen del comprobante'}
+                          </Text>
+                        </View>
+
+                        <TouchableOpacity
+                          style={styles.botonEliminarComprobanteAbono}
+                          onPress={eliminarComprobanteAbono}
+                        >
+                          <Ionicons
+                            name="trash-outline"
+                            size={20}
+                            color="#D71920"
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    )}
+
+                  </View>
                 </View>
               )}
 
@@ -3103,5 +3261,136 @@ eliminarComprobante: {
       alignItems: 'center',
       justifyContent: 'center',
       marginLeft: 8,
+    },
+
+    transferenciaAbonoContainer: {
+      width: '100%',
+    },
+
+    comprobanteAbonoContainer: {
+      marginTop: 15,
+      width: '100%',
+    },
+
+    comprobanteAbonoTitulo: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: '#333',
+      marginBottom: 10,
+    },
+
+    botonesComprobanteAbono: {
+      flexDirection: 'row',
+      gap: 10,
+      width: '100%',
+    },
+
+    botonComprobanteAbono: {
+      flex: 1,
+      minHeight: 45,
+      borderWidth: 1,
+      borderColor: '#08752F',
+      borderRadius: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingHorizontal: 8,
+    },
+
+    botonComprobanteAbonoTexto: {
+      color: '#08752F',
+      fontSize: 13,
+      fontWeight: '600',
+    },
+
+    comprobanteAbonoAgregado: {
+      width: '100%',
+      minHeight: 70,
+      marginTop: 12,
+      padding: 8,
+      borderRadius: 10,
+      backgroundColor: '#F0F8F2',
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+
+    comprobanteAbonoMiniatura: {
+      width: 54,
+      height: 54,
+      borderRadius: 8,
+      resizeMode: 'cover',
+    },
+
+    comprobanteAbonoInfo: {
+      flex: 1,
+      marginLeft: 10,
+      marginRight: 6,
+    },
+
+    comprobanteAbonoNombreFila: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+    },
+
+    comprobanteAbonoNombre: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: '#333',
+      flexShrink: 1,
+    },
+
+    comprobanteAbonoArchivo: {
+      fontSize: 11,
+      color: '#777',
+      marginTop: 4,
+    },
+
+    botonEliminarComprobanteAbono: {
+      width: 38,
+      height: 38,
+      borderRadius: 8,
+      backgroundColor: '#FDECEC',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    avisoTransferenciaPendiente: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 7,
+      marginTop: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 9,
+      backgroundColor: '#FFF7ED',
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: '#FED7AA',
+    },
+
+    avisoTransferenciaIcono: {
+      fontSize: 16,
+      lineHeight: 18,
+    },
+
+    avisoTransferenciaPendienteTexto: {
+      flex: 1,
+      fontSize: 12,
+      lineHeight: 17,
+      color: '#9A5B13',
+    },
+
+    tituloTransferenciaFila: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 7,
+    },
+
+    tituloTransferenciaAbonoFila: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      flex: 1,
     },
   });

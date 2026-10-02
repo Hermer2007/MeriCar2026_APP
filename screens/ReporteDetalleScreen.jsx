@@ -161,20 +161,27 @@ const ReporteDetalleScreen = ({
         }
 
         if (
-          metodos.includes(
+            metodos.includes(
             'Transferencia'
           )
         ) {
-          transferenciasEntregas +=
+          const montoTransferencia =
             Number(
               entrega.pagoTransferencia ??
-                (
-                  entrega.metodoPago ===
-                  'Transferencia'
-                    ? abona
-                    : 0
-                )
+              (
+                entrega.metodoPago ===
+                'Transferencia'
+                  ? abona
+                  : 0
+              )
             );
+
+          if (
+            entrega.transferenciaConfirmada === true
+          ) {
+            transferenciasEntregas +=
+              montoTransferencia;
+          }
 
           ventasTransferencia++;
         }
@@ -239,15 +246,20 @@ const ReporteDetalleScreen = ({
 
         const transferencia =
           Number(
-            abono.pagoTransferencia ||
-              0
+            abono.pagoTransferencia || 0
           );
 
         efectivoAbonos +=
           efectivo;
 
-        transferenciasAbonos +=
-          transferencia;
+        // Solo sumar la transferencia si está confirmada
+        if (
+          transferencia > 0 &&
+          abono.transferenciaConfirmada === true
+        ) {
+          transferenciasAbonos +=
+            transferencia;
+        }
 
         if (efectivo > 0) {
           abonosEfectivo++;
@@ -1350,6 +1362,15 @@ const ReporteDetalleScreen = ({
               reporte.transferencias
             )}
           />
+          <View style={styles.avisoTransferenciaPendiente}>
+            <Text style={styles.avisoTransferenciaIcono}>
+              ⚠️
+            </Text>
+
+            <Text style={styles.avisoTransferenciaPendienteTexto}>
+              Las transferencias pendientes de confirmación no se incluyen en el total recibido.
+            </Text>
+          </View>
         </View>
 
         {/* NOTA */}
