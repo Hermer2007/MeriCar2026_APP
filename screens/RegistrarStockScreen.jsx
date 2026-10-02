@@ -1,8 +1,6 @@
 import React, { useMemo, useState } from 'react';
 
 import {
-  Modal,
-  Pressable,
   StatusBar,
   StyleSheet,
   Text,
@@ -29,7 +27,6 @@ const RegistrarStockScreen = ({ navigation }) => {
   const { registrarStock } = useInventario();
   const { productos } = useProductos();
 
-
   // ==========================================
   // ESTADOS
   // ==========================================
@@ -45,11 +42,49 @@ const RegistrarStockScreen = ({ navigation }) => {
   const [listaStock, setListaStock] =
     useState([]);
 
-  const [
-    modalProductos,
-    setModalProductos,
-  ] = useState(false);
+  const [busquedaProducto, setBusquedaProducto] =
+  useState('');
 
+  // ==========================================
+  // PRODUCTOS FILTRADOS
+  // ==========================================
+
+  const productosFiltrados = useMemo(() => {
+
+  const texto =
+    busquedaProducto
+      .trim()
+      .toLowerCase();
+
+  if (!texto) {
+    return [];
+  }
+
+  return (productos || [])
+    .filter((producto) =>
+      String(producto.nombre || '')
+        .toLowerCase()
+        .includes(texto)
+    )
+    .slice(0, 8);
+
+}, [
+  productos,
+  busquedaProducto,
+]);
+
+  // ==========================================
+  // VERIFICAR SI PRODUCTO YA ESTÁ EN LA LISTA
+  // ==========================================
+
+  function productoEstaEnLista(productoId) {
+
+    return listaStock.some(
+      (item) =>
+        String(item.id) ===
+        String(productoId)
+    );
+  }
 
   // ==========================================
   // FECHA ACTUAL
@@ -74,17 +109,14 @@ const RegistrarStockScreen = ({ navigation }) => {
 
   }, []);
 
-
   // ==========================================
   // AGREGAR PRODUCTO A LA LISTA
   // ==========================================
-
   const agregarALista = () => {
 
     // ----------------------------------------
     // PRODUCTO NO SELECCIONADO
     // ----------------------------------------
-
     if (!productoSeleccionado) {
 
       mostrarToast(
@@ -95,14 +127,12 @@ const RegistrarStockScreen = ({ navigation }) => {
       return;
     }
 
-
     // ----------------------------------------
     // VALIDAR CANTIDAD
     // ----------------------------------------
 
     const cantidadNumerica =
       Number(cantidad);
-
 
     if (
       !cantidad ||
@@ -114,10 +144,8 @@ const RegistrarStockScreen = ({ navigation }) => {
         'Ingrese una cantidad válida.',
         'warning'
       );
-
       return;
     }
-
 
     // ----------------------------------------
     // VERIFICAR SI YA ESTABA EN LA LISTA
@@ -130,13 +158,10 @@ const RegistrarStockScreen = ({ navigation }) => {
           String(productoSeleccionado.id)
       );
 
-
     // ----------------------------------------
     // AGREGAR / ACUMULAR
     // ----------------------------------------
-
     setListaStock((actual) => {
-
       const existente =
         actual.find(
           (item) =>
@@ -146,10 +171,8 @@ const RegistrarStockScreen = ({ navigation }) => {
             )
         );
 
-
       // Si ya existe, acumulamos cantidad
       if (existente) {
-
         return actual.map(
           (item) =>
             String(item.id) ===
@@ -169,7 +192,6 @@ const RegistrarStockScreen = ({ navigation }) => {
         );
       }
 
-
       // Producto nuevo
       return [
         ...actual,
@@ -187,41 +209,34 @@ const RegistrarStockScreen = ({ navigation }) => {
       ];
     });
 
-
     // ----------------------------------------
     // NOTIFICACIÓN
     // ----------------------------------------
 
     if (productoYaExiste) {
-
       mostrarToast(
         'La cantidad del producto fue actualizada.',
         'info'
       );
 
     } else {
-
       mostrarToast(
         'Producto agregado al registro.',
         'success'
       );
     }
 
-
     // ----------------------------------------
     // LIMPIAR CAMPOS
     // ----------------------------------------
-
     setProductoSeleccionado(null);
-
+    setBusquedaProducto('');
     setCantidad('');
   };
-
 
   // ==========================================
   // ELIMINAR PRODUCTO DE LA LISTA
   // ==========================================
-
   const eliminarDeLista = (id) => {
 
     setListaStock(
@@ -233,24 +248,20 @@ const RegistrarStockScreen = ({ navigation }) => {
         )
     );
 
-
     mostrarToast(
       'Producto eliminado de la lista.',
       'info'
     );
   };
 
-
   // ==========================================
   // GUARDAR REGISTRO
   // ==========================================
-
   const guardarRegistro = () => {
 
     // ----------------------------------------
     // LISTA VACÍA
     // ----------------------------------------
-
     if (
       listaStock.length === 0
     ) {
@@ -263,11 +274,9 @@ const RegistrarStockScreen = ({ navigation }) => {
       return;
     }
 
-
     // ----------------------------------------
     // FECHA / DÍA
     // ----------------------------------------
-
     const hoy = new Date();
 
     const dias = [
@@ -280,11 +289,9 @@ const RegistrarStockScreen = ({ navigation }) => {
       'sábado',
     ];
 
-
     // ----------------------------------------
     // CREAR REGISTRO
     // ----------------------------------------
-
     const nuevoRegistro = {
 
       id:
@@ -313,7 +320,6 @@ const RegistrarStockScreen = ({ navigation }) => {
         ),
     };
 
-
     // ----------------------------------------
     // VERIFICAR CONTEXT
     // ----------------------------------------
@@ -332,17 +338,13 @@ const RegistrarStockScreen = ({ navigation }) => {
         'Intente nuevamente o comuníquese con soporte técnico.',
         'info'
       );
-
       return;
     }
-
 
     // ----------------------------------------
     // GUARDAR
     // ----------------------------------------
-
     try {
-
       const resultado = registrarStock(
   nuevoRegistro
 );
@@ -387,7 +389,6 @@ navigation.goBack();
     }
   };
 
-
   // ==========================================
   // INTERFAZ
   // ==========================================
@@ -399,7 +400,6 @@ navigation.goBack();
         barStyle="light-content"
         backgroundColor="#08752F"
       />
-
 
       {/* HEADER */}
 
@@ -418,7 +418,6 @@ navigation.goBack();
           />
         </TouchableOpacity>
 
-
         <View style={styles.headerCentro}>
 
           <Text
@@ -428,7 +427,6 @@ navigation.goBack();
           >
             Registrar stock
           </Text>
-
 
           <Text
             style={
@@ -442,7 +440,7 @@ navigation.goBack();
         <BotonHome navigation={navigation} />
       </View>
 
-       <ScrollView
+      <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContenido}
         showsVerticalScrollIndicator={false}
@@ -465,13 +463,10 @@ navigation.goBack();
             color="#08752F"
           />
 
-
           <Text style={styles.label}>
             Fecha
           </Text>
-
         </View>
-
 
         <View
           style={
@@ -485,7 +480,6 @@ navigation.goBack();
             color="#777777"
           />
 
-
           <Text
             style={
               styles.fechaTexto
@@ -494,76 +488,203 @@ navigation.goBack();
             {fechaActual}
           </Text>
 
-
           <Ionicons
             name="lock-closed-outline"
             size={21}
             color="#777777"
           />
-
         </View>
-
       </View>
-
 
       {/* PRODUCTO */}
 
-      <View style={styles.seccion}>
+        <View style={styles.seccion}>
 
-        <View
-          style={
-            styles.labelConIcono
-          }
-        >
+          <View style={styles.labelConIcono}>
 
-          <Ionicons
-            name="cube-outline"
-            size={20}
-            color="#08752F"
-          />
+            <Ionicons
+              name="cube-outline"
+              size={20}
+              color="#08752F"
+            />
+
+            <Text style={styles.label}>
+              Producto
+            </Text>
+
+          </View>
 
 
-          <Text style={styles.label}>
-            Producto
-          </Text>
+          {/* BUSCADOR */}
+
+          <View style={styles.buscadorProducto}>
+
+            <Ionicons
+              name="search-outline"
+              size={21}
+              color="#777777"
+            />
+
+            <TextInput
+              style={styles.inputBuscadorProducto}
+              placeholder="Buscar producto..."
+              placeholderTextColor="#999999"
+              value={busquedaProducto}
+              onChangeText={(texto) => {
+
+                setBusquedaProducto(texto);
+
+                // Si vuelve a escribir, quitamos la selección anterior
+                if (productoSeleccionado) {
+                  setProductoSeleccionado(null);
+                }
+              }}
+            />
+
+            {busquedaProducto.length > 0 && (
+
+              <TouchableOpacity
+                onPress={() => {
+                  setBusquedaProducto('');
+                  setProductoSeleccionado(null);
+                }}
+              >
+
+                <Ionicons
+                  name="close-circle"
+                  size={21}
+                  color="#999999"
+                />
+
+              </TouchableOpacity>
+
+            )}
+
+          </View>
+
+
+          {/* RESULTADOS */}
+
+          {busquedaProducto.trim() !== '' &&
+            !productoSeleccionado && (
+
+            <View style={styles.resultadosProductos}>
+
+              {productosFiltrados.length === 0 ? (
+
+                <View style={styles.sinResultados}>
+
+                  <Text style={styles.sinResultadosTexto}>
+                    No se encontraron productos
+                  </Text>
+
+                </View>
+
+              ) : (
+
+                productosFiltrados.map((producto) => {
+
+                  const yaEsta =
+                    productoEstaEnLista(
+                      producto.id
+                    );
+
+                  return (
+
+                    <TouchableOpacity
+                      key={producto.id}
+                      style={[
+                        styles.resultadoProducto,
+                        yaEsta &&
+                          styles.resultadoProductoBloqueado,
+                      ]}
+                      activeOpacity={
+                        yaEsta ? 1 : 0.7
+                      }
+                      onPress={() => {
+
+                        if (yaEsta) {
+                          return;
+                        }
+
+                        setProductoSeleccionado(
+                          producto
+                        );
+
+                        setBusquedaProducto(
+                          producto.nombre
+                        );
+                      }}
+                    >
+
+                      <View
+                        style={
+                          styles.resultadoProductoIzquierda
+                        }
+                      >
+
+                        <Ionicons
+                          name="cube-outline"
+                          size={21}
+                          color={
+                            yaEsta
+                              ? '#999999'
+                              : '#08752F'
+                          }
+                        />
+
+                        <Text
+                          style={[
+                            styles.resultadoProductoNombre,
+
+                            yaEsta &&
+                              styles.textoProductoBloqueado,
+                          ]}
+                        >
+                          {producto.nombre}
+                        </Text>
+
+                      </View>
+
+
+                      {yaEsta && (
+
+                        <View
+                          style={
+                            styles.badgeProductoAgregado
+                          }
+                        >
+
+                          <Ionicons
+                            name="checkmark-circle-outline"
+                            size={16}
+                            color="#777777"
+                          />
+
+                          <Text
+                            style={
+                              styles.textoProductoAgregado
+                            }
+                          >
+                            Producto ya en lista
+                          </Text>
+
+                        </View>
+
+                      )}
+
+                    </TouchableOpacity>
+
+                  );
+                })
+
+              )}
+
+            </View>
+
+          )}
 
         </View>
-
-
-        <TouchableOpacity
-          style={styles.selector}
-          onPress={() =>
-            setModalProductos(true)
-          }
-          activeOpacity={0.8}
-        >
-
-          <Text
-            style={[
-              styles.textoSelector,
-
-              !productoSeleccionado &&
-                styles.placeholder,
-            ]}
-          >
-
-            {productoSeleccionado
-              ? productoSeleccionado.nombre
-              : 'Selecciona un producto'}
-
-          </Text>
-
-
-          <Ionicons
-            name="chevron-down"
-            size={22}
-            color="#222222"
-          />
-
-        </TouchableOpacity>
-
-      </View>
-
 
       {/* CANTIDAD */}
 
@@ -583,13 +704,11 @@ navigation.goBack();
             #
           </Text>
 
-
           <Text style={styles.label}>
             Cantidad
           </Text>
 
         </View>
-
 
         <TextInput
           style={styles.input}
@@ -599,7 +718,6 @@ navigation.goBack();
           onChangeText={setCantidad}
           keyboardType="numeric"
         />
-
 
         <TouchableOpacity
           style={
@@ -615,7 +733,6 @@ navigation.goBack();
             color="#FFFFFF"
           />
 
-
           <Text
             style={
               styles.textoBotonAgregar
@@ -627,7 +744,6 @@ navigation.goBack();
         </TouchableOpacity>
 
       </View>
-
 
       {/* LISTA DE STOCK */}
 
@@ -649,7 +765,6 @@ navigation.goBack();
             color="#08752F"
           />
 
-
           <Text
             style={
               styles.stockTitulo
@@ -659,7 +774,6 @@ navigation.goBack();
           </Text>
 
         </View>
-
 
         {listaStock.length === 0 ? (
 
@@ -703,7 +817,6 @@ navigation.goBack();
                     color="#08752F"
                   />
 
-
                   <Text
                     style={
                       styles.nombreProducto
@@ -713,7 +826,6 @@ navigation.goBack();
                   </Text>
 
                 </View>
-
 
                 <View
                   style={
@@ -737,7 +849,6 @@ navigation.goBack();
 
                   </View>
 
-
                   <TouchableOpacity
                     style={
                       styles.botonEliminar
@@ -754,18 +865,12 @@ navigation.goBack();
                       size={22}
                       color="#D71920"
                     />
-
                   </TouchableOpacity>
-
                 </View>
-
               </View>
-            )
-          )
+          ))
         )}
-
       </View>
-
 
       {/* GUARDAR */}
 
@@ -783,7 +888,6 @@ navigation.goBack();
           color="#FFFFFF"
         />
 
-
         <Text
           style={
             styles.textoGuardar
@@ -795,118 +899,10 @@ navigation.goBack();
       </TouchableOpacity>
       
       </ScrollView>
-
-      {/* MODAL PRODUCTOS */}
-
-      <Modal
-        visible={modalProductos}
-        transparent
-        animationType="fade"
-        onRequestClose={() =>
-          setModalProductos(false)
-        }
-      >
-
-        <Pressable
-          style={
-            styles.modalFondo
-          }
-          onPress={() =>
-            setModalProductos(false)
-          }
-        >
-
-          <Pressable
-            style={
-              styles.modalContenido
-            }
-            onPress={() => {}}
-          >
-
-            <Text
-              style={
-                styles.modalTitulo
-              }
-            >
-              Seleccionar producto
-            </Text>
-
-
-            {productos.map(
-              (producto) => (
-
-                <TouchableOpacity
-                  key={
-                    producto.id
-                  }
-                  style={
-                    styles.opcionProducto
-                  }
-                  onPress={() => {
-
-                    setProductoSeleccionado(
-                      producto
-                    );
-
-                    setModalProductos(
-                      false
-                    );
-                  }}
-                >
-
-                  <View
-                    style={
-                      styles.opcionProductoIzquierda
-                    }
-                  >
-
-                    <Ionicons
-                      name="cube-outline"
-                      size={22}
-                      color="#08752F"
-                    />
-
-
-                    <Text
-                      style={
-                        styles.opcionProductoTexto
-                      }
-                    >
-                      {producto.nombre}
-                    </Text>
-
-                  </View>
-
-
-                  {productoSeleccionado?.id ===
-                    producto.id && (
-
-                    <Ionicons
-                      name="checkmark-circle"
-                      size={23}
-                      color="#08752F"
-                    />
-
-                  )}
-
-                </TouchableOpacity>
-
-              )
-            )}
-
-          </Pressable>
-
-        </Pressable>
-
-      </Modal>
-
     </View>
   );
 };
-
-
 export default RegistrarStockScreen;
-
 
 // ============================================
 // ESTILOS
@@ -938,14 +934,12 @@ const styles = StyleSheet.create({
     paddingBottom: 17,
   },
 
-
   botonRegresar: {
     width: 42,
     height: 42,
     alignItems: 'center',
     justifyContent: 'center',
   },
-
 
   headerCentro: {
   position: 'absolute',
@@ -956,7 +950,6 @@ const styles = StyleSheet.create({
   justifyContent: 'center',
 },
 
-
   tituloHeader: {
     fontSize: 22,
     fontWeight: '700',
@@ -964,14 +957,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-
   subtituloHeader: {
     fontSize: 14,
     color: '#E5F2E8',
     marginTop: 2,
     textAlign: 'center',
   },
-
 
   seccion: {
     marginHorizontal: 20,
@@ -983,7 +974,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
 
-
   labelConIcono: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -991,20 +981,17 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 
-
   label: {
     fontSize: 15,
     fontWeight: '700',
     color: '#202020',
   },
 
-
   iconoCantidad: {
     fontSize: 22,
     fontWeight: '700',
     color: '#08752F',
   },
-
 
   fechaBloqueada: {
     height: 48,
@@ -1015,14 +1002,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
 
-
   fechaTexto: {
     flex: 1,
     marginLeft: 9,
     color: '#666666',
     fontSize: 15,
   },
-
 
   selector: {
     height: 50,
@@ -1035,17 +1020,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 13,
   },
 
-
   textoSelector: {
     fontSize: 15,
     color: '#222222',
   },
 
-
   placeholder: {
     color: '#555555',
   },
-
 
   input: {
     height: 50,
@@ -1056,7 +1038,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#222222',
   },
-
 
   botonAgregar: {
     marginTop: 12,
@@ -1069,13 +1050,11 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 
-
   textoBotonAgregar: {
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '700',
   },
-
 
   stockContainer: {
     marginHorizontal: 20,
@@ -1086,7 +1065,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
 
-
   stockTituloContainer: {
     minHeight: 52,
     backgroundColor: '#EEF7F0',
@@ -1096,13 +1074,11 @@ const styles = StyleSheet.create({
     gap: 9,
   },
 
-
   stockTitulo: {
     fontSize: 15,
     fontWeight: '700',
     color: '#202020',
   },
-
 
   listaVacia: {
     minHeight: 68,
@@ -1110,12 +1086,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-
   textoListaVacia: {
     color: '#999999',
     fontSize: 14,
   },
-
 
   filaStock: {
     minHeight: 58,
@@ -1127,7 +1101,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
 
-
   stockIzquierda: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1135,20 +1108,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-
   nombreProducto: {
     fontSize: 15,
     fontWeight: '600',
     color: '#222222',
   },
 
-
   stockDerecha: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
-
 
   cantidadBadge: {
     minWidth: 48,
@@ -1160,13 +1130,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
 
-
   cantidadBadgeTexto: {
     color: '#08752F',
     fontSize: 16,
     fontWeight: '700',
   },
-
 
   botonEliminar: {
     width: 34,
@@ -1174,7 +1142,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-
 
   botonGuardar: {
     marginHorizontal: 20,
@@ -1188,13 +1155,11 @@ const styles = StyleSheet.create({
     gap: 9,
   },
 
-
   textoGuardar: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
   },
-
 
   modalFondo: {
     flex: 1,
@@ -1203,13 +1168,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
   },
 
-
   modalContenido: {
     backgroundColor: '#FFFFFF',
     borderRadius: 17,
     padding: 20,
   },
-
 
   modalTitulo: {
     fontSize: 20,
@@ -1217,7 +1180,6 @@ const styles = StyleSheet.create({
     color: '#161616',
     marginBottom: 10,
   },
-
 
   opcionProducto: {
     minHeight: 56,
@@ -1228,17 +1190,122 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
 
-
   opcionProductoIzquierda: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
 
-
   opcionProductoTexto: {
     fontSize: 15,
     color: '#222222',
+  },
+
+  buscadorProducto: {
+    height: 50,
+    borderWidth: 1,
+    borderColor: '#58C283',
+    borderRadius: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    gap: 9,
+  },
+
+  inputBuscadorProducto: {
+    flex: 1,
+    fontSize: 15,
+    color: '#222222',
+  },
+
+  resultadosProductos: {
+    marginTop: 7,
+    borderWidth: 1,
+    borderColor: '#E4E4E4',
+    borderRadius: 9,
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+  },
+
+  resultadoProducto: {
+    minHeight: 52,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: '#EFEFEF',
+  },
+
+  resultadoProductoBloqueado: {
+    backgroundColor: '#F5F5F5',
+  },
+
+  resultadoProductoIzquierda: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+  },
+
+  resultadoProductoNombre: {
+    flex: 1,
+    fontSize: 14,
+    color: '#222222',
+    fontWeight: '500',
+  },
+
+  textoProductoBloqueado: {
+    color: '#888888',
+  },
+
+  badgeProductoAgregado: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginLeft: 8,
+  },
+
+  textoProductoAgregado: {
+    fontSize: 11,
+    color: '#777777',
+    fontWeight: '600',
+  },
+
+  sinResultados: {
+    minHeight: 52,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  sinResultadosTexto: {
+    fontSize: 13,
+    color: '#999999',
+  },
+
+  productoSeleccionado: {
+    minHeight: 48,
+    marginTop: 8,
+    paddingHorizontal: 12,
+    borderRadius: 9,
+    backgroundColor: '#EEF7F0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  productoSeleccionadoIzquierda: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+  },
+
+  productoSeleccionadoTexto: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#202020',
   },
 
 });

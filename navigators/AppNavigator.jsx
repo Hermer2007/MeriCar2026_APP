@@ -47,6 +47,7 @@ import ClientesEntregasScreen from '../screens/ClientesEntregasScreen';
 import CuentasCobrarScreen from '../screens/CuentasCobrarScreen';
 import ProductosVendidosScreen from '../screens/ProductosVendidosScreen';
 import BalanceGananciasScreen from '../screens/BalanceGananciasScreen';
+import TransferenciasPendientesScreen from '../screens/TransferenciasPendientesScreen';
 
 import PerfilScreen from '../screens/PerfilScreen';
 import RegistrosAntiguosScreen from '../screens/RegistrosAntiguosScreen';
@@ -267,6 +268,11 @@ export default function AppNavigator() {
         <Stack.Screen
           name="BalanceGanancias"
           component={BalanceGananciasScreen}
+        />
+
+        <Stack.Screen
+          name="TransferenciasPendientes"
+          component={TransferenciasPendientesScreen}
         />
 
       </Stack.Navigator>

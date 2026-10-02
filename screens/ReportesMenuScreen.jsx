@@ -69,80 +69,92 @@ export default function ReportesMenuScreen({
   // ==========================================
 
   const opciones = [
-    {
-      id: '1',
-      titulo: 'Reporte del día',
-      descripcion: fechaActual,
-      icono: 'calendar-outline',
-      accion: () =>
-        navigation.navigate(
-          'ReporteDetalle',
-          {
-            fecha:
-              fechaActual,
-          }
-        ),
-    },
+  {
+    id: '1',
+    titulo: 'Reporte del día',
+    descripcion: fechaActual,
+    icono: 'calendar-outline',
+    accion: () =>
+      navigation.navigate(
+        'ReporteDetalle',
+        {
+          fecha: fechaActual,
+        }
+      ),
+  },
 
-    {
-      id: '2',
-      titulo:
-        'Ventas y entregas generales',
-      descripcion:
-        'Historial de todos los reportes',
-      icono:
-        'receipt-outline',
-      accion: () =>
-        navigation.navigate(
-          'ReportesGenerales'
-        ),
-    },
+  {
+    id: '2',
+    titulo: 'Balance de ganancias diarias',
+    descripcion:
+      'Ganancias generadas por los productos vendidos durante el día.',
+    icono: 'trending-up-outline',
+    accion: () =>
+      navigation.navigate(
+        'BalanceGanancias'
+      ),
+  },
 
-    {
+  {
     id: '3',
+    titulo: 'Ventas y entregas generales',
+    descripcion:
+      'Historial de todos los reportes',
+    icono: 'receipt-outline',
+    accion: () =>
+      navigation.navigate(
+        'ReportesGenerales'
+      ),
+  },
+
+  {
+    id: '4',
+    titulo: 'Transferencias por confirmar',
+    descripcion:
+      'Transferencias pendientes de confirmación',
+    icono: 'card-outline',
+    accion: () =>
+      navigation.navigate(
+        'TransferenciasPendientes'
+      ),
+  },
+
+  {
+    id: '5',
+    titulo: 'Cuentas por cobrar',
+    descripcion:
+      'Entregas con saldos pendientes',
+    icono: 'wallet-outline',
+    accion: () =>
+      navigation.navigate(
+        'CuentasCobrar'
+      ),
+  },
+
+  {
+    id: '6',
     titulo: 'Clientes y Entregas',
-    descripcion: 'Resumen y ranking de clientes',
+    descripcion:
+      'Resumen y ranking de clientes',
     icono: 'people-outline',
     accion: () =>
-        navigation.navigate(
+      navigation.navigate(
         'ClientesEntregas'
-        ),
-    },
+      ),
+  },
 
-    {
-      id: '4',
-      titulo: 'Cuentas por cobrar',
-      descripcion: 'Entregas con saldos pendientes',
-      icono: 'wallet-outline',
-      accion: () =>
-        navigation.navigate(
-          'CuentasCobrar'
-        ),
-    },
-
-    {
-      id: '5',
-      titulo: 'Productos vendidos',
-      descripcion: 'Ranking de productos por ventas',
-      icono: 'cube-outline',
-      accion: () =>
-        navigation.navigate(
-          'ProductosVendidos'
-        ),
-    },
-
-    {
-      id: '6',
-      titulo: 'Balance de ganancias diarias',
-      descripcion:
-        'Ganancias generadas por los productos vendidos durante el día.',
-      icono: 'trending-up-outline',
-      accion: () =>
-        navigation.navigate(
-          'BalanceGanancias'
-        ),
-    },
-  ];
+  {
+    id: '7',
+    titulo: 'Productos vendidos',
+    descripcion:
+      'Ranking de productos por ventas',
+    icono: 'cube-outline',
+    accion: () =>
+      navigation.navigate(
+        'ProductosVendidos'
+      ),
+  },
+];
 
   return (
     <View

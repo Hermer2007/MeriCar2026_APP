@@ -1362,15 +1362,6 @@ const ReporteDetalleScreen = ({
               reporte.transferencias
             )}
           />
-          <View style={styles.avisoTransferenciaPendiente}>
-            <Text style={styles.avisoTransferenciaIcono}>
-              ⚠️
-            </Text>
-
-            <Text style={styles.avisoTransferenciaPendienteTexto}>
-              Las transferencias pendientes de confirmación no se incluyen en el total recibido.
-            </Text>
-          </View>
         </View>
 
         {/* NOTA */}

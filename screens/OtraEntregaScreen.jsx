@@ -510,43 +510,33 @@ if (
   setBusquedaProducto,
 ] = useState('');
 
-const productosFiltrados =
-  useMemo(() => {
+  const productosFiltrados = useMemo(() => {
+    const texto = busquedaProducto
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
 
-    const texto =
-      busquedaProducto
-        .trim()
+    return productosEntrega.filter((producto) => {
+      const cantidad = Number(producto.cantidad) || 0;
+
+      // Los productos ya agregados permanecen visibles
+      if (cantidad > 0) {
+        return true;
+      }
+
+      // Sin búsqueda, los productos con cantidad 0 no aparecen
+      if (!texto) {
+        return false;
+      }
+
+      const nombre = String(producto.nombre || '')
         .toLowerCase()
         .normalize('NFD')
-        .replace(
-          /[\u0300-\u036f]/g,
-          ''
-        );
+        .replace(/[\u0300-\u036f]/g, '');
 
-    if (!texto) {
-      return productosEntrega;
-    }
-
-    return productosEntrega.filter(
-      (producto) => {
-
-        const nombre =
-          String(
-            producto.nombre || ''
-          )
-            .toLowerCase()
-            .normalize('NFD')
-            .replace(
-              /[\u0300-\u036f]/g,
-              ''
-            );
-
-        return nombre.includes(
-          texto
-        );
-      }
-    );
-
+      return nombre.includes(texto);
+    });
   }, [
     productosEntrega,
     busquedaProducto,
@@ -1581,9 +1571,11 @@ const productosFiltrados =
                 style={[
                   styles.productoFila,
 
+                  Number(producto.cantidad) > 0 &&
+                    styles.productoFilaSeleccionado,
+
                   index ===
-                    productosFiltrados.length -
-                      1 &&
+                    productosFiltrados.length - 1 &&
                     styles.ultimaFila,
                 ]}
               >
@@ -1592,15 +1584,15 @@ const productosFiltrados =
                     styles.productoInfo
                   }
                 >
-                  <Text
-                    style={
-                      styles.productoNombre
-                    }
-                  >
-                    {
-                      producto.nombre
-                    }
-                  </Text>
+                  <View style={styles.nombreProductoFila}>
+                    {Number(producto.cantidad) > 0 && (
+                      <View style={styles.indicadorSeleccionado} />
+                    )}
+
+                    <Text style={styles.productoNombre}>
+                      {producto.nombre}
+                    </Text>
+                  </View>
 
                   <Text
                     style={
@@ -1666,7 +1658,7 @@ const productosFiltrados =
                     <Ionicons
                       name="remove"
                       size={18}
-                      color="#08752F"
+                      color="#FFFFFF"
                     />
                   </TouchableOpacity>
 
@@ -1703,7 +1695,7 @@ const productosFiltrados =
                     <Ionicons
                       name="add"
                       size={18}
-                      color="#08752F"
+                      color="#FFFFFF"
                     />
                   </TouchableOpacity>
                 </View>
@@ -2657,6 +2649,7 @@ const styles =
       alignItems:
         'center',
       paddingHorizontal: 5,
+      backgroundColor: '#FFFFFF',
     },
 
     precioInput: {
@@ -2675,6 +2668,7 @@ const styles =
         'row',
       overflow:
         'hidden',
+      backgroundColor: '#FFFFFF',
     },
 
     botonCantidad: {
@@ -2683,6 +2677,7 @@ const styles =
         'center',
       justifyContent:
         'center',
+      backgroundColor: '#08752F',
     },
 
     cantidadInput: {
@@ -3392,5 +3387,22 @@ eliminarComprobante: {
       alignItems: 'center',
       gap: 5,
       flex: 1,
+    },
+
+    productoFilaSeleccionado: {
+      backgroundColor: '#E8F5EC',
+    },
+
+    nombreProductoFila: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+
+    indicadorSeleccionado: {
+      width: 4,
+      height: 22,
+      backgroundColor: '#08752F',
+      borderRadius: 4,
+      marginRight: 7,
     },
   });
