@@ -57,6 +57,10 @@ const EditarClienteScreen = ({ navigation, route }) => {
     cliente.facturacion ?? false
   );
 
+  const [aliasFacturacion, setAliasFacturacion] = useState(
+    cliente.aliasFacturacion || ''
+  );
+
   const cambiarDia = (dia) => {
     setDiasTrabajo((actuales) =>
       actuales.includes(dia)
@@ -93,6 +97,10 @@ const EditarClienteScreen = ({ navigation, route }) => {
       direccion: direccion.trim(),
       diasTrabajo,
       facturacion,
+      aliasFacturacion:
+        facturacion
+          ? aliasFacturacion.trim()
+          : '',
     });
 
     mostrarToast(
@@ -268,6 +276,38 @@ const EditarClienteScreen = ({ navigation, route }) => {
             />
 
           </View>
+
+          {facturacion && (
+            <View style={styles.aliasContainer}>
+
+              <Text style={styles.aliasLabel}>
+                Alias para facturación (opcional)
+              </Text>
+
+              <View style={styles.inputContainer}>
+
+                <Ionicons
+                  name="person-outline"
+                  size={20}
+                  color="#08752F"
+                />
+
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ingrese el nombre para facturación"
+                  placeholderTextColor="#999999"
+                  value={aliasFacturacion}
+                  onChangeText={setAliasFacturacion}
+                />
+
+              </View>
+
+              <Text style={styles.aliasAyuda}>
+                Este nombre se mostrará en Facturación del día.
+              </Text>
+
+            </View>
+          )}
 
           <Text style={styles.label}>
             Cédula
@@ -574,5 +614,24 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 15,
     color: '#777777',
+  },
+
+  aliasContainer: {
+    marginTop: 14,
+    marginBottom: 4,
+  },
+
+  aliasLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#333333',
+    marginBottom: 7,
+  },
+
+  aliasAyuda: {
+    fontSize: 10,
+    color: '#888888',
+    marginTop: 5,
+    marginLeft: 3,
   },
 });

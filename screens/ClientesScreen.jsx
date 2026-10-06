@@ -67,7 +67,7 @@ const ClientesScreen = ({ navigation }) => {
     if (
       fechaSeleccionada &&
       typeof fechaSeleccionada.toDate ===
-        'function'
+      'function'
     ) {
       return fechaSeleccionada.toDate();
     }
@@ -172,7 +172,7 @@ const ClientesScreen = ({ navigation }) => {
         if (
           !fechaMasReciente ||
           fecha.getTime() >
-            fechaMasReciente.getTime()
+          fechaMasReciente.getTime()
         ) {
           fechaMasReciente = fecha;
         }
@@ -197,17 +197,13 @@ const ClientesScreen = ({ navigation }) => {
             (cliente) => {
               const nombreCliente =
                 cliente.nombre ||
-                `${
-                  cliente.nombres || ''
-                } ${
-                  cliente.apellidos || ''
-                }`.trim();
+                `${cliente.nombres || ''
+                  } ${cliente.apellidos || ''
+                  }`.trim();
 
-              return `${
-                nombreCliente
-              } ${
-                cliente.telefono || ''
-              }`
+              return `${nombreCliente
+                } ${cliente.telefono || ''
+                }`
                 .toLowerCase()
                 .includes(texto);
             }
@@ -321,11 +317,9 @@ const ClientesScreen = ({ navigation }) => {
   const iniciales = (cliente) => {
     const nombreCompleto =
       cliente.nombre ||
-      `${
-        cliente.nombres || ''
-      } ${
-        cliente.apellidos || ''
-      }`.trim();
+      `${cliente.nombres || ''
+        } ${cliente.apellidos || ''
+        }`.trim();
 
     const partes =
       nombreCompleto
@@ -339,8 +333,8 @@ const ClientesScreen = ({ navigation }) => {
     const segunda =
       partes.length > 1
         ? partes[
-            partes.length - 1
-          ]?.charAt(0)
+          partes.length - 1
+        ]?.charAt(0)
         : '';
 
     return `${primera}${segunda}`
@@ -431,11 +425,9 @@ const ClientesScreen = ({ navigation }) => {
           style={styles.nombre}
         >
           {item.nombre ||
-            `${
-              item.nombres || ''
-            } ${
-              item.apellidos || ''
-            }`.trim()}
+            `${item.nombres || ''
+              } ${item.apellidos || ''
+              }`.trim()}
         </Text>
 
         {item.telefono ? (
@@ -455,8 +447,8 @@ const ClientesScreen = ({ navigation }) => {
             item.diasTrabajo
           )
             ? item.diasTrabajo.join(
-                ', '
-              )
+              ', '
+            )
             : ''}
         </Text>
       </View>
@@ -485,7 +477,7 @@ const ClientesScreen = ({ navigation }) => {
       style={[
         styles.opcionFiltro,
         seleccionado &&
-          styles.opcionFiltroActiva,
+        styles.opcionFiltroActiva,
       ]}
       onPress={onPress}
     >
@@ -505,7 +497,7 @@ const ClientesScreen = ({ navigation }) => {
         style={[
           styles.textoFiltro,
           seleccionado &&
-            styles.textoFiltroActivo,
+          styles.textoFiltroActivo,
         ]}
       >
         {texto}
@@ -561,14 +553,9 @@ const ClientesScreen = ({ navigation }) => {
       </View>
 
       {/* BUSCADOR */}
-      <View
-        style={styles.busquedaFila}
-      >
-        <View
-          style={
-            styles.buscadorContainer
-          }
-        >
+      <View style={styles.busquedaFila}>
+        <View style={styles.buscadorContainer}>
+
           <Ionicons
             name="search"
             size={22}
@@ -580,16 +567,28 @@ const ClientesScreen = ({ navigation }) => {
             placeholder="Buscar cliente..."
             placeholderTextColor="#8D8D8D"
             value={busqueda}
-            onChangeText={
-              setBusqueda
-            }
+            onChangeText={setBusqueda}
           />
+
+          {/* LIMPIAR BÚSQUEDA */}
+          {busqueda.length > 0 && (
+            <TouchableOpacity
+              style={styles.botonLimpiarBusqueda}
+              onPress={() => setBusqueda('')}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name="close-circle"
+                size={22}
+                color="#777777"
+              />
+            </TouchableOpacity>
+          )}
+
         </View>
 
         <TouchableOpacity
-          style={
-            styles.botonFiltro
-          }
+          style={styles.botonFiltro}
           onPress={() =>
             setModalFiltro(true)
           }
@@ -688,13 +687,13 @@ const ClientesScreen = ({ navigation }) => {
         >
           <Pressable
             style={styles.modalEliminarContenido}
-            onPress={() => {}}
+            onPress={() => { }}
           >
             <View
               style={[
                 styles.iconoEliminar,
                 saldoClienteEliminar > 0 &&
-                  styles.iconoEliminarBloqueado,
+                styles.iconoEliminarBloqueado,
               ]}
             >
               <Ionicons
@@ -720,11 +719,9 @@ const ClientesScreen = ({ navigation }) => {
 
             <Text style={styles.nombreEliminar}>
               {clienteEliminar?.nombre ||
-                `${
-                  clienteEliminar?.nombres || ''
-                } ${
-                  clienteEliminar?.apellidos || ''
-                }`.trim()}
+                `${clienteEliminar?.nombres || ''
+                  } ${clienteEliminar?.apellidos || ''
+                  }`.trim()}
             </Text>
 
             {saldoClienteEliminar > 0 ? (
@@ -840,7 +837,7 @@ const ClientesScreen = ({ navigation }) => {
             style={
               styles.modalContenido
             }
-            onPress={() => {}}
+            onPress={() => { }}
           >
             <View
               style={
@@ -1142,8 +1139,10 @@ const styles = StyleSheet.create({
 
   busquedaFila: {
     flexDirection: 'row',
+    alignItems: 'center',
     marginHorizontal: 20,
     marginTop: 17,
+    marginBottom: 5,
     gap: 10,
   },
 
@@ -1163,6 +1162,16 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 15,
     color: '#000000',
+  },
+
+  botonLimpiarBusqueda: {
+    width: 32,
+    height: 32,
+
+    justifyContent: 'center',
+    alignItems: 'center',
+
+    marginLeft: 4,
   },
 
   botonFiltro: {

@@ -697,10 +697,13 @@ export default function ClientesEntregasScreen({
                   )
               );
 
+            const alias =
+              cliente?.aliasFacturacion?.trim();
+
             const nombre =
+              alias ||
               cliente?.nombre ||
-              `${cliente?.nombres || ''} ${cliente?.apellidos ||
-                ''
+              `${cliente?.nombres || ''} ${cliente?.apellidos || ''
                 }`.trim() ||
               entrega.nombreCliente ||
               'Cliente';
