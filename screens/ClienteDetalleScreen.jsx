@@ -1,4 +1,4 @@
-import React, {useMemo, useState,} from 'react';
+import React, { useMemo, useState, } from 'react';
 
 import {
   Image,
@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
-import {DateTimePickerAndroid,} from '@react-native-community/datetimepicker';
+import { DateTimePickerAndroid, } from '@react-native-community/datetimepicker';
 import { useUsuarios } from '../context/UsuariosContext';
 
 import { useEntregas } from '../context/EntregasContext';
@@ -43,115 +43,116 @@ const ClienteDetalleScreen = ({
     confirmarTransferenciaEntrega,
     eliminarEntregaHistorial,
     confirmarTransferenciaAbono,
+    deshacerUltimaAccion,
   } = useEntregas();
 
   const { usuarioActual } = useUsuarios();
 
-    // ==========================================
-    // CONFIRMACIÓN DE TRANSFERENCIA
-    // ==========================================
+  // ==========================================
+  // CONFIRMACIÓN DE TRANSFERENCIA
+  // ==========================================
 
-    const [
-      modalTransferenciaVisible,
-      setModalTransferenciaVisible,
-    ] = useState(false);
+  const [
+    modalTransferenciaVisible,
+    setModalTransferenciaVisible,
+  ] = useState(false);
 
-    const [
-      entregaTransferencia,
-      setEntregaTransferencia,
-    ] = useState(null);
+  const [
+    entregaTransferencia,
+    setEntregaTransferencia,
+  ] = useState(null);
 
-    const [
-      abonoTransferencia,
-      setAbonoTransferencia,
-    ] = useState(null);
+  const [
+    abonoTransferencia,
+    setAbonoTransferencia,
+  ] = useState(null);
 
-    const [
-      valorTransferencia,
-      setValorTransferencia,
-    ] = useState('');
+  const [
+    valorTransferencia,
+    setValorTransferencia,
+  ] = useState('');
 
-    const [
-      fechaTransferencia,
-      setFechaTransferencia,
-    ] = useState(null);
+  const [
+    fechaTransferencia,
+    setFechaTransferencia,
+  ] = useState(null);
 
-    const [
-      guardandoTransferencia,
-      setGuardandoTransferencia,
-    ] = useState(false);
+  const [
+    guardandoTransferencia,
+    setGuardandoTransferencia,
+  ] = useState(false);
 
-    const historial =
-      cliente
-        ? obtenerEntregasCliente(
-            cliente.id
-          )
-        : [];
-    
-    const [
-      comprobanteConfirmacion,
-      setComprobanteConfirmacion,
-    ] = useState(null);
+  const historial =
+    cliente
+      ? obtenerEntregasCliente(
+        cliente.id
+      )
+      : [];
 
-    // ==========================================
-    // ABONAR SALDO DESDE HISTORIAL
-    // ==========================================
+  const [
+    comprobanteConfirmacion,
+    setComprobanteConfirmacion,
+  ] = useState(null);
 
-    const [
-      modalAbonoVisible,
-      setModalAbonoVisible,
-    ] = useState(false);
+  // ==========================================
+  // ABONAR SALDO DESDE HISTORIAL
+  // ==========================================
 
-    const [
-      metodosAbono,
-      setMetodosAbono,
-    ] = useState([]);
+  const [
+    modalAbonoVisible,
+    setModalAbonoVisible,
+  ] = useState(false);
 
-    const [
-      abonoEfectivo,
-      setAbonoEfectivo,
-    ] = useState('');
+  const [
+    metodosAbono,
+    setMetodosAbono,
+  ] = useState([]);
 
-    const [
-      abonoTransferenciaMonto,
-      setAbonoTransferenciaMonto,
-    ] = useState('');
+  const [
+    abonoEfectivo,
+    setAbonoEfectivo,
+  ] = useState('');
 
-    const [
-      comprobanteAbono,
-      setComprobanteAbono,
-    ] = useState(null);
+  const [
+    abonoTransferenciaMonto,
+    setAbonoTransferenciaMonto,
+  ] = useState('');
 
-    const [
-      deudaSeleccionadaId,
-      setDeudaSeleccionadaId,
-    ] = useState(null);
+  const [
+    comprobanteAbono,
+    setComprobanteAbono,
+  ] = useState(null);
 
-    const [
-      guardandoAbono,
-      setGuardandoAbono,
-    ] = useState(false);
+  const [
+    deudaSeleccionadaId,
+    setDeudaSeleccionadaId,
+  ] = useState(null);
 
-    // ==========================================
-    // ELIMINACION DE HISTORIAL
-    // ==========================================
+  const [
+    guardandoAbono,
+    setGuardandoAbono,
+  ] = useState(false);
 
-    const [
-      modalEliminarVisible,
-      setModalEliminarVisible,
-    ] = useState(false);
+  // ==========================================
+  // ELIMINACION DE HISTORIAL
+  // ==========================================
 
-    const [
-      entregaAEliminar,
-      setEntregaAEliminar,
-    ] = useState(null);
+  const [
+    modalEliminarVisible,
+    setModalEliminarVisible,
+  ] = useState(false);
 
-    const [
-      eliminandoEntrega,
-      setEliminandoEntrega,
-    ] = useState(false);
+  const [
+    entregaAEliminar,
+    setEntregaAEliminar,
+  ] = useState(null);
 
-    const usaEfectivoAbono =
+  const [
+    eliminandoEntrega,
+    setEliminandoEntrega,
+  ] = useState(false);
+
+  const usaEfectivoAbono =
     metodosAbono.includes('Efectivo');
 
   const usaTransferenciaAbono =
@@ -160,20 +161,135 @@ const ClienteDetalleScreen = ({
   const efectivoAbonoNumerico =
     usaEfectivoAbono
       ? Number(
-          String(abonoEfectivo).replace(',', '.')
-        ) || 0
+        String(abonoEfectivo).replace(',', '.')
+      ) || 0
       : 0;
 
   const transferenciaAbonoNumerico =
     usaTransferenciaAbono
       ? Number(
-          String(abonoTransferenciaMonto).replace(',', '.')
-        ) || 0
+        String(abonoTransferenciaMonto).replace(',', '.')
+      ) || 0
       : 0;
 
   const totalAbono =
     efectivoAbonoNumerico +
     transferenciaAbonoNumerico;
+
+  // ==========================================
+  // DESHACER ÚLTIMA ACCIÓN DEL DÍA
+  // ==========================================
+
+  const manejarDeshacer = () => {
+
+    mostrarAlert({
+      titulo: 'Deshacer última acción',
+
+      mensaje:
+        '¿Desea revertir la última acción realizada hoy para este cliente?',
+
+      tipo: 'warning',
+
+      mostrarCancelar: true,
+
+      textoCancelar: 'Cancelar',
+
+      textoConfirmar: 'Deshacer',
+
+      onConfirmar: async () => {
+
+        try {
+
+          const resultado =
+            await deshacerUltimaAccion(
+              cliente.id
+            );
+
+          // ======================================
+          // ACCIÓN DESHECHA CORRECTAMENTE
+          // ======================================
+
+          if (resultado?.ok) {
+
+            mostrarAlert({
+              titulo: 'Acción deshecha',
+
+              mensaje:
+                resultado.mensaje ||
+                'La última acción fue deshecha correctamente.',
+
+              tipo: 'success',
+
+              textoConfirmar: 'Aceptar',
+            });
+
+            return;
+          }
+
+
+          // ======================================
+          // NO EXISTEN ACCIONES DE HOY
+          // ======================================
+
+          if (
+            resultado?.codigo ===
+            'SIN_ACCIONES_HOY'
+          ) {
+
+            mostrarAlert({
+              titulo:
+                'Sin modificaciones recientes',
+
+              mensaje:
+                'No existen modificaciones realizadas hoy para este cliente que puedan deshacerse.',
+
+              tipo: 'info',
+
+              textoConfirmar: 'Aceptar',
+            });
+
+            return;
+          }
+
+
+          // ======================================
+          // OTRO PROBLEMA
+          // ======================================
+
+          mostrarAlert({
+            titulo:
+              'No se pudo deshacer',
+
+            mensaje:
+              resultado?.mensaje ||
+              'No fue posible restaurar la última acción.',
+
+            tipo: 'error',
+
+            textoConfirmar: 'Aceptar',
+          });
+
+        } catch (error) {
+
+          console.log(
+            'Error al deshacer:',
+            error
+          );
+
+          mostrarAlert({
+            titulo: 'Error',
+
+            mensaje:
+              'Ocurrió un error al intentar deshacer la última acción.',
+
+            tipo: 'error',
+
+            textoConfirmar: 'Aceptar',
+          });
+        }
+      },
+    });
+  };
 
   // ==========================================
   // ABONOS POSTERIORES DE UNA ENTREGA
@@ -364,21 +480,21 @@ const ClienteDetalleScreen = ({
             new Date(a.fecha) - new Date(b.fecha)
         );
 
-        const deudaSeleccionada =
-          deudaSeleccionadaId
-            ? deudasPendientesAbono.find(
-                (deuda) =>
-                  String(deuda.id) ===
-                  String(deudaSeleccionadaId)
-              )
-            : null;
+      const deudaSeleccionada =
+        deudaSeleccionadaId
+          ? deudasPendientesAbono.find(
+            (deuda) =>
+              String(deuda.id) ===
+              String(deudaSeleccionadaId)
+          )
+          : null;
 
-        const saldoMaximoAbono =
-          deudaSeleccionada
-            ? Number(
-                deudaSeleccionada.saldoPendiente || 0
-              )
-            : Number(saldoPendienteTotal || 0);
+      const saldoMaximoAbono =
+        deudaSeleccionada
+          ? Number(
+            deudaSeleccionada.saldoPendiente || 0
+          )
+          : Number(saldoPendienteTotal || 0);
 
       const extension =
         comprobante.uri
@@ -425,9 +541,8 @@ const ClienteDetalleScreen = ({
 
       return (
         cliente.nombre ||
-        `${cliente.nombres || ''} ${
-          cliente.apellidos || ''
-        }`.trim()
+        `${cliente.nombres || ''} ${cliente.apellidos || ''
+          }`.trim()
       );
 
     }, [cliente]);
@@ -459,59 +574,59 @@ const ClienteDetalleScreen = ({
       0
     );
 
-    // ==========================================
-    // DEUDAS PENDIENTES PARA ABONO
-    // ==========================================
+  // ==========================================
+  // DEUDAS PENDIENTES PARA ABONO
+  // ==========================================
 
-    const deudasPendientesAbono = [...historial]
-      .filter(
-        (entrega) =>
-          Number(entrega.saldoPendiente || 0) > 0
+  const deudasPendientesAbono = [...historial]
+    .filter(
+      (entrega) =>
+        Number(entrega.saldoPendiente || 0) > 0
+    )
+    .sort((a, b) => {
+      const convertirFecha = (fecha) => {
+        if (!fecha) {
+          return 0;
+        }
+
+        const partes = String(fecha).split('/');
+
+        if (partes.length === 3) {
+          const [dia, mes, anio] = partes;
+
+          return new Date(
+            Number(anio),
+            Number(mes) - 1,
+            Number(dia)
+          ).getTime();
+        }
+
+        return new Date(fecha).getTime() || 0;
+      };
+
+      return (
+        convertirFecha(a.fecha) -
+        convertirFecha(b.fecha)
+      );
+    });
+
+  const deudaSeleccionada =
+    deudaSeleccionadaId
+      ? deudasPendientesAbono.find(
+        (deuda) =>
+          String(deuda.id) ===
+          String(deudaSeleccionadaId)
       )
-      .sort((a, b) => {
-        const convertirFecha = (fecha) => {
-          if (!fecha) {
-            return 0;
-          }
+      : null;
 
-          const partes = String(fecha).split('/');
+  const saldoMaximoAbono =
+    deudaSeleccionada
+      ? Number(
+        deudaSeleccionada.saldoPendiente || 0
+      )
+      : Number(saldoPendienteTotal || 0);
 
-          if (partes.length === 3) {
-            const [dia, mes, anio] = partes;
-
-            return new Date(
-              Number(anio),
-              Number(mes) - 1,
-              Number(dia)
-            ).getTime();
-          }
-
-          return new Date(fecha).getTime() || 0;
-        };
-
-        return (
-          convertirFecha(a.fecha) -
-          convertirFecha(b.fecha)
-        );
-      });
-
-    const deudaSeleccionada =
-      deudaSeleccionadaId
-        ? deudasPendientesAbono.find(
-            (deuda) =>
-              String(deuda.id) ===
-              String(deudaSeleccionadaId)
-          )
-        : null;
-
-    const saldoMaximoAbono =
-      deudaSeleccionada
-        ? Number(
-            deudaSeleccionada.saldoPendiente || 0
-          )
-        : Number(saldoPendienteTotal || 0);
-
-    // ==========================================
+  // ==========================================
   // TRANSFERENCIA AUTOMÁTICA PENDIENTE
   // ==========================================
 
@@ -520,14 +635,14 @@ const ClienteDetalleScreen = ({
       .filter(
         (abono) =>
           String(abono.clienteId) ===
-            String(cliente?.id) &&
+          String(cliente?.id) &&
           abono.tipo ===
-            'AUTOMATICO' &&
+          'AUTOMATICO' &&
           Number(
             abono.pagoTransferencia || 0
           ) > 0 &&
           abono.transferenciaConfirmada !==
-            true
+          true
       )
       .sort(
         (
@@ -539,14 +654,14 @@ const ClienteDetalleScreen = ({
             abonoA.fechaCreacion
               ?.toMillis
               ? abonoA.fechaCreacion
-                  .toMillis()
+                .toMillis()
               : 0;
 
           const fechaB =
             abonoB.fechaCreacion
               ?.toMillis
               ? abonoB.fechaCreacion
-                  .toMillis()
+                .toMillis()
               : 0;
 
           return (
@@ -558,7 +673,7 @@ const ClienteDetalleScreen = ({
 
   const abonoAutomaticoPendiente =
     abonosAutomaticosPendientes.length >
-    0
+      0
       ? abonosAutomaticosPendientes[0]
       : null;
 
@@ -815,17 +930,17 @@ const ClienteDetalleScreen = ({
         comprobante:
           comprobanteGuardado
             ? {
-                uri: comprobanteGuardado.uri,
-                nombre:
-                  comprobanteGuardado.nombre,
+              uri: comprobanteGuardado.uri,
+              nombre:
+                comprobanteGuardado.nombre,
 
-                usuarioId:
-                  usuarioActual?.id || null,
+              usuarioId:
+                usuarioActual?.id || null,
 
-                usuarioNombre:
-                  usuarioActual?.nombre ||
-                  'Usuario',
-              }
+              usuarioNombre:
+                usuarioActual?.nombre ||
+                'Usuario',
+            }
             : null,
       });
 
@@ -892,98 +1007,57 @@ const ClienteDetalleScreen = ({
     );
   };
 
-    // ==========================================
-    // CONFIRMAR TRANSFERENCIA
-    // ==========================================
+  // ==========================================
+  // CONFIRMAR TRANSFERENCIA
+  // ==========================================
 
-    const abrirConfirmacionTransferencia = (
+  const abrirConfirmacionTransferencia = (
 
-      entrega
-    ) => {
-      setComprobanteConfirmacion(null);
-
-      setAbonoTransferencia(
-        null
-      );
-
-      setEntregaTransferencia(
-        entrega
-      );
-
-      setValorTransferencia(
-        Number(
-          entrega.pagoTransferencia || 0
-        ).toFixed(2)
-      );
-
-      setFechaTransferencia(
-        null
-      );
-
-      setComprobanteConfirmacion(null);
-
-      setModalTransferenciaVisible(
-        true
-      );
-    };
-
-    const abrirConfirmacionAbono = (
-      abono
-    ) => {
-      setComprobanteConfirmacion(null);
-
-      setEntregaTransferencia(
-        null
-      );
-
-      setAbonoTransferencia(
-        abono
-      );
-
-      setValorTransferencia(
-        Number(
-          abono.transferenciaTotal || 0
-        ).toFixed(2)
-      );
-
-      setFechaTransferencia(
-        null
-      );
-
-      setModalTransferenciaVisible(
-        true
-      );
-    };
-
-    const abrirConfirmacionAutomatica =
-  () => {
+    entrega
+  ) => {
     setComprobanteConfirmacion(null);
 
-    if (
-      !abonoAutomaticoPendiente
-    ) {
-      return;
-    }
+    setAbonoTransferencia(
+      null
+    );
+
+    setEntregaTransferencia(
+      entrega
+    );
+
+    setValorTransferencia(
+      Number(
+        entrega.pagoTransferencia || 0
+      ).toFixed(2)
+    );
+
+    setFechaTransferencia(
+      null
+    );
+
+    setComprobanteConfirmacion(null);
+
+    setModalTransferenciaVisible(
+      true
+    );
+  };
+
+  const abrirConfirmacionAbono = (
+    abono
+  ) => {
+    setComprobanteConfirmacion(null);
 
     setEntregaTransferencia(
       null
     );
 
-    setAbonoTransferencia({
-      abonoId:
-        abonoAutomaticoPendiente.id,
-
-      transferenciaTotal:
-        Number(
-          abonoAutomaticoPendiente
-            .pagoTransferencia || 0
-        ),
-    });
+    setAbonoTransferencia(
+      abono
+    );
 
     setValorTransferencia(
       Number(
-        abonoAutomaticoPendiente
-          .pagoTransferencia || 0
+        abono.transferenciaTotal || 0
       ).toFixed(2)
     );
 
@@ -996,290 +1070,331 @@ const ClienteDetalleScreen = ({
     );
   };
 
-    const cerrarConfirmacionTransferencia =
-      () => {
+  const abrirConfirmacionAutomatica =
+    () => {
+      setComprobanteConfirmacion(null);
 
-        if (guardandoTransferencia) {
-          return;
-        }
-
-        setModalTransferenciaVisible(
-          false
-        );
-
-        setEntregaTransferencia(
-          null
-        );
-
-        setAbonoTransferencia(
-          null
-        );
-
-        setValorTransferencia(
-          ''
-        );
-
-        setFechaTransferencia(
-          null
-        );
-      };
-
-    const formatearFechaTransferencia = (
-      fecha
-    ) => {
-
-      if (!fecha) {
-        return '';
+      if (
+        !abonoAutomaticoPendiente
+      ) {
+        return;
       }
 
-      const dia =
-        String(
-          fecha.getDate()
-        ).padStart(
-          2,
-          '0'
-        );
+      setEntregaTransferencia(
+        null
+      );
 
-      const mes =
-        String(
-          fecha.getMonth() + 1
-        ).padStart(
-          2,
-          '0'
-        );
+      setAbonoTransferencia({
+        abonoId:
+          abonoAutomaticoPendiente.id,
 
-      const anio =
-        fecha.getFullYear();
+        transferenciaTotal:
+          Number(
+            abonoAutomaticoPendiente
+              .pagoTransferencia || 0
+          ),
+      });
 
-      return `${dia}/${mes}/${anio}`;
+      setValorTransferencia(
+        Number(
+          abonoAutomaticoPendiente
+            .pagoTransferencia || 0
+        ).toFixed(2)
+      );
+
+      setFechaTransferencia(
+        null
+      );
+
+      setModalTransferenciaVisible(
+        true
+      );
     };
 
-    const abrirCalendarioTransferencia =
-      () => {
+  const cerrarConfirmacionTransferencia =
+    () => {
 
-        const hoy =
-          new Date();
+      if (guardandoTransferencia) {
+        return;
+      }
 
-        const fechaInicial =
-          fechaTransferencia ||
-          hoy;
+      setModalTransferenciaVisible(
+        false
+      );
 
-        DateTimePickerAndroid.open({
-          value:
-            fechaInicial,
+      setEntregaTransferencia(
+        null
+      );
 
-          mode:
-            'date',
+      setAbonoTransferencia(
+        null
+      );
 
-          is24Hour:
-            true,
+      setValorTransferencia(
+        ''
+      );
 
-          maximumDate:
-            hoy,
+      setFechaTransferencia(
+        null
+      );
+    };
 
-          onChange: (
-            event,
-            fechaSeleccionada
-          ) => {
+  const formatearFechaTransferencia = (
+    fecha
+  ) => {
 
-            if (
-              event.type ===
-                'set' &&
-              fechaSeleccionada
-            ) {
+    if (!fecha) {
+      return '';
+    }
 
-              setFechaTransferencia(
-                fechaSeleccionada
-              );
-            }
-          },
-        });
-      };
+    const dia =
+      String(
+        fecha.getDate()
+      ).padStart(
+        2,
+        '0'
+      );
 
-    const confirmarTransferencia =
-      async () => {
+    const mes =
+      String(
+        fecha.getMonth() + 1
+      ).padStart(
+        2,
+        '0'
+      );
 
-        if (
-          !entregaTransferencia &&
-          !abonoTransferencia
-        ) {
-          return;
-        }
+    const anio =
+      fecha.getFullYear();
 
-        const valor =
-          Number(
-            String(
-              valorTransferencia
-            ).replace(
-              ',',
-              '.'
-            )
-          );
+    return `${dia}/${mes}/${anio}`;
+  };
 
-        if (
-          Number.isNaN(valor) ||
-          valor < 0
-        ) {
+  const abrirCalendarioTransferencia =
+    () => {
 
-          mostrarAlert({
-            titulo:
-              'Valor inválido',
+      const hoy =
+        new Date();
 
-            mensaje:
-              'Ingrese el valor recibido de la transferencia.',
+      const fechaInicial =
+        fechaTransferencia ||
+        hoy;
 
-            tipo:
-              'warning',
+      DateTimePickerAndroid.open({
+        value:
+          fechaInicial,
 
-            textoConfirmar:
-              'Aceptar',
-          });
+        mode:
+          'date',
 
-          return;
-        }
+        is24Hour:
+          true,
 
-        if (!fechaTransferencia) {
+        maximumDate:
+          hoy,
 
-          mostrarAlert({
-            titulo:
-              'Fecha requerida',
+        onChange: (
+          event,
+          fechaSeleccionada
+        ) => {
 
-            mensaje:
-              'Seleccione manualmente la fecha de la transferencia.',
-
-            tipo:
-              'warning',
-
-            textoConfirmar:
-              'Aceptar',
-          });
-
-          return;
-        }
-
-        setGuardandoTransferencia(
-          true
-        );
-
-        let resultado;
-
-        let comprobanteGuardado = null;
           if (
-            entregaTransferencia &&
-            comprobanteConfirmacion
+            event.type ===
+            'set' &&
+            fechaSeleccionada
           ) {
-            comprobanteGuardado =
-              await guardarComprobanteConfirmacion(
-                comprobanteConfirmacion
-              );
 
-            if (!comprobanteGuardado?.uri) {
-              setGuardandoTransferencia(false);
-
-              mostrarAlert({
-                titulo:
-                  'No se pudo guardar el comprobante',
-
-                mensaje:
-                  'La transferencia no fue confirmada. Intente nuevamente.',
-
-                tipo:
-                  'warning',
-
-                textoConfirmar:
-                  'Aceptar',
-              });
-
-              return;
-            }
+            setFechaTransferencia(
+              fechaSeleccionada
+            );
           }
+        },
+      });
+    };
 
-        if (abonoTransferencia) {
+  const confirmarTransferencia =
+    async () => {
 
-          resultado =
-            await confirmarTransferenciaAbono({
-              abonoId:
-                abonoTransferencia.abonoId,
+      if (
+        !entregaTransferencia &&
+        !abonoTransferencia
+      ) {
+        return;
+      }
 
-              montoRecibido:
-                valor,
-
-              fechaTransferencia:
-                formatearFechaTransferencia(
-                  fechaTransferencia
-                ),
-            });
-
-        } else {
-
-          resultado =
-            await confirmarTransferenciaEntrega({
-              entregaId:
-                entregaTransferencia.id,
-
-              montoRecibido:
-                valor,
-
-              fechaTransferencia:
-                formatearFechaTransferencia(
-                  fechaTransferencia
-                ),
-
-              comprobante:
-                comprobanteGuardado
-                  ? {
-                      ...comprobanteGuardado,
-
-                      usuarioId:
-                        usuarioActual?.id || null,
-
-                      usuarioNombre:
-                        usuarioActual?.nombre ||
-                        'Usuario',
-                    }
-                  : null,
-            });
-        }
-
-        setGuardandoTransferencia(
-          false
+      const valor =
+        Number(
+          String(
+            valorTransferencia
+          ).replace(
+            ',',
+            '.'
+          )
         );
 
-        if (!resultado.ok) {
-
-          mostrarAlert({
-            titulo:
-              'No se pudo confirmar',
-
-            mensaje:
-              resultado.mensaje,
-
-            tipo:
-              'warning',
-
-            textoConfirmar:
-              'Aceptar',
-          });
-
-          return;
-        }
-
-        cerrarConfirmacionTransferencia();
+      if (
+        Number.isNaN(valor) ||
+        valor < 0
+      ) {
 
         mostrarAlert({
           titulo:
-            'Transferencia confirmada',
+            'Valor inválido',
+
+          mensaje:
+            'Ingrese el valor recibido de la transferencia.',
+
+          tipo:
+            'warning',
+
+          textoConfirmar:
+            'Aceptar',
+        });
+
+        return;
+      }
+
+      if (!fechaTransferencia) {
+
+        mostrarAlert({
+          titulo:
+            'Fecha requerida',
+
+          mensaje:
+            'Seleccione manualmente la fecha de la transferencia.',
+
+          tipo:
+            'warning',
+
+          textoConfirmar:
+            'Aceptar',
+        });
+
+        return;
+      }
+
+      setGuardandoTransferencia(
+        true
+      );
+
+      let resultado;
+
+      let comprobanteGuardado = null;
+      if (
+        entregaTransferencia &&
+        comprobanteConfirmacion
+      ) {
+        comprobanteGuardado =
+          await guardarComprobanteConfirmacion(
+            comprobanteConfirmacion
+          );
+
+        if (!comprobanteGuardado?.uri) {
+          setGuardandoTransferencia(false);
+
+          mostrarAlert({
+            titulo:
+              'No se pudo guardar el comprobante',
+
+            mensaje:
+              'La transferencia no fue confirmada. Intente nuevamente.',
+
+            tipo:
+              'warning',
+
+            textoConfirmar:
+              'Aceptar',
+          });
+
+          return;
+        }
+      }
+
+      if (abonoTransferencia) {
+
+        resultado =
+          await confirmarTransferenciaAbono({
+            abonoId:
+              abonoTransferencia.abonoId,
+
+            montoRecibido:
+              valor,
+
+            fechaTransferencia:
+              formatearFechaTransferencia(
+                fechaTransferencia
+              ),
+          });
+
+      } else {
+
+        resultado =
+          await confirmarTransferenciaEntrega({
+            entregaId:
+              entregaTransferencia.id,
+
+            montoRecibido:
+              valor,
+
+            fechaTransferencia:
+              formatearFechaTransferencia(
+                fechaTransferencia
+              ),
+
+            comprobante:
+              comprobanteGuardado
+                ? {
+                  ...comprobanteGuardado,
+
+                  usuarioId:
+                    usuarioActual?.id || null,
+
+                  usuarioNombre:
+                    usuarioActual?.nombre ||
+                    'Usuario',
+                }
+                : null,
+          });
+      }
+
+      setGuardandoTransferencia(
+        false
+      );
+
+      if (!resultado.ok) {
+
+        mostrarAlert({
+          titulo:
+            'No se pudo confirmar',
 
           mensaje:
             resultado.mensaje,
 
           tipo:
-            'success',
+            'warning',
 
           textoConfirmar:
             'Aceptar',
         });
-      };
+
+        return;
+      }
+
+      cerrarConfirmacionTransferencia();
+
+      mostrarAlert({
+        titulo:
+          'Transferencia confirmada',
+
+        mensaje:
+          resultado.mensaje,
+
+        tipo:
+          'success',
+
+        textoConfirmar:
+          'Aceptar',
+      });
+    };
 
   // ==========================================
   // ALERTA
@@ -1372,100 +1487,100 @@ const ClienteDetalleScreen = ({
   // ==========================================
 
   const confirmarEliminarEntrega =
-  async () => {
-    if (
-      !entregaAEliminar?.id ||
-      eliminandoEntrega
-    ) {
-      return;
-    }
-
-    setEliminandoEntrega(true);
-
-    try {
-      const resultado =
-        await eliminarEntregaHistorial(
-          entregaAEliminar.id
-        );
-
-      if (!resultado?.ok) {
-        setModalEliminarVisible(false);
-
-        mostrarAlert({
-          titulo:
-            resultado?.codigo ===
-            'TIENE_ABONOS'
-              ? 'No se puede eliminar'
-              : 'No se pudo eliminar',
-
-          mensaje:
-            resultado?.mensaje ||
-            'No se pudo eliminar la entrega.',
-
-          tipo:
-            'warning',
-
-          textoConfirmar:
-            'Entendido',
-        });
-
+    async () => {
+      if (
+        !entregaAEliminar?.id ||
+        eliminandoEntrega
+      ) {
         return;
       }
 
-      // ======================================
-      // ELIMINAR COMPROBANTE LOCAL
-      // SOLO DESPUÉS DE ELIMINAR EN FIRESTORE
-      // ======================================
+      setEliminandoEntrega(true);
 
-      if (
-        entregaAEliminar
-          ?.comprobanteTransferencia
-      ) {
-        try {
-          const informacion =
-            await FileSystem.getInfoAsync(
-              entregaAEliminar
-                .comprobanteTransferencia
-            );
+      try {
+        const resultado =
+          await eliminarEntregaHistorial(
+            entregaAEliminar.id
+          );
 
-          if (informacion.exists) {
-            await FileSystem.deleteAsync(
-              entregaAEliminar
-                .comprobanteTransferencia,
-              {
-                idempotent: true,
-              }
+        if (!resultado?.ok) {
+          setModalEliminarVisible(false);
+
+          mostrarAlert({
+            titulo:
+              resultado?.codigo ===
+                'TIENE_ABONOS'
+                ? 'No se puede eliminar'
+                : 'No se pudo eliminar',
+
+            mensaje:
+              resultado?.mensaje ||
+              'No se pudo eliminar la entrega.',
+
+            tipo:
+              'warning',
+
+            textoConfirmar:
+              'Entendido',
+          });
+
+          return;
+        }
+
+        // ======================================
+        // ELIMINAR COMPROBANTE LOCAL
+        // SOLO DESPUÉS DE ELIMINAR EN FIRESTORE
+        // ======================================
+
+        if (
+          entregaAEliminar
+            ?.comprobanteTransferencia
+        ) {
+          try {
+            const informacion =
+              await FileSystem.getInfoAsync(
+                entregaAEliminar
+                  .comprobanteTransferencia
+              );
+
+            if (informacion.exists) {
+              await FileSystem.deleteAsync(
+                entregaAEliminar
+                  .comprobanteTransferencia,
+                {
+                  idempotent: true,
+                }
+              );
+            }
+          } catch (error) {
+            console.log(
+              'No se pudo eliminar el comprobante local:',
+              error
             );
           }
-        } catch (error) {
-          console.log(
-            'No se pudo eliminar el comprobante local:',
-            error
-          );
         }
+
+        setModalEliminarVisible(false);
+        setEntregaAEliminar(null);
+
+        mostrarAlert({
+          titulo:
+            'Entrega eliminada',
+
+          mensaje:
+            'La entrega fue eliminada correctamente.',
+
+          tipo:
+            'success',
+
+          textoConfirmar:
+            'Aceptar',
+        });
+
+      } finally {
+        setEliminandoEntrega(false);
       }
-
-      setModalEliminarVisible(false);
-      setEntregaAEliminar(null);
-
-      mostrarAlert({
-        titulo:
-          'Entrega eliminada',
-
-        mensaje:
-          'La entrega fue eliminada correctamente.',
-
-        tipo:
-          'success',
-
-        textoConfirmar:
-          'Aceptar',
-      });
-
-    } finally {
-      setEliminandoEntrega(false);
-    }
-  };
+    };
 
   // ==========================================
   // RENDER ENTREGA
@@ -1491,10 +1606,10 @@ const ClienteDetalleScreen = ({
       )
         ? item.metodosPago
         : item.metodoPago
-        ? [
+          ? [
             item.metodoPago,
           ]
-        : [];
+          : [];
 
     const sinMetodoPago =
       metodos.length === 0 &&
@@ -1624,17 +1739,17 @@ const ClienteDetalleScreen = ({
 
                   {index <
                     item.productos.length -
-                      1 && (
+                    1 && (
 
-                    <Text
-                      style={
-                        styles.signoMas
-                      }
-                    >
-                      +
-                    </Text>
+                      <Text
+                        style={
+                          styles.signoMas
+                        }
+                      >
+                        +
+                      </Text>
 
-                  )}
+                    )}
 
                 </View>
 
@@ -1779,61 +1894,6 @@ const ClienteDetalleScreen = ({
               'Efectivo'
             ) && (
 
-              <View
-                style={
-                  styles.metodoItem
-                }
-              >
-
-                <Ionicons
-                  name="cash-outline"
-                  size={17}
-                  color="#08752F"
-                />
-
-                <Text
-                  style={
-                    styles.metodoTexto
-                  }
-                >
-                  Efectivo
-                </Text>
-
-                <Text
-                  style={
-                    styles.metodoMonto
-                  }
-                >
-                  $
-                  {Number(
-                    item.pagoEfectivo ??
-                    (
-                      item.metodoPago ===
-                      'Efectivo'
-                        ? item.abona
-                        : 0
-                    )
-                  ).toFixed(
-                    2
-                  )}
-                </Text>
-
-              </View>
-
-            )}
-
-                        {/* PAGO ORIGINAL POR TRANSFERENCIA */}
-
-            {metodos.includes(
-              'Transferencia'
-            ) && (
-
-              <View
-                style={
-                  styles.transferenciaContainer
-                }
-              >
-
                 <View
                   style={
                     styles.metodoItem
@@ -1841,30 +1901,30 @@ const ClienteDetalleScreen = ({
                 >
 
                   <Ionicons
-                    name="card-outline"
+                    name="cash-outline"
                     size={17}
-                    color="#D69E00"
+                    color="#08752F"
                   />
 
                   <Text
                     style={
-                      styles.transferenciaTexto
+                      styles.metodoTexto
                     }
                   >
-                    Transferencia
+                    Efectivo
                   </Text>
 
                   <Text
                     style={
-                      styles.transferenciaMonto
+                      styles.metodoMonto
                     }
                   >
                     $
                     {Number(
-                      item.pagoTransferencia ??
+                      item.pagoEfectivo ??
                       (
                         item.metodoPago ===
-                        'Transferencia'
+                          'Efectivo'
                           ? item.abona
                           : 0
                       )
@@ -1873,220 +1933,66 @@ const ClienteDetalleScreen = ({
                     )}
                   </Text>
 
-                  {item.transferenciaConfirmada ===
-                    true ? (
-
-                    item.transferenciaConDiferencia ===
-                      true ? (
-
-                      <View
-                        style={
-                          styles.badgeTransferencia
-                        }
-                      >
-
-                        <Text
-                          style={
-                            styles.badgeTransferenciaTexto
-                          }
-                        >
-                          {
-                            item.fechaConfirmacionTransferencia
-                          }
-                        </Text>
-
-                      </View>
-
-                    ) : (
-
-                      <View
-                        style={
-                          styles.badgeTransferencia
-                        }
-                      >
-
-                        <Ionicons
-                          name="checkmark-circle"
-                          size={13}
-                          color="#A66F00"
-                        />
-
-                        <Text
-                          style={
-                            styles.badgeTransferenciaTexto
-                          }
-                        >
-                          Confirmado
-                        </Text>
-
-                      </View>
-
-                    )
-
-                  ) : null}
-
                 </View>
 
-                {item.transferenciaConfirmada !==
-                  true && (
+              )}
 
-                  <TouchableOpacity
+            {/* PAGO ORIGINAL POR TRANSFERENCIA */}
+
+            {metodos.includes(
+              'Transferencia'
+            ) && (
+
+                <View
+                  style={
+                    styles.transferenciaContainer
+                  }
+                >
+
+                  <View
                     style={
-                      styles.botonConfirmarTransferencia
-                    }
-                    onPress={() =>
-                      abrirConfirmacionTransferencia(
-                        item
-                      )
+                      styles.metodoItem
                     }
                   >
 
                     <Ionicons
-                      name="checkmark-circle-outline"
+                      name="card-outline"
                       size={17}
-                      color="#7A5700"
+                      color="#D69E00"
                     />
 
                     <Text
                       style={
-                        styles.textoConfirmarTransferencia
+                        styles.transferenciaTexto
                       }
                     >
-                      Confirmar transferencia
+                      Transferencia
                     </Text>
 
-                  </TouchableOpacity>
-
-                )}
-
-              </View>
-
-            )}
-
-            {/* ABONOS POSTERIORES */}
-
-            {abonosEntrega.map(
-              (
-                abono,
-                index
-              ) => (
-
-                <React.Fragment
-                  key={`${abono.id}-${index}`}
-                >
-
-                  {abono.efectivo >
-                    0 && (
-
-                    <View
+                    <Text
                       style={
-                        styles.metodoItem
+                        styles.transferenciaMonto
                       }
                     >
+                      $
+                      {Number(
+                        item.pagoTransferencia ??
+                        (
+                          item.metodoPago ===
+                            'Transferencia'
+                            ? item.abona
+                            : 0
+                        )
+                      ).toFixed(
+                        2
+                      )}
+                    </Text>
 
-                      <Ionicons
-                        name="cash-outline"
-                        size={17}
-                        color="#08752F"
-                      />
+                    {item.transferenciaConfirmada ===
+                      true ? (
 
-                      <Text
-                        style={
-                          styles.metodoTexto
-                        }
-                      >
-                        Efectivo
-                      </Text>
-
-                      <Text
-                        style={
-                          styles.metodoMonto
-                        }
-                      >
-                        $
-                        {Number(
-                          abono.efectivo
-                        ).toFixed(
-                          2
-                        )}
-                      </Text>
-
-                      <View
-                        style={
-                          styles.badgeAbono
-                        }
-                      >
-
-                        <Text
-                          style={
-                            styles.badgeAbonoTexto
-                          }
-                        >
-                          Abono {abono.fecha}
-                        </Text>
-
-                      </View>
-
-                    </View>
-
-                  )}
-
-                  {abono.transferencia >
-                  0 && (
-
-                  <View
-                    style={
-                      styles.transferenciaContainer
-                    }
-                  >
-
-                    <View
-                      style={
-                        styles.metodoItem
-                      }
-                    >
-
-                      <Ionicons
-                        name="card-outline"
-                        size={17}
-                        color="#D69E00"
-                      />
-
-                      <Text
-                        style={
-                          styles.transferenciaTexto
-                        }
-                      >
-                        Transferencia
-                      </Text>
-
-                      <Text
-                        style={
-                          styles.transferenciaMonto
-                        }
-                      >
-                        $
-                        {Number(
-                          abono.transferencia
-                        ).toFixed(2)}
-                      </Text>
-
-                      <View
-                        style={
-                          styles.badgeAbono
-                        }
-                      >
-                        <Text
-                          style={
-                            styles.badgeAbonoTexto
-                          }
-                        >
-                          Abono
-                        </Text>
-                      </View>
-
-                      {abono.transferenciaConfirmada ===
-                        true && (
+                      item.transferenciaConDiferencia ===
+                        true ? (
 
                         <View
                           style={
@@ -2094,44 +2000,58 @@ const ClienteDetalleScreen = ({
                           }
                         >
 
-                          {abono.transferenciaConDiferencia !==
-                            true && (
-                            <Ionicons
-                              name="checkmark-circle"
-                              size={13}
-                              color="#A66F00"
-                            />
-                          )}
+                          <Text
+                            style={
+                              styles.badgeTransferenciaTexto
+                            }
+                          >
+                            {
+                              item.fechaConfirmacionTransferencia
+                            }
+                          </Text>
+
+                        </View>
+
+                      ) : (
+
+                        <View
+                          style={
+                            styles.badgeTransferencia
+                          }
+                        >
+
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={13}
+                            color="#A66F00"
+                          />
 
                           <Text
                             style={
                               styles.badgeTransferenciaTexto
                             }
                           >
-                            {abono.transferenciaConDiferencia ===
-                            true
-                              ? abono.fechaConfirmacionTransferencia
-                              : 'Confirmado'}
+                            Confirmado
                           </Text>
 
                         </View>
 
-                      )}
+                      )
 
-                    </View>
+                    ) : null}
 
-                    {abono.transferenciaConfirmada !==
-                      true &&
-                      abono.tipo ===
-                        'ESPECIFICO' && (
+                  </View>
+
+                  {item.transferenciaConfirmada !==
+                    true && (
 
                       <TouchableOpacity
                         style={
                           styles.botonConfirmarTransferencia
                         }
                         onPress={() =>
-                          abrirConfirmacionAbono(
-                            abono
+                          abrirConfirmacionTransferencia(
+                            item
                           )
                         }
                       >
@@ -2154,9 +2074,204 @@ const ClienteDetalleScreen = ({
 
                     )}
 
-                  </View>
+                </View>
 
-                )}
+              )}
+
+            {/* ABONOS POSTERIORES */}
+
+            {abonosEntrega.map(
+              (
+                abono,
+                index
+              ) => (
+
+                <React.Fragment
+                  key={`${abono.id}-${index}`}
+                >
+
+                  {abono.efectivo >
+                    0 && (
+
+                      <View
+                        style={
+                          styles.metodoItem
+                        }
+                      >
+
+                        <Ionicons
+                          name="cash-outline"
+                          size={17}
+                          color="#08752F"
+                        />
+
+                        <Text
+                          style={
+                            styles.metodoTexto
+                          }
+                        >
+                          Efectivo
+                        </Text>
+
+                        <Text
+                          style={
+                            styles.metodoMonto
+                          }
+                        >
+                          $
+                          {Number(
+                            abono.efectivo
+                          ).toFixed(
+                            2
+                          )}
+                        </Text>
+
+                        <View
+                          style={
+                            styles.badgeAbono
+                          }
+                        >
+
+                          <Text
+                            style={
+                              styles.badgeAbonoTexto
+                            }
+                          >
+                            Abono {abono.fecha}
+                          </Text>
+
+                        </View>
+
+                      </View>
+
+                    )}
+
+                  {abono.transferencia >
+                    0 && (
+
+                      <View
+                        style={
+                          styles.transferenciaContainer
+                        }
+                      >
+
+                        <View
+                          style={
+                            styles.metodoItem
+                          }
+                        >
+
+                          <Ionicons
+                            name="card-outline"
+                            size={17}
+                            color="#D69E00"
+                          />
+
+                          <Text
+                            style={
+                              styles.transferenciaTexto
+                            }
+                          >
+                            Transferencia
+                          </Text>
+
+                          <Text
+                            style={
+                              styles.transferenciaMonto
+                            }
+                          >
+                            $
+                            {Number(
+                              abono.transferencia
+                            ).toFixed(2)}
+                          </Text>
+
+                          <View
+                            style={
+                              styles.badgeAbono
+                            }
+                          >
+                            <Text
+                              style={
+                                styles.badgeAbonoTexto
+                              }
+                            >
+                              Abono
+                            </Text>
+                          </View>
+
+                          {abono.transferenciaConfirmada ===
+                            true && (
+
+                              <View
+                                style={
+                                  styles.badgeTransferencia
+                                }
+                              >
+
+                                {abono.transferenciaConDiferencia !==
+                                  true && (
+                                    <Ionicons
+                                      name="checkmark-circle"
+                                      size={13}
+                                      color="#A66F00"
+                                    />
+                                  )}
+
+                                <Text
+                                  style={
+                                    styles.badgeTransferenciaTexto
+                                  }
+                                >
+                                  {abono.transferenciaConDiferencia ===
+                                    true
+                                    ? abono.fechaConfirmacionTransferencia
+                                    : 'Confirmado'}
+                                </Text>
+
+                              </View>
+
+                            )}
+
+                        </View>
+
+                        {abono.transferenciaConfirmada !==
+                          true &&
+                          abono.tipo ===
+                          'ESPECIFICO' && (
+
+                            <TouchableOpacity
+                              style={
+                                styles.botonConfirmarTransferencia
+                              }
+                              onPress={() =>
+                                abrirConfirmacionAbono(
+                                  abono
+                                )
+                              }
+                            >
+
+                              <Ionicons
+                                name="checkmark-circle-outline"
+                                size={17}
+                                color="#7A5700"
+                              />
+
+                              <Text
+                                style={
+                                  styles.textoConfirmarTransferencia
+                                }
+                              >
+                                Confirmar transferencia
+                              </Text>
+
+                            </TouchableOpacity>
+
+                          )}
+
+                      </View>
+
+                    )}
                 </React.Fragment>
 
               )
@@ -2281,48 +2396,34 @@ const ClienteDetalleScreen = ({
         }
       >
 
-        <View
-          style={
-            styles.historialTituloFila
-          }
-        >
+        <View style={styles.historialTituloFila}>
 
-          <Text
-            style={
-              styles.historialTitulo
-            }
-          >
-            Historial
-          </Text>
-
-          {abonoAutomaticoPendiente && (
+          {/* IZQUIERDA */}
+          <View style={styles.historialTituloIzquierda}>
 
             <TouchableOpacity
-              style={
-                styles.botonConfirmarHistorial
-              }
-              onPress={
-                abrirConfirmacionAutomatica
-              }
+              style={styles.botonDeshacer}
+              onPress={manejarDeshacer}
+              activeOpacity={0.7}
             >
-
               <Ionicons
-                name="checkmark-circle-outline"
-                size={16}
-                color="#7A5700"
+                name="arrow-undo-outline"
+                size={23}
+                color="#08752F"
               />
-
-              <Text
-                style={
-                  styles.textoConfirmarHistorial
-                }
-              >
-                Confirmar transferencia
-              </Text>
-
             </TouchableOpacity>
 
-          )}
+            <Text style={styles.historialTitulo}>
+              Historial
+            </Text>
+
+          </View>
+
+
+          {/* DERECHA */}
+          {/* AQUÍ DEJAS EXACTAMENTE COMO ESTÁ
+      TU BOTÓN DINÁMICO DE
+      CONFIRMAR TRANSFERENCIA */}
 
         </View>
 
@@ -2330,11 +2431,11 @@ const ClienteDetalleScreen = ({
           <Text style={styles.saldoTotalLabel}>
             Saldo pendiente total
           </Text>
-          
+
           <Text
             style={[
               styles.saldoTotalValor,
-              saldoPendienteTotal <=0
+              saldoPendienteTotal <= 0
                 ? styles.saldoTotalCero
                 : styles.saldoTotalPendiente,
             ]}>$
@@ -2454,796 +2555,796 @@ const ClienteDetalleScreen = ({
 
       </View>
 
-            {/* MODAL CONFIRMAR TRANSFERENCIA */}
+      {/* MODAL CONFIRMAR TRANSFERENCIA */}
 
-            <Modal
-              visible={
-                modalTransferenciaVisible
-              }
-              transparent
-              animationType="fade"
-              onRequestClose={
-                cerrarConfirmacionTransferencia
+      <Modal
+        visible={
+          modalTransferenciaVisible
+        }
+        transparent
+        animationType="fade"
+        onRequestClose={
+          cerrarConfirmacionTransferencia
+        }
+      >
+
+        <View
+          style={
+            styles.modalFondo
+          }
+        >
+
+          <View
+            style={
+              styles.modalTransferencia
+            }
+          >
+
+            <View
+              style={
+                styles.modalIconoContainer
               }
             >
 
-              <View
+              <Ionicons
+                name="card-outline"
+                size={28}
+                color="#A66F00"
+              />
+
+            </View>
+
+            <Text
+              style={
+                styles.modalTitulo
+              }
+            >
+              Confirmar transferencia
+            </Text>
+
+            <Text
+              style={
+                styles.modalSubtitulo
+              }
+            >
+              Verifique la transferencia con la información recibida en el banco.
+            </Text>
+
+            <Text
+              style={
+                styles.modalLabel
+              }
+            >
+              Fecha de transferencia
+            </Text>
+
+            <TouchableOpacity
+              style={
+                styles.selectorFecha
+              }
+              onPress={
+                abrirCalendarioTransferencia
+              }
+            >
+
+              <Ionicons
+                name="calendar-outline"
+                size={20}
+                color="#A66F00"
+              />
+
+              <Text
+                style={[
+                  styles.selectorFechaTexto,
+
+                  !fechaTransferencia &&
+                  styles.selectorFechaPlaceholder,
+                ]}
+              >
+                {fechaTransferencia
+                  ? formatearFechaTransferencia(
+                    fechaTransferencia
+                  )
+                  : 'Seleccionar fecha'}
+              </Text>
+
+            </TouchableOpacity>
+
+            <Text
+              style={
+                styles.modalLabel
+              }
+            >
+              Valor recibido
+            </Text>
+
+            <View
+              style={
+                styles.inputTransferenciaContainer
+              }
+            >
+
+              <Text
                 style={
-                  styles.modalFondo
+                  styles.simboloDolar
                 }
               >
+                $
+              </Text>
 
-                <View
-                  style={
-                    styles.modalTransferencia
-                  }
-                >
+              <TextInput
+                style={
+                  styles.inputTransferencia
+                }
+                value={
+                  valorTransferencia
+                }
+                onChangeText={
+                  setValorTransferencia
+                }
+                keyboardType="decimal-pad"
+                placeholder="0.00"
+                editable={
+                  !guardandoTransferencia
+                }
+              />
 
-                  <View
-                    style={
-                      styles.modalIconoContainer
-                    }
-                  >
+            </View>
 
-                    <Ionicons
-                      name="card-outline"
-                      size={28}
-                      color="#A66F00"
-                    />
+            {entregaTransferencia && (
+              <View style={styles.comprobanteConfirmacionContainer}>
 
-                  </View>
+                <Text style={styles.modalLabel}>
+                  Comprobante (opcional)
+                </Text>
 
-                  <Text
-                    style={
-                      styles.modalTitulo
-                    }
-                  >
-                    Confirmar transferencia
-                  </Text>
-
-                  <Text
-                    style={
-                      styles.modalSubtitulo
-                    }
-                  >
-                    Verifique la transferencia con la información recibida en el banco.
-                  </Text>
-
-                  <Text
-                    style={
-                      styles.modalLabel
-                    }
-                  >
-                    Fecha de transferencia
-                  </Text>
-
-                  <TouchableOpacity
-                    style={
-                      styles.selectorFecha
-                    }
-                    onPress={
-                      abrirCalendarioTransferencia
-                    }
-                  >
-
-                    <Ionicons
-                      name="calendar-outline"
-                      size={20}
-                      color="#A66F00"
-                    />
-
-                    <Text
-                      style={[
-                        styles.selectorFechaTexto,
-
-                        !fechaTransferencia &&
-                          styles.selectorFechaPlaceholder,
-                      ]}
-                    >
-                      {fechaTransferencia
-                        ? formatearFechaTransferencia(
-                            fechaTransferencia
-                          )
-                        : 'Seleccionar fecha'}
-                    </Text>
-
-                  </TouchableOpacity>
-
-                  <Text
-                    style={
-                      styles.modalLabel
-                    }
-                  >
-                    Valor recibido
-                  </Text>
-
-                  <View
-                    style={
-                      styles.inputTransferenciaContainer
-                    }
-                  >
-
-                    <Text
-                      style={
-                        styles.simboloDolar
-                      }
-                    >
-                      $
-                    </Text>
-
-                    <TextInput
-                      style={
-                        styles.inputTransferencia
-                      }
-                      value={
-                        valorTransferencia
-                      }
-                      onChangeText={
-                        setValorTransferencia
-                      }
-                      keyboardType="decimal-pad"
-                      placeholder="0.00"
-                      editable={
-                        !guardandoTransferencia
-                      }
-                    />
-
-                  </View>
-
-                  {entregaTransferencia && (
-                    <View style={styles.comprobanteConfirmacionContainer}>
-
-                      <Text style={styles.modalLabel}>
-                        Comprobante (opcional)
-                      </Text>
-
-                      {!comprobanteConfirmacion ? (
-                        <View style={styles.comprobanteConfirmacionBotones}>
-
-                          <TouchableOpacity
-                            style={styles.botonComprobanteConfirmacion}
-                            onPress={elegirFotoConfirmacion}
-                            disabled={guardandoTransferencia}
-                          >
-                            <Ionicons
-                              name="images-outline"
-                              size={20}
-                              color="#08752F"
-                            />
-
-                            <Text style={styles.textoComprobanteConfirmacion}>
-                              Galería
-                            </Text>
-                          </TouchableOpacity>
-
-                        </View>
-                      ) : (
-                        <View style={styles.comprobanteConfirmacionSeleccionado}>
-                          <Image
-                            source={{
-                              uri: comprobanteConfirmacion.uri,
-                            }}
-                            style={styles.comprobanteConfirmacionMiniatura}
-                            resizeMode="cover"
-                          />
-
-                          <View style={styles.comprobanteConfirmacionInfo}>
-
-                            <View style={styles.comprobanteConfirmacionTituloFila}>
-                              <Text style={styles.comprobanteConfirmacionTitulo}>
-                                Comprobante agregado
-                              </Text>
-
-                              <Ionicons
-                                name="checkmark-circle"
-                                size={21}
-                                color="#08752F"
-                              />
-                            </View>
-
-                            <Text
-                              style={styles.comprobanteConfirmacionArchivo}
-                              numberOfLines={1}
-                            >
-                              {comprobanteConfirmacion.fileName ||
-                                comprobanteConfirmacion.uri
-                                  ?.split('/')
-                                  .pop() ||
-                                'imagen.jpg'}
-                            </Text>
-
-                          </View>
-
-                          <TouchableOpacity
-                            style={styles.botonEliminarComprobanteConfirmacion}
-                            onPress={eliminarFotoConfirmacion}
-                            disabled={guardandoTransferencia}
-                            activeOpacity={0.8}
-                          >
-                            <Ionicons
-                              name="trash-outline"
-                              size={24}
-                              color="#D71920"
-                            />
-                          </TouchableOpacity>
-
-                        </View>
-                      )}
-
-                    </View>
-                  )}
-
-                  <View
-                    style={
-                      styles.modalBotones
-                    }
-                  >
+                {!comprobanteConfirmacion ? (
+                  <View style={styles.comprobanteConfirmacionBotones}>
 
                     <TouchableOpacity
-                      style={
-                        styles.botonCancelarTransferencia
-                      }
-                      onPress={
-                        cerrarConfirmacionTransferencia
-                      }
-                      disabled={
-                        guardandoTransferencia
-                      }
+                      style={styles.botonComprobanteConfirmacion}
+                      onPress={elegirFotoConfirmacion}
+                      disabled={guardandoTransferencia}
                     >
-
-                      <Text
-                        style={
-                          styles.textoCancelarTransferencia
-                        }
-                      >
-                        Cancelar
-                      </Text>
-
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={
-                        styles.botonGuardarTransferencia
-                      }
-                      onPress={
-                        confirmarTransferencia
-                      }
-                      disabled={
-                        guardandoTransferencia
-                      }
-                    >
-
                       <Ionicons
-                        name="checkmark"
-                        size={19}
-                        color="#FFFFFF"
+                        name="images-outline"
+                        size={20}
+                        color="#08752F"
                       />
 
-                      <Text
-                        style={
-                          styles.textoGuardarTransferencia
-                        }
-                      >
-                        {guardandoTransferencia
-                          ? 'Guardando...'
-                          : 'Confirmar'}
+                      <Text style={styles.textoComprobanteConfirmacion}>
+                        Galería
                       </Text>
-
                     </TouchableOpacity>
 
                   </View>
-
-                </View>
-
-              </View>
-
-            </Modal>
-
-            <Modal
-              visible={modalEliminarVisible}
-              transparent
-              animationType="fade"
-              statusBarTranslucent
-              onRequestClose={() => {
-                if (!eliminandoEntrega) {
-                  setModalEliminarVisible(false);
-                  setEntregaAEliminar(null);
-                }
-              }}
-            >
-              <View style={styles.modalEliminarFondo}>
-
-                <View style={styles.modalEliminarContenido}>
-
-                  <View style={styles.modalEliminarIcono}>
-                    <Ionicons
-                      name="trash-outline"
-                      size={30}
-                      color="#D71920"
-                    />
-                  </View>
-
-                  <Text style={styles.modalEliminarTitulo}>
-                    Eliminar entrega
-                  </Text>
-
-                  <Text style={styles.modalEliminarDescripcion}>
-                    Está a punto de eliminar definitivamente esta entrega.
-                  </Text>
-
-                  <View style={styles.modalEliminarResumen}>
-
-                    <View>
-                      <Text style={styles.modalEliminarLabel}>
-                        Fecha
-                      </Text>
-
-                      <Text style={styles.modalEliminarValor}>
-                        {entregaAEliminar?.fecha || '-'}
-                      </Text>
-                    </View>
-
-                    <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={styles.modalEliminarLabel}>
-                        Total
-                      </Text>
-
-                      <Text style={styles.modalEliminarTotal}>
-                        $
-                        {Number(
-                          entregaAEliminar?.total || 0
-                        ).toFixed(2)}
-                      </Text>
-                    </View>
-
-                  </View>
-
-                  <View style={styles.modalEliminarAdvertencia}>
-                    <Ionicons
-                      name="warning-outline"
-                      size={21}
-                      color="#B42318"
-                    />
-
-                    <Text style={styles.modalEliminarAdvertenciaTexto}>
-                      Esta acción no se puede deshacer. El registro será eliminado permanentemente.
-                    </Text>
-                  </View>
-
-                  <View style={styles.modalEliminarBotones}>
-
-                    <TouchableOpacity
-                      style={styles.modalEliminarCancelar}
-                      disabled={eliminandoEntrega}
-                      onPress={() => {
-                        setModalEliminarVisible(false);
-                        setEntregaAEliminar(null);
+                ) : (
+                  <View style={styles.comprobanteConfirmacionSeleccionado}>
+                    <Image
+                      source={{
+                        uri: comprobanteConfirmacion.uri,
                       }}
-                    >
-                      <Text style={styles.modalEliminarCancelarTexto}>
-                        Cancelar
+                      style={styles.comprobanteConfirmacionMiniatura}
+                      resizeMode="cover"
+                    />
+
+                    <View style={styles.comprobanteConfirmacionInfo}>
+
+                      <View style={styles.comprobanteConfirmacionTituloFila}>
+                        <Text style={styles.comprobanteConfirmacionTitulo}>
+                          Comprobante agregado
+                        </Text>
+
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={21}
+                          color="#08752F"
+                        />
+                      </View>
+
+                      <Text
+                        style={styles.comprobanteConfirmacionArchivo}
+                        numberOfLines={1}
+                      >
+                        {comprobanteConfirmacion.fileName ||
+                          comprobanteConfirmacion.uri
+                            ?.split('/')
+                            .pop() ||
+                          'imagen.jpg'}
                       </Text>
-                    </TouchableOpacity>
+
+                    </View>
 
                     <TouchableOpacity
-                      style={[
-                        styles.modalEliminarConfirmar,
-                        eliminandoEntrega && {
-                          opacity: 0.6,
-                        },
-                      ]}
-                      disabled={eliminandoEntrega}
-                      onPress={confirmarEliminarEntrega}
+                      style={styles.botonEliminarComprobanteConfirmacion}
+                      onPress={eliminarFotoConfirmacion}
+                      disabled={guardandoTransferencia}
+                      activeOpacity={0.8}
                     >
                       <Ionicons
                         name="trash-outline"
-                        size={18}
-                        color="#FFFFFF"
+                        size={24}
+                        color="#D71920"
                       />
-
-                      <Text style={styles.modalEliminarConfirmarTexto}>
-                        {eliminandoEntrega
-                          ? 'Eliminando...'
-                          : 'Eliminar'}
-                      </Text>
                     </TouchableOpacity>
 
                   </View>
+                )}
 
-                </View>
-
-              </View>
-            </Modal>
-
-            <Modal
-  visible={modalAbonoVisible}
-  transparent
-  animationType="fade"
-  onRequestClose={cerrarModalAbono}
->
-  <View style={styles.modalAbonoOverlay}>
-    <View style={styles.modalAbonoContenido}>
-
-      <Text style={styles.modalAbonoTitulo}>
-        Abonar saldo pendiente
-      </Text>
-
-      <Text style={styles.modalAbonoSaldo}>
-        Saldo pendiente total: ${Number(
-          saldoPendienteTotal
-        ).toFixed(2)}
-      </Text>
-
-      <ScrollView
-        style={styles.modalAbonoScroll}
-        contentContainerStyle={styles.modalAbonoScrollContenido}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-
-      {/* DEUDA A ABONAR */}
-      <Text style={styles.modalAbonoSeccionTitulo}>
-        Deuda a abonar
-      </Text>
-
-      <TouchableOpacity
-        style={[
-          styles.opcionDeudaAbono,
-          deudaSeleccionadaId === null &&
-            styles.opcionDeudaAbonoActiva,
-        ]}
-        onPress={() =>
-          setDeudaSeleccionadaId(null)
-        }
-      >
-        <View style={styles.radioAbono}>
-          {deudaSeleccionadaId === null && (
-            <View style={styles.radioAbonoActivo} />
-          )}
-        </View>
-
-        <View style={styles.opcionDeudaInfo}>
-          <Text style={styles.opcionDeudaTitulo}>
-            Todas las deudas
-          </Text>
-
-          <Text style={styles.opcionDeudaSaldo}>
-            ${Number(
-              saldoPendienteTotal
-            ).toFixed(2)}
-          </Text>
-        </View>
-      </TouchableOpacity>
-
-      {deudasPendientesAbono.map((deuda) => {
-        const seleccionada =
-          String(deudaSeleccionadaId) ===
-          String(deuda.id);
-
-        return (
-          <TouchableOpacity
-            key={deuda.id}
-            style={[
-              styles.opcionDeudaAbono,
-              seleccionada &&
-                styles.opcionDeudaAbonoActiva,
-            ]}
-            onPress={() =>
-              setDeudaSeleccionadaId(deuda.id)
-            }
-          >
-            <View style={styles.radioAbono}>
-              {seleccionada && (
-                <View
-                  style={styles.radioAbonoActivo}
-                />
-              )}
-            </View>
-
-            <View style={styles.opcionDeudaInfo}>
-              <Text style={styles.opcionDeudaTitulo}>
-                {deuda.fecha || 'Entrega'}
-              </Text>
-
-              <Text style={styles.opcionDeudaSaldo}>
-                $
-                {Number(
-                  deuda.saldoPendiente || 0
-                ).toFixed(2)}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        );
-      })}
-
-      {/* MÉTODO DE PAGO */}
-      <Text style={styles.modalAbonoSeccionTitulo}>
-        Método de pago
-      </Text>
-
-      <View style={styles.metodosAbonoFila}>
-        <TouchableOpacity
-          style={[
-            styles.metodoAbonoBoton,
-            usaEfectivoAbono &&
-              styles.metodoAbonoBotonActivo,
-          ]}
-          onPress={() =>
-            seleccionarMetodoAbono('Efectivo')
-          }
-        >
-          <Ionicons
-            name="cash-outline"
-            size={20}
-            color={
-              usaEfectivoAbono
-                ? '#08752F'
-                : '#666666'
-            }
-          />
-
-          <Text
-            style={[
-              styles.metodoAbonoTexto,
-              usaEfectivoAbono &&
-                styles.metodoAbonoTextoActivo,
-            ]}
-          >
-            Efectivo
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.metodoAbonoBoton,
-            usaTransferenciaAbono &&
-              styles.metodoAbonoBotonActivo,
-          ]}
-          onPress={() =>
-            seleccionarMetodoAbono(
-              'Transferencia'
-            )
-          }
-        >
-          <Ionicons
-            name="swap-horizontal-outline"
-            size={20}
-            color={
-              usaTransferenciaAbono
-                ? '#08752F'
-                : '#666666'
-            }
-          />
-
-          <Text
-            style={[
-              styles.metodoAbonoTexto,
-              usaTransferenciaAbono &&
-                styles.metodoAbonoTextoActivo,
-            ]}
-          >
-            Transferencia
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* EFECTIVO */}
-      {usaEfectivoAbono && (
-        <View style={styles.campoAbono}>
-          <Text style={styles.campoAbonoLabel}>
-            Monto en efectivo
-          </Text>
-
-          <TextInput
-            style={styles.campoAbonoInput}
-            value={abonoEfectivo}
-            onChangeText={setAbonoEfectivo}
-            keyboardType="decimal-pad"
-            placeholder="0.00"
-            placeholderTextColor="#999999"
-          />
-        </View>
-      )}
-
-      {/* TRANSFERENCIA */}
-      {usaTransferenciaAbono && (
-        <View style={styles.transferenciaAbonoContainer}>
-
-          <View style={styles.campoAbono}>
-            <View style={styles.tituloTransferenciaAbonoFila}>
-              <QRTransferencia />
-
-              <Text style={styles.campoAbonoLabel}>
-                Monto por transferencia
-              </Text>
-            </View>
-            <TextInput
-              style={styles.campoAbonoInput}
-              value={abonoTransferenciaMonto}
-              onChangeText={
-                setAbonoTransferenciaMonto
-              }
-              keyboardType="decimal-pad"
-              placeholder="0.00"
-              placeholderTextColor="#999999"
-            />
-          </View>
-
-          {usaTransferenciaAbono &&
-            transferenciaAbonoNumerico > 0 &&
-            !comprobanteAbono && (
-              <View style={styles.avisoTransferenciaPendiente}>
-                <Text style={styles.avisoTransferenciaIcono}>
-                  ⚠️
-                </Text>
-
-                <Text style={styles.avisoTransferenciaPendienteTexto}>
-                  Transferencia pendiente de confirmación. Este valor no se incluirá
-                  en el total diario hasta ser confirmado.
-                </Text>
               </View>
             )}
 
-          <View style={styles.comprobanteAbonoContainer}>
-            <Text style={styles.comprobanteAbonoTitulo}>
-              Comprobante de transferencia
-            </Text>
+            <View
+              style={
+                styles.modalBotones
+              }
+            >
 
-            <View style={styles.botonesComprobanteAbono}>
               <TouchableOpacity
-                style={styles.botonComprobanteAbono}
+                style={
+                  styles.botonCancelarTransferencia
+                }
                 onPress={
-                  tomarFotoComprobanteAbono
+                  cerrarConfirmacionTransferencia
+                }
+                disabled={
+                  guardandoTransferencia
                 }
               >
+
+                <Text
+                  style={
+                    styles.textoCancelarTransferencia
+                  }
+                >
+                  Cancelar
+                </Text>
+
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={
+                  styles.botonGuardarTransferencia
+                }
+                onPress={
+                  confirmarTransferencia
+                }
+                disabled={
+                  guardandoTransferencia
+                }
+              >
+
                 <Ionicons
-                  name="camera-outline"
-                  size={20}
-                  color="#08752F"
+                  name="checkmark"
+                  size={19}
+                  color="#FFFFFF"
                 />
 
                 <Text
                   style={
-                    styles.botonComprobanteAbonoTexto
+                    styles.textoGuardarTransferencia
                   }
                 >
-                  Tomar foto
+                  {guardandoTransferencia
+                    ? 'Guardando...'
+                    : 'Confirmar'}
                 </Text>
+
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.botonComprobanteAbono}
-                onPress={
-                  elegirComprobanteGaleriaAbono
-                }
-              >
-                <Ionicons
-                  name="images-outline"
-                  size={20}
-                  color="#08752F"
-                />
-
-                <Text
-                  style={
-                    styles.botonComprobanteAbonoTexto
-                  }
-                >
-                  Galería
-                </Text>
-              </TouchableOpacity>
             </View>
 
-            {comprobanteAbono && (
-              <View
-                style={
-                  styles.comprobanteAbonoAgregado
-                }
+          </View>
+
+        </View>
+
+      </Modal>
+
+      <Modal
+        visible={modalEliminarVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => {
+          if (!eliminandoEntrega) {
+            setModalEliminarVisible(false);
+            setEntregaAEliminar(null);
+          }
+        }}
+      >
+        <View style={styles.modalEliminarFondo}>
+
+          <View style={styles.modalEliminarContenido}>
+
+            <View style={styles.modalEliminarIcono}>
+              <Ionicons
+                name="trash-outline"
+                size={30}
+                color="#D71920"
+              />
+            </View>
+
+            <Text style={styles.modalEliminarTitulo}>
+              Eliminar entrega
+            </Text>
+
+            <Text style={styles.modalEliminarDescripcion}>
+              Está a punto de eliminar definitivamente esta entrega.
+            </Text>
+
+            <View style={styles.modalEliminarResumen}>
+
+              <View>
+                <Text style={styles.modalEliminarLabel}>
+                  Fecha
+                </Text>
+
+                <Text style={styles.modalEliminarValor}>
+                  {entregaAEliminar?.fecha || '-'}
+                </Text>
+              </View>
+
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={styles.modalEliminarLabel}>
+                  Total
+                </Text>
+
+                <Text style={styles.modalEliminarTotal}>
+                  $
+                  {Number(
+                    entregaAEliminar?.total || 0
+                  ).toFixed(2)}
+                </Text>
+              </View>
+
+            </View>
+
+            <View style={styles.modalEliminarAdvertencia}>
+              <Ionicons
+                name="warning-outline"
+                size={21}
+                color="#B42318"
+              />
+
+              <Text style={styles.modalEliminarAdvertenciaTexto}>
+                Esta acción no se puede deshacer. El registro será eliminado permanentemente.
+              </Text>
+            </View>
+
+            <View style={styles.modalEliminarBotones}>
+
+              <TouchableOpacity
+                style={styles.modalEliminarCancelar}
+                disabled={eliminandoEntrega}
+                onPress={() => {
+                  setModalEliminarVisible(false);
+                  setEntregaAEliminar(null);
+                }}
               >
-                <Image
-                  source={{
-                    uri: comprobanteAbono.uri,
-                  }}
-                  style={
-                    styles.comprobanteAbonoMiniatura
-                  }
+                <Text style={styles.modalEliminarCancelarTexto}>
+                  Cancelar
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.modalEliminarConfirmar,
+                  eliminandoEntrega && {
+                    opacity: 0.6,
+                  },
+                ]}
+                disabled={eliminandoEntrega}
+                onPress={confirmarEliminarEntrega}
+              >
+                <Ionicons
+                  name="trash-outline"
+                  size={18}
+                  color="#FFFFFF"
                 />
 
-                <View
-                  style={
-                    styles.comprobanteAbonoInfo
-                  }
-                >
-                  <View
-                    style={
-                      styles.comprobanteAbonoNombreFila
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.comprobanteAbonoNombre
-                      }
-                    >
-                      Comprobante agregado
-                    </Text>
+                <Text style={styles.modalEliminarConfirmarTexto}>
+                  {eliminandoEntrega
+                    ? 'Eliminando...'
+                    : 'Eliminar'}
+                </Text>
+              </TouchableOpacity>
 
-                    <Ionicons
-                      name="checkmark-circle"
-                      size={18}
-                      color="#08752F"
-                    />
-                  </View>
+            </View>
 
-                  <Text
-                    style={
-                      styles.comprobanteAbonoArchivo
-                    }
-                    numberOfLines={1}
-                  >
-                    {comprobanteAbono.fileName ||
-                      'Imagen del comprobante'}
-                  </Text>
+          </View>
+
+        </View>
+      </Modal>
+
+      <Modal
+        visible={modalAbonoVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={cerrarModalAbono}
+      >
+        <View style={styles.modalAbonoOverlay}>
+          <View style={styles.modalAbonoContenido}>
+
+            <Text style={styles.modalAbonoTitulo}>
+              Abonar saldo pendiente
+            </Text>
+
+            <Text style={styles.modalAbonoSaldo}>
+              Saldo pendiente total: ${Number(
+                saldoPendienteTotal
+              ).toFixed(2)}
+            </Text>
+
+            <ScrollView
+              style={styles.modalAbonoScroll}
+              contentContainerStyle={styles.modalAbonoScrollContenido}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+
+              {/* DEUDA A ABONAR */}
+              <Text style={styles.modalAbonoSeccionTitulo}>
+                Deuda a abonar
+              </Text>
+
+              <TouchableOpacity
+                style={[
+                  styles.opcionDeudaAbono,
+                  deudaSeleccionadaId === null &&
+                  styles.opcionDeudaAbonoActiva,
+                ]}
+                onPress={() =>
+                  setDeudaSeleccionadaId(null)
+                }
+              >
+                <View style={styles.radioAbono}>
+                  {deudaSeleccionadaId === null && (
+                    <View style={styles.radioAbonoActivo} />
+                  )}
                 </View>
 
+                <View style={styles.opcionDeudaInfo}>
+                  <Text style={styles.opcionDeudaTitulo}>
+                    Todas las deudas
+                  </Text>
+
+                  <Text style={styles.opcionDeudaSaldo}>
+                    ${Number(
+                      saldoPendienteTotal
+                    ).toFixed(2)}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              {deudasPendientesAbono.map((deuda) => {
+                const seleccionada =
+                  String(deudaSeleccionadaId) ===
+                  String(deuda.id);
+
+                return (
+                  <TouchableOpacity
+                    key={deuda.id}
+                    style={[
+                      styles.opcionDeudaAbono,
+                      seleccionada &&
+                      styles.opcionDeudaAbonoActiva,
+                    ]}
+                    onPress={() =>
+                      setDeudaSeleccionadaId(deuda.id)
+                    }
+                  >
+                    <View style={styles.radioAbono}>
+                      {seleccionada && (
+                        <View
+                          style={styles.radioAbonoActivo}
+                        />
+                      )}
+                    </View>
+
+                    <View style={styles.opcionDeudaInfo}>
+                      <Text style={styles.opcionDeudaTitulo}>
+                        {deuda.fecha || 'Entrega'}
+                      </Text>
+
+                      <Text style={styles.opcionDeudaSaldo}>
+                        $
+                        {Number(
+                          deuda.saldoPendiente || 0
+                        ).toFixed(2)}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+
+              {/* MÉTODO DE PAGO */}
+              <Text style={styles.modalAbonoSeccionTitulo}>
+                Método de pago
+              </Text>
+
+              <View style={styles.metodosAbonoFila}>
                 <TouchableOpacity
-                  style={
-                    styles.botonEliminarComprobanteAbono
-                  }
-                  onPress={
-                    eliminarComprobanteAbono
+                  style={[
+                    styles.metodoAbonoBoton,
+                    usaEfectivoAbono &&
+                    styles.metodoAbonoBotonActivo,
+                  ]}
+                  onPress={() =>
+                    seleccionarMetodoAbono('Efectivo')
                   }
                 >
                   <Ionicons
-                    name="trash-outline"
+                    name="cash-outline"
                     size={20}
-                    color="#D71920"
+                    color={
+                      usaEfectivoAbono
+                        ? '#08752F'
+                        : '#666666'
+                    }
                   />
+
+                  <Text
+                    style={[
+                      styles.metodoAbonoTexto,
+                      usaEfectivoAbono &&
+                      styles.metodoAbonoTextoActivo,
+                    ]}
+                  >
+                    Efectivo
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.metodoAbonoBoton,
+                    usaTransferenciaAbono &&
+                    styles.metodoAbonoBotonActivo,
+                  ]}
+                  onPress={() =>
+                    seleccionarMetodoAbono(
+                      'Transferencia'
+                    )
+                  }
+                >
+                  <Ionicons
+                    name="swap-horizontal-outline"
+                    size={20}
+                    color={
+                      usaTransferenciaAbono
+                        ? '#08752F'
+                        : '#666666'
+                    }
+                  />
+
+                  <Text
+                    style={[
+                      styles.metodoAbonoTexto,
+                      usaTransferenciaAbono &&
+                      styles.metodoAbonoTextoActivo,
+                    ]}
+                  >
+                    Transferencia
+                  </Text>
                 </TouchableOpacity>
               </View>
-            )}
+
+              {/* EFECTIVO */}
+              {usaEfectivoAbono && (
+                <View style={styles.campoAbono}>
+                  <Text style={styles.campoAbonoLabel}>
+                    Monto en efectivo
+                  </Text>
+
+                  <TextInput
+                    style={styles.campoAbonoInput}
+                    value={abonoEfectivo}
+                    onChangeText={setAbonoEfectivo}
+                    keyboardType="decimal-pad"
+                    placeholder="0.00"
+                    placeholderTextColor="#999999"
+                  />
+                </View>
+              )}
+
+              {/* TRANSFERENCIA */}
+              {usaTransferenciaAbono && (
+                <View style={styles.transferenciaAbonoContainer}>
+
+                  <View style={styles.campoAbono}>
+                    <View style={styles.tituloTransferenciaAbonoFila}>
+                      <QRTransferencia />
+
+                      <Text style={styles.campoAbonoLabel}>
+                        Monto por transferencia
+                      </Text>
+                    </View>
+                    <TextInput
+                      style={styles.campoAbonoInput}
+                      value={abonoTransferenciaMonto}
+                      onChangeText={
+                        setAbonoTransferenciaMonto
+                      }
+                      keyboardType="decimal-pad"
+                      placeholder="0.00"
+                      placeholderTextColor="#999999"
+                    />
+                  </View>
+
+                  {usaTransferenciaAbono &&
+                    transferenciaAbonoNumerico > 0 &&
+                    !comprobanteAbono && (
+                      <View style={styles.avisoTransferenciaPendiente}>
+                        <Text style={styles.avisoTransferenciaIcono}>
+                          ⚠️
+                        </Text>
+
+                        <Text style={styles.avisoTransferenciaPendienteTexto}>
+                          Transferencia pendiente de confirmación. Este valor no se incluirá
+                          en el total diario hasta ser confirmado.
+                        </Text>
+                      </View>
+                    )}
+
+                  <View style={styles.comprobanteAbonoContainer}>
+                    <Text style={styles.comprobanteAbonoTitulo}>
+                      Comprobante de transferencia
+                    </Text>
+
+                    <View style={styles.botonesComprobanteAbono}>
+                      <TouchableOpacity
+                        style={styles.botonComprobanteAbono}
+                        onPress={
+                          tomarFotoComprobanteAbono
+                        }
+                      >
+                        <Ionicons
+                          name="camera-outline"
+                          size={20}
+                          color="#08752F"
+                        />
+
+                        <Text
+                          style={
+                            styles.botonComprobanteAbonoTexto
+                          }
+                        >
+                          Tomar foto
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.botonComprobanteAbono}
+                        onPress={
+                          elegirComprobanteGaleriaAbono
+                        }
+                      >
+                        <Ionicons
+                          name="images-outline"
+                          size={20}
+                          color="#08752F"
+                        />
+
+                        <Text
+                          style={
+                            styles.botonComprobanteAbonoTexto
+                          }
+                        >
+                          Galería
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {comprobanteAbono && (
+                      <View
+                        style={
+                          styles.comprobanteAbonoAgregado
+                        }
+                      >
+                        <Image
+                          source={{
+                            uri: comprobanteAbono.uri,
+                          }}
+                          style={
+                            styles.comprobanteAbonoMiniatura
+                          }
+                        />
+
+                        <View
+                          style={
+                            styles.comprobanteAbonoInfo
+                          }
+                        >
+                          <View
+                            style={
+                              styles.comprobanteAbonoNombreFila
+                            }
+                          >
+                            <Text
+                              style={
+                                styles.comprobanteAbonoNombre
+                              }
+                            >
+                              Comprobante agregado
+                            </Text>
+
+                            <Ionicons
+                              name="checkmark-circle"
+                              size={18}
+                              color="#08752F"
+                            />
+                          </View>
+
+                          <Text
+                            style={
+                              styles.comprobanteAbonoArchivo
+                            }
+                            numberOfLines={1}
+                          >
+                            {comprobanteAbono.fileName ||
+                              'Imagen del comprobante'}
+                          </Text>
+                        </View>
+
+                        <TouchableOpacity
+                          style={
+                            styles.botonEliminarComprobanteAbono
+                          }
+                          onPress={
+                            eliminarComprobanteAbono
+                          }
+                        >
+                          <Ionicons
+                            name="trash-outline"
+                            size={20}
+                            color="#D71920"
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              )}
+
+              {/* TOTAL */}
+              <View style={styles.totalAbonoFila}>
+                <Text style={styles.totalAbonoLabel}>
+                  Total abonado
+                </Text>
+
+                <Text style={styles.totalAbonoValor}>
+                  ${totalAbono.toFixed(2)}
+                </Text>
+              </View>
+            </ScrollView>
+
+            {/* BOTONES */}
+            <View style={styles.botonesModalAbono}>
+              <TouchableOpacity
+                style={styles.botonCancelarAbono}
+                onPress={cerrarModalAbono}
+                disabled={guardandoAbono}
+              >
+                <Text style={styles.botonCancelarAbonoTexto}>
+                  Cancelar
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.botonGuardarAbono}
+                onPress={guardarAbonoHistorial}
+                disabled={guardandoAbono}
+              >
+                <Text style={styles.botonGuardarAbonoTexto}>
+                  {guardandoAbono
+                    ? 'Guardando...'
+                    : 'Abonar'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
           </View>
         </View>
-      )}
-
-      {/* TOTAL */}
-      <View style={styles.totalAbonoFila}>
-        <Text style={styles.totalAbonoLabel}>
-          Total abonado
-        </Text>
-
-        <Text style={styles.totalAbonoValor}>
-          ${totalAbono.toFixed(2)}
-        </Text>
-      </View>
-      </ScrollView>
-
-      {/* BOTONES */}
-      <View style={styles.botonesModalAbono}>
-        <TouchableOpacity
-          style={styles.botonCancelarAbono}
-          onPress={cerrarModalAbono}
-          disabled={guardandoAbono}
-        >
-          <Text style={styles.botonCancelarAbonoTexto}>
-            Cancelar
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.botonGuardarAbono}
-          onPress={guardarAbonoHistorial}
-          disabled={guardandoAbono}
-        >
-          <Text style={styles.botonGuardarAbonoTexto}>
-            {guardandoAbono
-              ? 'Guardando...'
-              : 'Abonar'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-    </View>
-  </View>
-</Modal>
+      </Modal>
 
     </View>
   );
@@ -3729,7 +3830,7 @@ const styles =
         '700',
     },
 
-        transferenciaContainer: {
+    transferenciaContainer: {
       marginTop: 2,
     },
 
@@ -3921,706 +4022,727 @@ const styles =
     },
 
     historialTituloFila: {
-  flexDirection:
-    'row',
-  alignItems:
-    'center',
-  justifyContent:
-    'space-between',
-  marginBottom: 8,
-  gap: 10,
-},
-
-botonConfirmarHistorial: {
-  flexDirection:
-    'row',
-  alignItems:
-    'center',
-  justifyContent:
-    'center',
-  gap: 5,
-  backgroundColor:
-    '#FFF4CC',
-  borderWidth: 1,
-  borderColor:
-    '#E2B93B',
-  borderRadius: 8,
-  paddingHorizontal: 9,
-  paddingVertical: 6,
-},
-
-textoConfirmarHistorial: {
-  color:
-    '#7A5700',
-  fontSize: 10,
-  fontWeight:
-    '700',
-},
-
-comprobanteConfirmacionContainer: {
-  width: '100%',
-  marginTop: 14,
-},
-
-comprobanteConfirmacionBotones: {
-  flexDirection: 'row',
-  gap: 10,
-},
-
-botonComprobanteConfirmacion: {
-  flex: 1,
-  minHeight: 45,
-  borderWidth: 1,
-  borderColor: '#B8D9C1',
-  backgroundColor: '#F3FAF5',
-  borderRadius: 9,
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: 7,
-  paddingHorizontal: 8,
-},
-
-textoComprobanteConfirmacion: {
-  color: '#08752F',
-  fontSize: 11,
-  fontWeight: '700',
-},
-
-comprobanteSeleccionado: {
-  width: '100%',
-  minHeight: 55,
-  borderWidth: 1,
-  borderColor: '#B8D9C1',
-  backgroundColor: '#F3FAF5',
-  borderRadius: 9,
-  paddingHorizontal: 11,
-  paddingVertical: 9,
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-},
-
-comprobanteSeleccionadoInfo: {
-  flex: 1,
-  minWidth: 0,
-  flexDirection: 'row',
-  alignItems: 'center',
-  gap: 8,
-},
-
-comprobanteSeleccionadoTexto: {
-  flex: 1,
-  minWidth: 0,
-},
-
-comprobanteSeleccionadoTitulo: {
-  color: '#08752F',
-  fontSize: 11,
-  fontWeight: '700',
-},
-
-comprobanteSeleccionadoSubtitulo: {
-  color: '#666666',
-  fontSize: 9,
-  marginTop: 2,
-},
-
-botonEliminarComprobante: {
-  width: 36,
-  height: 36,
-  borderRadius: 18,
-  alignItems: 'center',
-  justifyContent: 'center',
-  marginLeft: 8,
-},
-
-comprobanteConfirmacionSeleccionado: {
-  minHeight: 78,
-  borderWidth: 1,
-  borderColor: '#D7ECDD',
-  backgroundColor: '#F7FBF8',
-  borderRadius: 12,
-  padding: 9,
-  flexDirection: 'row',
-  alignItems: 'center',
-  marginTop: 8,
-},
-
-comprobanteConfirmacionMiniatura: {
-  width: 58,
-  height: 58,
-  borderRadius: 10,
-  backgroundColor: '#E5E7EB',
-},
-
-comprobanteConfirmacionInfo: {
-  flex: 1,
-  marginLeft: 12,
-  marginRight: 10,
-  justifyContent: 'center',
-},
-
-comprobanteConfirmacionTituloFila: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  gap: 7,
-  paddingRight: 45,
-},
-
-comprobanteConfirmacionTitulo: {
-  fontSize: 14,
-  fontWeight: '700',
-  color: '#333333',
-},
-
-comprobanteConfirmacionArchivo: {
-  fontSize: 11,
-  color: '#777777',
-  marginTop: 3,
-},
-
-botonEliminarComprobanteConfirmacion: {
-  width: 48,
-  height: 48,
-  borderRadius: 10,
-  backgroundColor: '#FFF0F0',
-  justifyContent: 'center',
-  alignItems: 'center',
-},
-
-modalEliminarFondo: {
-  flex: 1,
-  backgroundColor:
-    'rgba(0, 0, 0, 0.45)',
-  justifyContent: 'center',
-  alignItems: 'center',
-  paddingHorizontal: 24,
-},
-
-modalEliminarContenido: {
-  width: '100%',
-  maxWidth: 390,
-  backgroundColor: '#FFFFFF',
-  borderRadius: 18,
-  padding: 22,
-  alignItems: 'center',
-},
-
-modalEliminarIcono: {
-  width: 58,
-  height: 58,
-  borderRadius: 29,
-  backgroundColor: '#FFF0F0',
-  justifyContent: 'center',
-  alignItems: 'center',
-  marginBottom: 12,
-},
-
-modalEliminarTitulo: {
-  fontSize: 19,
-  fontWeight: '800',
-  color: '#222222',
-  textAlign: 'center',
-},
-
-modalEliminarDescripcion: {
-  fontSize: 12,
-  color: '#666666',
-  textAlign: 'center',
-  lineHeight: 18,
-  marginTop: 7,
-},
-
-modalEliminarResumen: {
-  width: '100%',
-  marginTop: 18,
-  padding: 13,
-  borderRadius: 10,
-  backgroundColor: '#F7F7F7',
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-},
-
-modalEliminarLabel: {
-  fontSize: 10,
-  color: '#777777',
-  marginBottom: 3,
-},
-
-modalEliminarValor: {
-  fontSize: 13,
-  fontWeight: '700',
-  color: '#333333',
-},
-
-modalEliminarTotal: {
-  fontSize: 16,
-  fontWeight: '800',
-  color: '#08752F',
-},
-
-modalEliminarAdvertencia: {
-  width: '100%',
-  flexDirection: 'row',
-  alignItems: 'center',
-  backgroundColor: '#FFF4F2',
-  borderRadius: 10,
-  padding: 12,
-  marginTop: 12,
-  gap: 9,
-},
-
-modalEliminarAdvertenciaTexto: {
-  flex: 1,
-  fontSize: 11,
-  lineHeight: 16,
-  color: '#B42318',
-},
-
-modalEliminarBotones: {
-  width: '100%',
-  flexDirection: 'row',
-  gap: 10,
-  marginTop: 20,
-},
-
-modalEliminarCancelar: {
-  flex: 1,
-  height: 46,
-  borderWidth: 1,
-  borderColor: '#D8D8D8',
-  borderRadius: 10,
-  justifyContent: 'center',
-  alignItems: 'center',
-},
-
-modalEliminarCancelarTexto: {
-  fontSize: 13,
-  fontWeight: '700',
-  color: '#555555',
-},
-
-modalEliminarConfirmar: {
-  flex: 1,
-  height: 46,
-  borderRadius: 10,
-  backgroundColor: '#D71920',
-  flexDirection: 'row',
-  justifyContent: 'center',
-  alignItems: 'center',
-  gap: 6,
-},
-
-modalEliminarConfirmarTexto: {
-  fontSize: 13,
-  fontWeight: '700',
-  color: '#FFFFFF',
-},
-
-botonAbonarSaldoTotal: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: 5,
-
-  marginLeft: 10,
-  paddingHorizontal: 12,
-  paddingVertical: 7,
-
-  borderWidth: 1,
-  borderColor: '#D71920',
-  borderRadius: 8,
-  backgroundColor: '#FFFFFF',
-},
-
-botonAbonarSaldoTotalTexto: {
-  color: '#D71920',
-  fontSize: 12,
-  fontWeight: '600',
-},
-
-// ==========================================
-// MODAL ABONAR SALDO PENDIENTE
-// ==========================================
-
-modalAbonoOverlay: {
-  flex: 1,
-  backgroundColor: 'rgba(0,0,0,0.45)',
-  justifyContent: 'center',
-  alignItems: 'center',
-  padding: 20,
-},
-
-modalAbonoContenido: {
-  width: '100%',
-  maxWidth: 430,
-  maxHeight: '90%',
-  backgroundColor: '#FFFFFF',
-  borderRadius: 18,
-  padding: 20,
-},
-
-modalAbonoTitulo: {
-  fontSize: 20,
-  fontWeight: '700',
-  color: '#222222',
-  textAlign: 'center',
-  marginBottom: 6,
-},
-
-modalAbonoSaldo: {
-  fontSize: 14,
-  fontWeight: '600',
-  color: '#D71920',
-  textAlign: 'center',
-  marginBottom: 18,
-},
-
-modalAbonoSeccionTitulo: {
-  fontSize: 14,
-  fontWeight: '700',
-  color: '#333333',
-  marginTop: 12,
-  marginBottom: 8,
-},
-
-// ==========================================
-// SELECCIÓN DE DEUDA
-// ==========================================
-
-opcionDeudaAbono: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  paddingHorizontal: 12,
-  paddingVertical: 10,
-  borderWidth: 1,
-  borderColor: '#DDDDDD',
-  borderRadius: 10,
-  marginBottom: 8,
-  backgroundColor: '#FFFFFF',
-},
-
-opcionDeudaAbonoActiva: {
-  borderColor: '#D71920',
-  backgroundColor: '#FFF5F5',
-},
-
-radioAbono: {
-  width: 20,
-  height: 20,
-  borderRadius: 10,
-  borderWidth: 2,
-  borderColor: '#D71920',
-  alignItems: 'center',
-  justifyContent: 'center',
-  marginRight: 10,
-},
-
-radioAbonoActivo: {
-  width: 10,
-  height: 10,
-  borderRadius: 5,
-  backgroundColor: '#D71920',
-},
-
-opcionDeudaInfo: {
-  flex: 1,
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-},
-
-opcionDeudaTitulo: {
-  flex: 1,
-  fontSize: 13,
-  fontWeight: '600',
-  color: '#333333',
-},
-
-opcionDeudaSaldo: {
-  fontSize: 13,
-  fontWeight: '700',
-  color: '#D71920',
-  marginLeft: 10,
-},
-
-// ==========================================
-// MÉTODOS DE PAGO
-// ==========================================
-
-metodosAbonoFila: {
-  flexDirection: 'row',
-  gap: 10,
-  width: '100%',
-},
-
-metodoAbonoBoton: {
-  flex: 1,
-  minHeight: 48,
-  borderWidth: 1,
-  borderColor: '#DDDDDD',
-  borderRadius: 10,
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: 7,
-  backgroundColor: '#FFFFFF',
-},
-
-metodoAbonoBotonActivo: {
-  borderColor: '#08752F',
-  backgroundColor: '#F2FAF4',
-},
-
-metodoAbonoTexto: {
-  fontSize: 13,
-  fontWeight: '600',
-  color: '#666666',
-},
-
-metodoAbonoTextoActivo: {
-  color: '#08752F',
-},
-
-// ==========================================
-// CAMPOS DE MONTO
-// ==========================================
-
-campoAbono: {
-  width: '100%',
-  marginTop: 12,
-},
-
-campoAbonoLabel: {
-  fontSize: 13,
-  fontWeight: '600',
-  color: '#333333',
-  marginBottom: 6,
-},
-
-campoAbonoInput: {
-  width: '100%',
-  height: 46,
-  borderWidth: 1,
-  borderColor: '#DDDDDD',
-  borderRadius: 10,
-  paddingHorizontal: 12,
-  fontSize: 14,
-  color: '#222222',
-  backgroundColor: '#FFFFFF',
-},
-
-transferenciaAbonoContainer: {
-  width: '100%',
-},
-
-// ==========================================
-// COMPROBANTE DEL ABONO
-// ==========================================
-
-comprobanteAbonoContainer: {
-  width: '100%',
-  marginTop: 15,
-},
-
-comprobanteAbonoTitulo: {
-  fontSize: 13,
-  fontWeight: '600',
-  color: '#333333',
-  marginBottom: 8,
-},
-
-botonesComprobanteAbono: {
-  flexDirection: 'row',
-  gap: 10,
-  width: '100%',
-},
-
-botonComprobanteAbono: {
-  flex: 1,
-  minHeight: 44,
-  borderWidth: 1,
-  borderColor: '#08752F',
-  borderRadius: 10,
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: 6,
-  paddingHorizontal: 8,
-  backgroundColor: '#FFFFFF',
-},
-
-botonComprobanteAbonoTexto: {
-  fontSize: 12,
-  fontWeight: '600',
-  color: '#08752F',
-},
-
-comprobanteAbonoAgregado: {
-  width: '100%',
-  minHeight: 70,
-  marginTop: 12,
-  padding: 8,
-  borderRadius: 10,
-  backgroundColor: '#F0F8F2',
-  flexDirection: 'row',
-  alignItems: 'center',
-},
-
-comprobanteAbonoMiniatura: {
-  width: 54,
-  height: 54,
-  borderRadius: 8,
-  resizeMode: 'cover',
-},
-
-comprobanteAbonoInfo: {
-  flex: 1,
-  marginLeft: 10,
-  marginRight: 6,
-},
-
-comprobanteAbonoNombreFila: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  gap: 5,
-},
-
-comprobanteAbonoNombre: {
-  flexShrink: 1,
-  fontSize: 13,
-  fontWeight: '600',
-  color: '#333333',
-},
-
-comprobanteAbonoArchivo: {
-  fontSize: 11,
-  color: '#777777',
-  marginTop: 4,
-},
-
-botonEliminarComprobanteAbono: {
-  width: 38,
-  height: 38,
-  borderRadius: 8,
-  backgroundColor: '#FDECEC',
-  alignItems: 'center',
-  justifyContent: 'center',
-},
-
-// ==========================================
-// TOTAL DEL ABONO
-// ==========================================
-
-totalAbonoFila: {
-  width: '100%',
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  marginTop: 18,
-  paddingTop: 14,
-  borderTopWidth: 1,
-  borderTopColor: '#EEEEEE',
-},
-
-totalAbonoLabel: {
-  fontSize: 14,
-  fontWeight: '600',
-  color: '#444444',
-},
-
-totalAbonoValor: {
-  fontSize: 18,
-  fontWeight: '700',
-  color: '#D71920',
-},
-
-// ==========================================
-// BOTONES INFERIORES
-// ==========================================
-
-botonesModalAbono: {
-  flexDirection: 'row',
-  gap: 10,
-  width: '100%',
-  marginTop: 12,
-  paddingTop: 10,
-  borderTopWidth: 1,
-  borderTopColor: '#EEEEEE',
-},
-
-botonCancelarAbono: {
-  flex: 1,
-  minHeight: 46,
-  borderWidth: 1,
-  borderColor: '#CCCCCC',
-  borderRadius: 10,
-  alignItems: 'center',
-  justifyContent: 'center',
-  backgroundColor: '#FFFFFF',
-},
-
-botonCancelarAbonoTexto: {
-  fontSize: 14,
-  fontWeight: '600',
-  color: '#555555',
-},
-
-botonGuardarAbono: {
-  flex: 1,
-  minHeight: 46,
-  borderRadius: 10,
-  alignItems: 'center',
-  justifyContent: 'center',
-  backgroundColor: '#D71920',
-},
-
-botonGuardarAbonoTexto: {
-  fontSize: 14,
-  fontWeight: '700',
-  color: '#FFFFFF',
-},
-
-modalAbonoScroll: {
-  flexShrink: 1,
-},
-
-modalAbonoScrollContenido: {
-  paddingBottom: 5,
-},
-
-avisoTransferenciaPendiente: {
-  flexDirection: 'row',
-  alignItems: 'flex-start',
-  gap: 7,
-  marginTop: 8,
-  marginBottom: 5,
-  paddingHorizontal: 10,
-  paddingVertical: 9,
-  backgroundColor: '#FFF7ED',
-  borderRadius: 8,
-  borderWidth: 1,
-  borderColor: '#FED7AA',
-},
-
-avisoTransferenciaIcono: {
-  fontSize: 16,
-  lineHeight: 18,
-},
-
-avisoTransferenciaPendienteTexto: {
-  flex: 1,
-  fontSize: 12,
-  lineHeight: 17,
-  color: '#9A5B13',
-},
-
-tituloTransferenciaAbonoFila: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  gap: 5,
-  flex: 1,
-},
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      justifyContent:
+        'space-between',
+      marginBottom: 8,
+      gap: 10,
+    },
+
+    botonConfirmarHistorial: {
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+      gap: 5,
+      backgroundColor:
+        '#FFF4CC',
+      borderWidth: 1,
+      borderColor:
+        '#E2B93B',
+      borderRadius: 8,
+      paddingHorizontal: 9,
+      paddingVertical: 6,
+    },
+
+    textoConfirmarHistorial: {
+      color:
+        '#7A5700',
+      fontSize: 10,
+      fontWeight:
+        '700',
+    },
+
+    comprobanteConfirmacionContainer: {
+      width: '100%',
+      marginTop: 14,
+    },
+
+    comprobanteConfirmacionBotones: {
+      flexDirection: 'row',
+      gap: 10,
+    },
+
+    botonComprobanteConfirmacion: {
+      flex: 1,
+      minHeight: 45,
+      borderWidth: 1,
+      borderColor: '#B8D9C1',
+      backgroundColor: '#F3FAF5',
+      borderRadius: 9,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 7,
+      paddingHorizontal: 8,
+    },
+
+    textoComprobanteConfirmacion: {
+      color: '#08752F',
+      fontSize: 11,
+      fontWeight: '700',
+    },
+
+    comprobanteSeleccionado: {
+      width: '100%',
+      minHeight: 55,
+      borderWidth: 1,
+      borderColor: '#B8D9C1',
+      backgroundColor: '#F3FAF5',
+      borderRadius: 9,
+      paddingHorizontal: 11,
+      paddingVertical: 9,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+
+    comprobanteSeleccionadoInfo: {
+      flex: 1,
+      minWidth: 0,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+
+    comprobanteSeleccionadoTexto: {
+      flex: 1,
+      minWidth: 0,
+    },
+
+    comprobanteSeleccionadoTitulo: {
+      color: '#08752F',
+      fontSize: 11,
+      fontWeight: '700',
+    },
+
+    comprobanteSeleccionadoSubtitulo: {
+      color: '#666666',
+      fontSize: 9,
+      marginTop: 2,
+    },
+
+    botonEliminarComprobante: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginLeft: 8,
+    },
+
+    comprobanteConfirmacionSeleccionado: {
+      minHeight: 78,
+      borderWidth: 1,
+      borderColor: '#D7ECDD',
+      backgroundColor: '#F7FBF8',
+      borderRadius: 12,
+      padding: 9,
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 8,
+    },
+
+    comprobanteConfirmacionMiniatura: {
+      width: 58,
+      height: 58,
+      borderRadius: 10,
+      backgroundColor: '#E5E7EB',
+    },
+
+    comprobanteConfirmacionInfo: {
+      flex: 1,
+      marginLeft: 12,
+      marginRight: 10,
+      justifyContent: 'center',
+    },
+
+    comprobanteConfirmacionTituloFila: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 7,
+      paddingRight: 45,
+    },
+
+    comprobanteConfirmacionTitulo: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: '#333333',
+    },
+
+    comprobanteConfirmacionArchivo: {
+      fontSize: 11,
+      color: '#777777',
+      marginTop: 3,
+    },
+
+    botonEliminarComprobanteConfirmacion: {
+      width: 48,
+      height: 48,
+      borderRadius: 10,
+      backgroundColor: '#FFF0F0',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+
+    modalEliminarFondo: {
+      flex: 1,
+      backgroundColor:
+        'rgba(0, 0, 0, 0.45)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 24,
+    },
+
+    modalEliminarContenido: {
+      width: '100%',
+      maxWidth: 390,
+      backgroundColor: '#FFFFFF',
+      borderRadius: 18,
+      padding: 22,
+      alignItems: 'center',
+    },
+
+    modalEliminarIcono: {
+      width: 58,
+      height: 58,
+      borderRadius: 29,
+      backgroundColor: '#FFF0F0',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+
+    modalEliminarTitulo: {
+      fontSize: 19,
+      fontWeight: '800',
+      color: '#222222',
+      textAlign: 'center',
+    },
+
+    modalEliminarDescripcion: {
+      fontSize: 12,
+      color: '#666666',
+      textAlign: 'center',
+      lineHeight: 18,
+      marginTop: 7,
+    },
+
+    modalEliminarResumen: {
+      width: '100%',
+      marginTop: 18,
+      padding: 13,
+      borderRadius: 10,
+      backgroundColor: '#F7F7F7',
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+
+    modalEliminarLabel: {
+      fontSize: 10,
+      color: '#777777',
+      marginBottom: 3,
+    },
+
+    modalEliminarValor: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: '#333333',
+    },
+
+    modalEliminarTotal: {
+      fontSize: 16,
+      fontWeight: '800',
+      color: '#08752F',
+    },
+
+    modalEliminarAdvertencia: {
+      width: '100%',
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: '#FFF4F2',
+      borderRadius: 10,
+      padding: 12,
+      marginTop: 12,
+      gap: 9,
+    },
+
+    modalEliminarAdvertenciaTexto: {
+      flex: 1,
+      fontSize: 11,
+      lineHeight: 16,
+      color: '#B42318',
+    },
+
+    modalEliminarBotones: {
+      width: '100%',
+      flexDirection: 'row',
+      gap: 10,
+      marginTop: 20,
+    },
+
+    modalEliminarCancelar: {
+      flex: 1,
+      height: 46,
+      borderWidth: 1,
+      borderColor: '#D8D8D8',
+      borderRadius: 10,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+
+    modalEliminarCancelarTexto: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: '#555555',
+    },
+
+    modalEliminarConfirmar: {
+      flex: 1,
+      height: 46,
+      borderRadius: 10,
+      backgroundColor: '#D71920',
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: 6,
+    },
+
+    modalEliminarConfirmarTexto: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: '#FFFFFF',
+    },
+
+    botonAbonarSaldoTotal: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 5,
+
+      marginLeft: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+
+      borderWidth: 1,
+      borderColor: '#D71920',
+      borderRadius: 8,
+      backgroundColor: '#FFFFFF',
+    },
+
+    botonAbonarSaldoTotalTexto: {
+      color: '#D71920',
+      fontSize: 12,
+      fontWeight: '600',
+    },
+
+    // ==========================================
+    // MODAL ABONAR SALDO PENDIENTE
+    // ==========================================
+
+    modalAbonoOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+
+    modalAbonoContenido: {
+      width: '100%',
+      maxWidth: 430,
+      maxHeight: '90%',
+      backgroundColor: '#FFFFFF',
+      borderRadius: 18,
+      padding: 20,
+    },
+
+    modalAbonoTitulo: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: '#222222',
+      textAlign: 'center',
+      marginBottom: 6,
+    },
+
+    modalAbonoSaldo: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: '#D71920',
+      textAlign: 'center',
+      marginBottom: 18,
+    },
+
+    modalAbonoSeccionTitulo: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: '#333333',
+      marginTop: 12,
+      marginBottom: 8,
+    },
+
+    // ==========================================
+    // SELECCIÓN DE DEUDA
+    // ==========================================
+
+    opcionDeudaAbono: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderWidth: 1,
+      borderColor: '#DDDDDD',
+      borderRadius: 10,
+      marginBottom: 8,
+      backgroundColor: '#FFFFFF',
+    },
+
+    opcionDeudaAbonoActiva: {
+      borderColor: '#D71920',
+      backgroundColor: '#FFF5F5',
+    },
+
+    radioAbono: {
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      borderWidth: 2,
+      borderColor: '#D71920',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 10,
+    },
+
+    radioAbonoActivo: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: '#D71920',
+    },
+
+    opcionDeudaInfo: {
+      flex: 1,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+
+    opcionDeudaTitulo: {
+      flex: 1,
+      fontSize: 13,
+      fontWeight: '600',
+      color: '#333333',
+    },
+
+    opcionDeudaSaldo: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: '#D71920',
+      marginLeft: 10,
+    },
+
+    // ==========================================
+    // MÉTODOS DE PAGO
+    // ==========================================
+
+    metodosAbonoFila: {
+      flexDirection: 'row',
+      gap: 10,
+      width: '100%',
+    },
+
+    metodoAbonoBoton: {
+      flex: 1,
+      minHeight: 48,
+      borderWidth: 1,
+      borderColor: '#DDDDDD',
+      borderRadius: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 7,
+      backgroundColor: '#FFFFFF',
+    },
+
+    metodoAbonoBotonActivo: {
+      borderColor: '#08752F',
+      backgroundColor: '#F2FAF4',
+    },
+
+    metodoAbonoTexto: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: '#666666',
+    },
+
+    metodoAbonoTextoActivo: {
+      color: '#08752F',
+    },
+
+    // ==========================================
+    // CAMPOS DE MONTO
+    // ==========================================
+
+    campoAbono: {
+      width: '100%',
+      marginTop: 12,
+    },
+
+    campoAbonoLabel: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: '#333333',
+      marginBottom: 6,
+    },
+
+    campoAbonoInput: {
+      width: '100%',
+      height: 46,
+      borderWidth: 1,
+      borderColor: '#DDDDDD',
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      fontSize: 14,
+      color: '#222222',
+      backgroundColor: '#FFFFFF',
+    },
+
+    transferenciaAbonoContainer: {
+      width: '100%',
+    },
+
+    // ==========================================
+    // COMPROBANTE DEL ABONO
+    // ==========================================
+
+    comprobanteAbonoContainer: {
+      width: '100%',
+      marginTop: 15,
+    },
+
+    comprobanteAbonoTitulo: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: '#333333',
+      marginBottom: 8,
+    },
+
+    botonesComprobanteAbono: {
+      flexDirection: 'row',
+      gap: 10,
+      width: '100%',
+    },
+
+    botonComprobanteAbono: {
+      flex: 1,
+      minHeight: 44,
+      borderWidth: 1,
+      borderColor: '#08752F',
+      borderRadius: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingHorizontal: 8,
+      backgroundColor: '#FFFFFF',
+    },
+
+    botonComprobanteAbonoTexto: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: '#08752F',
+    },
+
+    comprobanteAbonoAgregado: {
+      width: '100%',
+      minHeight: 70,
+      marginTop: 12,
+      padding: 8,
+      borderRadius: 10,
+      backgroundColor: '#F0F8F2',
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+
+    comprobanteAbonoMiniatura: {
+      width: 54,
+      height: 54,
+      borderRadius: 8,
+      resizeMode: 'cover',
+    },
+
+    comprobanteAbonoInfo: {
+      flex: 1,
+      marginLeft: 10,
+      marginRight: 6,
+    },
+
+    comprobanteAbonoNombreFila: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+    },
+
+    comprobanteAbonoNombre: {
+      flexShrink: 1,
+      fontSize: 13,
+      fontWeight: '600',
+      color: '#333333',
+    },
+
+    comprobanteAbonoArchivo: {
+      fontSize: 11,
+      color: '#777777',
+      marginTop: 4,
+    },
+
+    botonEliminarComprobanteAbono: {
+      width: 38,
+      height: 38,
+      borderRadius: 8,
+      backgroundColor: '#FDECEC',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    // ==========================================
+    // TOTAL DEL ABONO
+    // ==========================================
+
+    totalAbonoFila: {
+      width: '100%',
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: 18,
+      paddingTop: 14,
+      borderTopWidth: 1,
+      borderTopColor: '#EEEEEE',
+    },
+
+    totalAbonoLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: '#444444',
+    },
+
+    totalAbonoValor: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: '#D71920',
+    },
+
+    // ==========================================
+    // BOTONES INFERIORES
+    // ==========================================
+
+    botonesModalAbono: {
+      flexDirection: 'row',
+      gap: 10,
+      width: '100%',
+      marginTop: 12,
+      paddingTop: 10,
+      borderTopWidth: 1,
+      borderTopColor: '#EEEEEE',
+    },
+
+    botonCancelarAbono: {
+      flex: 1,
+      minHeight: 46,
+      borderWidth: 1,
+      borderColor: '#CCCCCC',
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#FFFFFF',
+    },
+
+    botonCancelarAbonoTexto: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: '#555555',
+    },
+
+    botonGuardarAbono: {
+      flex: 1,
+      minHeight: 46,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#D71920',
+    },
+
+    botonGuardarAbonoTexto: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: '#FFFFFF',
+    },
+
+    modalAbonoScroll: {
+      flexShrink: 1,
+    },
+
+    modalAbonoScrollContenido: {
+      paddingBottom: 5,
+    },
+
+    avisoTransferenciaPendiente: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 7,
+      marginTop: 8,
+      marginBottom: 5,
+      paddingHorizontal: 10,
+      paddingVertical: 9,
+      backgroundColor: '#FFF7ED',
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: '#FED7AA',
+    },
+
+    avisoTransferenciaIcono: {
+      fontSize: 16,
+      lineHeight: 18,
+    },
+
+    avisoTransferenciaPendienteTexto: {
+      flex: 1,
+      fontSize: 12,
+      lineHeight: 17,
+      color: '#9A5B13',
+    },
+
+    tituloTransferenciaAbonoFila: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      flex: 1,
+    },
+
+    historialTituloIzquierda: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+
+    botonDeshacer: {
+      width: 40,
+      height: 40,
+
+      borderRadius: 10,
+
+      backgroundColor: '#f8f0f0',
+
+      borderWidth: 1,
+      borderColor: '#ebc6c6',
+
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
   });

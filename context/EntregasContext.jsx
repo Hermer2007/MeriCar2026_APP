@@ -163,7 +163,7 @@ export const EntregasProvider = ({
       entregas.find(
         (entrega) =>
           String(entrega.clienteId) ===
-            String(clienteId) &&
+          String(clienteId) &&
           entrega.fecha === fecha
       ) || null
     );
@@ -189,7 +189,7 @@ export const EntregasProvider = ({
 
       if (
         fechaSeleccionada instanceof
-          Date &&
+        Date &&
         !Number.isNaN(
           fechaSeleccionada.getTime()
         )
@@ -206,15 +206,30 @@ export const EntregasProvider = ({
         fechaCreacion,
       };
 
-      await addDoc(
-        collection(
-          db,
-          'entregas'
-        ),
-        entregaGuardar
-      );
+      const documentoEntrega =
+        await addDoc(
+          collection(
+            db,
+            'entregas'
+          ),
+          {
+            ...entregaGuardar,
 
-      return true;
+            // Permite identificar que esta
+            // entrega puede formar parte
+            // del sistema de deshacer
+            accionCreadaEn:
+              serverTimestamp(),
+
+            accionDeshecha:
+              false,
+          }
+        );
+
+      return {
+        ok: true,
+        id: documentoEntrega.id,
+      };
 
     } catch (error) {
 
@@ -470,9 +485,9 @@ export const EntregasProvider = ({
           String(
             entrega.clienteId
           ) ===
-            String(
-              clienteId
-            ) &&
+          String(
+            clienteId
+          ) &&
           Number(
             entrega.saldoPendiente
           ) > 0
@@ -487,14 +502,14 @@ export const EntregasProvider = ({
             entregaA.fechaCreacion
               ?.toMillis
               ? entregaA.fechaCreacion
-                  .toMillis()
+                .toMillis()
               : 0;
 
           const fechaB =
             entregaB.fechaCreacion
               ?.toMillis
               ? entregaB.fechaCreacion
-                  .toMillis()
+                .toMillis()
               : 0;
 
           return (
@@ -615,7 +630,7 @@ export const EntregasProvider = ({
 
       const tieneComprobante =
         transferencia > 0 &&
-        comprobante?.uri;  
+        comprobante?.uri;
 
       // ======================================
       // VALIDACIONES GENERALES
@@ -851,7 +866,7 @@ export const EntregasProvider = ({
 
           for (
             const entrega of
-              entregasActuales
+            entregasActuales
           ) {
 
             if (
@@ -919,18 +934,18 @@ export const EntregasProvider = ({
 
           const ahora =
             fechaTrabajo instanceof Date &&
-            !Number.isNaN(
-              fechaTrabajo.getTime()
-            )
+              !Number.isNaN(
+                fechaTrabajo.getTime()
+              )
               ? new Date(
-                  fechaTrabajo.getFullYear(),
-                  fechaTrabajo.getMonth(),
-                  fechaTrabajo.getDate(),
-                  ahoraReal.getHours(),
-                  ahoraReal.getMinutes(),
-                  ahoraReal.getSeconds(),
-                  0
-                )
+                fechaTrabajo.getFullYear(),
+                fechaTrabajo.getMonth(),
+                fechaTrabajo.getDate(),
+                ahoraReal.getHours(),
+                ahoraReal.getMinutes(),
+                ahoraReal.getSeconds(),
+                0
+              )
               : ahoraReal;
 
           const dia =
@@ -944,7 +959,7 @@ export const EntregasProvider = ({
           const mes =
             String(
               ahora.getMonth() +
-                1
+              1
             ).padStart(
               2,
               '0'
@@ -1021,8 +1036,8 @@ export const EntregasProvider = ({
               entregaId:
                 entregaId
                   ? String(
-                      entregaId
-                    )
+                    entregaId
+                  )
                   : null,
 
               tipo:
@@ -1084,7 +1099,7 @@ export const EntregasProvider = ({
               comprobanteTomadoPorNombre:
                 tieneComprobante
                   ? comprobante.usuarioNombre || null
-                  : null,tieneComprobanteTransferencia:
+                  : null, tieneComprobanteTransferencia:
                 tieneComprobante
                   ? true
                   : false,
@@ -1121,14 +1136,14 @@ export const EntregasProvider = ({
                 horaPago,
 
               fechaCreacion:
-              fechaTrabajo instanceof Date &&
-              !Number.isNaN(
-                fechaTrabajo.getTime()
-              )
-                ? Timestamp.fromDate(
+                fechaTrabajo instanceof Date &&
+                  !Number.isNaN(
+                    fechaTrabajo.getTime()
+                  )
+                  ? Timestamp.fromDate(
                     ahora
                   )
-                : serverTimestamp(),
+                  : serverTimestamp(),
 
               distribucion,
             }
@@ -1194,262 +1209,669 @@ export const EntregasProvider = ({
   };
 
   // ==========================================
-// CONFIRMAR TRANSFERENCIA DE UN ABONO
-// ==========================================
+  // DESHACER ÚLTIMA ACCIÓN DEL DÍA
+  // ==========================================
 
-const confirmarTransferenciaAbono = async ({
-  abonoId,
-  montoRecibido,
-  fechaTransferencia,
-}) => {
+  const deshacerUltimaAccion = async (
+    clienteId
+  ) => {
+    try {
 
-  try {
+      if (!clienteId) {
+        return {
+          ok: false,
+          codigo: 'SIN_CLIENTE',
+          mensaje:
+            'No se pudo identificar al cliente.',
+        };
+      }
 
-    const abonoActual =
-      abonos.find(
-        (abono) =>
-          String(abono.id) ===
-          String(abonoId)
+      // ======================================
+      // FECHA ACTUAL
+      // ======================================
+
+      const ahora = new Date();
+
+      const inicioHoy = new Date(
+        ahora.getFullYear(),
+        ahora.getMonth(),
+        ahora.getDate(),
+        0,
+        0,
+        0,
+        0
       );
 
-    if (!abonoActual) {
-      return {
-        ok: false,
-        mensaje:
-          'No se encontró el abono.',
-      };
-    }
-
-    const transferenciaAnterior =
-      Number(
-        abonoActual.pagoTransferencia || 0
+      const finHoy = new Date(
+        ahora.getFullYear(),
+        ahora.getMonth(),
+        ahora.getDate(),
+        23,
+        59,
+        59,
+        999
       );
 
-    const transferenciaRecibida =
-      Number(montoRecibido);
+      // ======================================
+      // BUSCAR ABONOS REVERSIBLES DE HOY
+      // ======================================
 
-    if (
-      Number.isNaN(transferenciaRecibida) ||
-      transferenciaRecibida < 0
-    ) {
-      return {
-        ok: false,
-        mensaje:
-          'Ingrese un valor válido para la transferencia.',
-      };
-    }
+      const abonosHoy = (abonos || [])
+        .filter((abono) => {
 
-    if (
-      transferenciaRecibida >
-      transferenciaAnterior
-    ) {
-      return {
-        ok: false,
-        mensaje:
-          'El valor recibido no puede superar la transferencia registrada.',
-      };
-    }
+          if (
+            String(abono.clienteId) !==
+            String(clienteId)
+          ) {
+            return false;
+          }
 
-    if (!fechaTransferencia) {
-      return {
-        ok: false,
-        mensaje:
-          'Seleccione la fecha de la transferencia.',
-      };
-    }
+          if (
+            abono.deshacerAplicado === true
+          ) {
+            return false;
+          }
 
-    if (
-      abonoActual.transferenciaConfirmada ===
-      true
-    ) {
-      return {
-        ok: false,
-        mensaje:
-          'Esta transferencia ya fue confirmada.',
-      };
-    }
+          if (
+            !Array.isArray(
+              abono.distribucion
+            ) ||
+            abono.distribucion.length === 0
+          ) {
+            return false;
+          }
 
-    const diferencia =
-      Number(
-        (
-          transferenciaAnterior -
-          transferenciaRecibida
-        ).toFixed(2)
+          const fecha =
+            abono.fechaCreacion?.toDate
+              ? abono.fechaCreacion.toDate()
+              : null;
+
+          if (!fecha) {
+            return false;
+          }
+
+          return (
+            fecha >= inicioHoy &&
+            fecha <= finHoy
+          );
+        })
+        .map((abono) => ({
+          tipoAccion: 'ABONO',
+          fechaAccion:
+            abono.fechaCreacion.toMillis(),
+          datos: abono,
+        }));
+
+      // ======================================
+      // BUSCAR ENTREGAS CREADAS HOY
+      // ======================================
+
+      const entregasHoy = (entregas || [])
+        .filter((entrega) => {
+
+          if (
+            String(entrega.clienteId) !==
+            String(clienteId)
+          ) {
+            return false;
+          }
+
+          if (
+            entrega.accionDeshecha === true
+          ) {
+            return false;
+          }
+
+          const timestamp =
+            entrega.accionCreadaEn ||
+            entrega.fechaCreacion;
+
+          const fecha =
+            timestamp?.toDate
+              ? timestamp.toDate()
+              : null;
+
+          if (!fecha) {
+            return false;
+          }
+
+          return (
+            fecha >= inicioHoy &&
+            fecha <= finHoy
+          );
+        })
+        .map((entrega) => {
+
+          const timestamp =
+            entrega.accionCreadaEn ||
+            entrega.fechaCreacion;
+
+          return {
+            tipoAccion:
+              'CREAR_ENTREGA',
+
+            fechaAccion:
+              timestamp.toMillis(),
+
+            datos: entrega,
+          };
+        });
+
+      // ======================================
+      // UNIR TODAS LAS ACCIONES
+      // ======================================
+
+      const acciones = [
+        ...abonosHoy,
+        ...entregasHoy,
+      ].sort(
+        (a, b) =>
+          b.fechaAccion -
+          a.fechaAccion
       );
 
-    const valoresCoinciden =
-      diferencia === 0;
+      if (acciones.length === 0) {
+        return {
+          ok: false,
+          codigo:
+            'SIN_ACCIONES_HOY',
+          mensaje:
+            'No existen modificaciones realizadas hoy que puedan deshacerse.',
+        };
+      }
 
-    const distribucionOriginal =
-      Array.isArray(
-        abonoActual.distribucion
-      )
-        ? abonoActual.distribucion
-        : [];
+      // ======================================
+      // ÚLTIMA ACCIÓN REAL
+      // ======================================
 
-    const referenciaAbono =
-      doc(
+      const ultimaAccion =
+        acciones[0];
+
+      // ======================================
+      // CASO 1: ENTREGA NUEVA
+      // ======================================
+
+      if (
+        ultimaAccion.tipoAccion ===
+        'CREAR_ENTREGA'
+      ) {
+
+        const entrega =
+          ultimaAccion.datos;
+
+        // Seguridad:
+        // no eliminar si ya existen abonos
+        // relacionados con esta entrega.
+
+        const tieneAbonos =
+          (abonos || []).some(
+            (abono) => {
+
+              if (
+                abono.deshacerAplicado ===
+                true
+              ) {
+                return false;
+              }
+
+              if (
+                String(
+                  abono.entregaId
+                ) ===
+                String(entrega.id)
+              ) {
+                return true;
+              }
+
+              if (
+                Array.isArray(
+                  abono.distribucion
+                )
+              ) {
+                return (
+                  abono.distribucion.some(
+                    (detalle) =>
+                      String(
+                        detalle.entregaId
+                      ) ===
+                      String(
+                        entrega.id
+                      ) &&
+                      Number(
+                        detalle.montoAplicado ||
+                        0
+                      ) > 0
+                  )
+                );
+              }
+
+              return false;
+            }
+          );
+
+        if (tieneAbonos) {
+          return {
+            ok: false,
+            codigo:
+              'ENTREGA_CON_ABONOS',
+            mensaje:
+              'Primero debe deshacer el abono relacionado con esta entrega.',
+          };
+        }
+
+        await deleteDoc(
+          doc(
+            db,
+            'entregas',
+            entrega.id
+          )
+        );
+
+        return {
+          ok: true,
+          tipo: 'CREAR_ENTREGA',
+          mensaje:
+            'La última entrega registrada fue deshecha correctamente.',
+        };
+      }
+
+      // ======================================
+      // CASO 2: ABONO
+      // ======================================
+
+      if (
+        ultimaAccion.tipoAccion ===
+        'ABONO'
+      ) {
+
+        const ultimoAbono =
+          ultimaAccion.datos;
+
+        const distribucion =
+          ultimoAbono.distribucion;
+
+        const referenciaAbono =
+          doc(
+            db,
+            'abonos',
+            ultimoAbono.id
+          );
+
+        await runTransaction(
+          db,
+          async (transaction) => {
+
+            const entregasRestaurar =
+              [];
+
+            // PRIMERO LEER
+            for (
+              const detalle of
+              distribucion
+            ) {
+
+              const referenciaEntrega =
+                doc(
+                  db,
+                  'entregas',
+                  detalle.entregaId
+                );
+
+              const documentoEntrega =
+                await transaction.get(
+                  referenciaEntrega
+                );
+
+              if (
+                !documentoEntrega.exists()
+              ) {
+                throw new Error(
+                  'ENTREGA_NO_EXISTE'
+                );
+              }
+
+              entregasRestaurar.push({
+                referencia:
+                  referenciaEntrega,
+                detalle,
+              });
+            }
+
+            // DESPUÉS ESCRIBIR
+            for (
+              const item of
+              entregasRestaurar
+            ) {
+
+              transaction.update(
+                item.referencia,
+                {
+                  saldoPendiente:
+                    Number(
+                      item.detalle
+                        .saldoAnterior ||
+                      0
+                    ),
+                }
+              );
+            }
+
+            // MARCAR ABONO DESHECHO
+            transaction.update(
+              referenciaAbono,
+              {
+                deshacerAplicado:
+                  true,
+
+                fechaDeshacer:
+                  Timestamp.now(),
+              }
+            );
+          }
+        );
+
+        return {
+          ok: true,
+          tipo: 'ABONO',
+
+          cantidadEntregas:
+            distribucion.length,
+
+          mensaje:
+            distribucion.length > 1
+              ? `Abono deshecho. Se restauraron ${distribucion.length} entregas.`
+              : 'El último abono fue deshecho correctamente.',
+        };
+      }
+
+      return {
+        ok: false,
+        mensaje:
+          'La última acción no puede deshacerse.',
+      };
+
+    } catch (error) {
+
+      console.log(
+        'Error al deshacer última acción:',
+        error
+      );
+
+      if (
+        error.message ===
+        'ENTREGA_NO_EXISTE'
+      ) {
+        return {
+          ok: false,
+          mensaje:
+            'No se pudo restaurar el estado porque una entrega relacionada ya no existe.',
+        };
+      }
+
+      return {
+        ok: false,
+        mensaje:
+          'No se pudo deshacer la última acción.',
+      };
+    }
+  };
+  // ==========================================
+  // CONFIRMAR TRANSFERENCIA DE UN ABONO
+  // ==========================================
+
+  const confirmarTransferenciaAbono = async ({
+    abonoId,
+    montoRecibido,
+    fechaTransferencia,
+  }) => {
+
+    try {
+
+      const abonoActual =
+        abonos.find(
+          (abono) =>
+            String(abono.id) ===
+            String(abonoId)
+        );
+
+      if (!abonoActual) {
+        return {
+          ok: false,
+          mensaje:
+            'No se encontró el abono.',
+        };
+      }
+
+      const transferenciaAnterior =
+        Number(
+          abonoActual.pagoTransferencia || 0
+        );
+
+      const transferenciaRecibida =
+        Number(montoRecibido);
+
+      if (
+        Number.isNaN(transferenciaRecibida) ||
+        transferenciaRecibida < 0
+      ) {
+        return {
+          ok: false,
+          mensaje:
+            'Ingrese un valor válido para la transferencia.',
+        };
+      }
+
+      if (
+        transferenciaRecibida >
+        transferenciaAnterior
+      ) {
+        return {
+          ok: false,
+          mensaje:
+            'El valor recibido no puede superar la transferencia registrada.',
+        };
+      }
+
+      if (!fechaTransferencia) {
+        return {
+          ok: false,
+          mensaje:
+            'Seleccione la fecha de la transferencia.',
+        };
+      }
+
+      if (
+        abonoActual.transferenciaConfirmada ===
+        true
+      ) {
+        return {
+          ok: false,
+          mensaje:
+            'Esta transferencia ya fue confirmada.',
+        };
+      }
+
+      const diferencia =
+        Number(
+          (
+            transferenciaAnterior -
+            transferenciaRecibida
+          ).toFixed(2)
+        );
+
+      const valoresCoinciden =
+        diferencia === 0;
+
+      const distribucionOriginal =
+        Array.isArray(
+          abonoActual.distribucion
+        )
+          ? abonoActual.distribucion
+          : [];
+
+      const referenciaAbono =
+        doc(
+          db,
+          'abonos',
+          abonoId
+        );
+
+      await runTransaction(
         db,
-        'abonos',
-        abonoId
-      );
+        async (transaction) => {
 
-    await runTransaction(
-      db,
-      async (transaction) => {
+          // ======================================
+          // LEER ENTREGAS AFECTADAS
+          // ======================================
 
-        // ======================================
-        // LEER ENTREGAS AFECTADAS
-        // ======================================
+          const entregasAfectadas =
+            [];
 
-        const entregasAfectadas =
-          [];
+          if (diferencia > 0) {
 
-        if (diferencia > 0) {
+            for (
+              const detalle of
+              distribucionOriginal
+            ) {
+
+              const referenciaEntrega =
+                doc(
+                  db,
+                  'entregas',
+                  detalle.entregaId
+                );
+
+              const documentoEntrega =
+                await transaction.get(
+                  referenciaEntrega
+                );
+
+              if (
+                !documentoEntrega.exists()
+              ) {
+                throw new Error(
+                  'ENTREGA_NO_EXISTE'
+                );
+              }
+
+              entregasAfectadas.push({
+                detalle,
+                referencia:
+                  referenciaEntrega,
+                datos:
+                  documentoEntrega.data(),
+              });
+            }
+          }
+
+          // ======================================
+          // DEVOLVER LA DIFERENCIA
+          // DESDE LA ÚLTIMA DEUDA AFECTADA
+          // ======================================
+
+          let diferenciaRestante =
+            diferencia;
+
+          const nuevaDistribucion =
+            distribucionOriginal.map(
+              (detalle) => ({
+                ...detalle,
+              })
+            );
 
           for (
-            const detalle of
-            distribucionOriginal
+            let indice =
+              entregasAfectadas.length - 1;
+
+            indice >= 0 &&
+            diferenciaRestante > 0;
+
+            indice--
           ) {
 
-            const referenciaEntrega =
-              doc(
-                db,
-                'entregas',
-                detalle.entregaId
+            const entregaAfectada =
+              entregasAfectadas[indice];
+
+            const detalle =
+              nuevaDistribucion[indice];
+
+            const montoAplicado =
+              Number(
+                detalle.montoAplicado || 0
               );
 
-            const documentoEntrega =
-              await transaction.get(
-                referenciaEntrega
+            const montoDevolver =
+              Number(
+                Math.min(
+                  diferenciaRestante,
+                  montoAplicado
+                ).toFixed(2)
               );
 
-            if (
-              !documentoEntrega.exists()
-            ) {
-              throw new Error(
-                'ENTREGA_NO_EXISTE'
+            const saldoActual =
+              Number(
+                entregaAfectada.datos
+                  .saldoPendiente || 0
               );
-            }
 
-            entregasAfectadas.push({
-              detalle,
-              referencia:
-                referenciaEntrega,
-              datos:
-                documentoEntrega.data(),
-            });
+            const nuevoSaldo =
+              Number(
+                (
+                  saldoActual +
+                  montoDevolver
+                ).toFixed(2)
+              );
+
+            const nuevoMontoAplicado =
+              Number(
+                (
+                  montoAplicado -
+                  montoDevolver
+                ).toFixed(2)
+              );
+
+            transaction.update(
+              entregaAfectada.referencia,
+              {
+                saldoPendiente:
+                  nuevoSaldo,
+              }
+            );
+
+            detalle.montoAplicado =
+              nuevoMontoAplicado;
+
+            detalle.saldoNuevo =
+              Number(
+                (
+                  Number(
+                    detalle.saldoAnterior ||
+                    0
+                  ) -
+                  nuevoMontoAplicado
+                ).toFixed(2)
+              );
+
+            diferenciaRestante =
+              Number(
+                (
+                  diferenciaRestante -
+                  montoDevolver
+                ).toFixed(2)
+              );
           }
-        }
 
-        // ======================================
-        // DEVOLVER LA DIFERENCIA
-        // DESDE LA ÚLTIMA DEUDA AFECTADA
-        // ======================================
-
-        let diferenciaRestante =
-          diferencia;
-
-        const nuevaDistribucion =
-          distribucionOriginal.map(
-            (detalle) => ({
-              ...detalle,
-            })
-          );
-
-        for (
-          let indice =
-            entregasAfectadas.length - 1;
-
-          indice >= 0 &&
-          diferenciaRestante > 0;
-
-          indice--
-        ) {
-
-          const entregaAfectada =
-            entregasAfectadas[indice];
-
-          const detalle =
-            nuevaDistribucion[indice];
-
-          const montoAplicado =
-            Number(
-              detalle.montoAplicado || 0
+          if (
+            diferenciaRestante > 0
+          ) {
+            throw new Error(
+              'DISTRIBUCION_INSUFICIENTE'
             );
+          }
 
-          const montoDevolver =
-            Number(
-              Math.min(
-                diferenciaRestante,
-                montoAplicado
-              ).toFixed(2)
-            );
-
-          const saldoActual =
-            Number(
-              entregaAfectada.datos
-                .saldoPendiente || 0
-            );
-
-          const nuevoSaldo =
-            Number(
-              (
-                saldoActual +
-                montoDevolver
-              ).toFixed(2)
-            );
-
-          const nuevoMontoAplicado =
-            Number(
-              (
-                montoAplicado -
-                montoDevolver
-              ).toFixed(2)
-            );
-
-          transaction.update(
-            entregaAfectada.referencia,
-            {
-              saldoPendiente:
-                nuevoSaldo,
-            }
-          );
-
-          detalle.montoAplicado =
-            nuevoMontoAplicado;
-
-          detalle.saldoNuevo =
-            Number(
-              (
-                Number(
-                  detalle.saldoAnterior ||
-                  0
-                ) -
-                nuevoMontoAplicado
-              ).toFixed(2)
-            );
-
-          diferenciaRestante =
-            Number(
-              (
-                diferenciaRestante -
-                montoDevolver
-              ).toFixed(2)
-            );
-        }
-
-        if (
-          diferenciaRestante > 0
-        ) {
-          throw new Error(
-            'DISTRIBUCION_INSUFICIENTE'
-          );
-        }
-
-        // ======================================
-        // ACTUALIZAR EL ABONO
-        // ======================================
+          // ======================================
+          // ACTUALIZAR EL ABONO
+          // ======================================
 
           const efectivo =
             Number(
@@ -1542,7 +1964,7 @@ const confirmarTransferenciaAbono = async ({
     }
   };
 
-    // ==========================================
+  // ==========================================
   // CONFIRMAR TRANSFERENCIA DE UNA ENTREGA
   // ==========================================
 
@@ -1695,23 +2117,23 @@ const confirmarTransferenciaAbono = async ({
 
           ...(comprobante
             ? {
-                tieneComprobanteTransferencia: true,
+              tieneComprobanteTransferencia: true,
 
-                comprobanteTransferencia:
-                  comprobante.uri,
+              comprobanteTransferencia:
+                comprobante.uri,
 
-                comprobanteTransferenciaRuta:
-                  comprobante.nombre,
+              comprobanteTransferenciaRuta:
+                comprobante.nombre,
 
-                comprobanteTransferenciaFecha:
-                  Timestamp.now(),
+              comprobanteTransferenciaFecha:
+                Timestamp.now(),
 
-                comprobanteTomadoPorId:
-                  comprobante.usuarioId || null,
+              comprobanteTomadoPorId:
+                comprobante.usuarioId || null,
 
-                comprobanteTomadoPorNombre:
-                  comprobante.usuarioNombre || 'Usuario',
-              }
+              comprobanteTomadoPorNombre:
+                comprobante.usuarioNombre || 'Usuario',
+            }
             : {}),
         }
       );
@@ -1845,7 +2267,7 @@ const confirmarTransferenciaAbono = async ({
                     String(entregaId) &&
                     Number(
                       detalle.montoAplicado ||
-                        0
+                      0
                     ) > 0
                 )
               );
@@ -1901,8 +2323,8 @@ const confirmarTransferenciaAbono = async ({
   };
 
   // ==========================================
-// ELIMINAR ENTREGAS
-// ==========================================
+  // ELIMINAR ENTREGAS
+  // ==========================================
 
   const eliminarEntregas = async (
     idsEntregas
@@ -1987,6 +2409,7 @@ const confirmarTransferenciaAbono = async ({
         obtenerAbonosEntrega,
 
         registrarAbono,
+        deshacerUltimaAccion,
         confirmarTransferenciaAbono,
         confirmarTransferenciaEntrega,
         eliminarEntregaHistorial,
