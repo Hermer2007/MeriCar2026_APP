@@ -1494,7 +1494,7 @@ if (
 
           <TextInput
             style={styles.inputNombreTemporal}
-            placeholder="Ej. María Paz"
+            placeholder="Ej. Marcelo Heredia"
             placeholderTextColor="#9CA3AF"
             value={nombreTemporal}
             onChangeText={setNombreTemporal}

@@ -97,6 +97,19 @@ export default function ReportesMenuScreen({
 
   {
     id: '3',
+    titulo: 'Facturación del día',
+    descripcion:
+      'Entregas del día pendientes de facturación',
+    icono: 'document-text-outline',
+    accion: () =>
+      navigation.navigate(
+        'ClientesEntregas'
+      ),
+  },
+
+
+  {
+    id: '4',
     titulo: 'Ventas y entregas generales',
     descripcion:
       'Historial de todos los reportes',
@@ -108,7 +121,7 @@ export default function ReportesMenuScreen({
   },
 
   {
-    id: '4',
+    id: '5',
     titulo: 'Transferencias por confirmar',
     descripcion:
       'Transferencias pendientes de confirmación',
@@ -120,7 +133,7 @@ export default function ReportesMenuScreen({
   },
 
   {
-    id: '5',
+    id: '6',
     titulo: 'Cuentas por cobrar',
     descripcion:
       'Entregas con saldos pendientes',
@@ -128,18 +141,6 @@ export default function ReportesMenuScreen({
     accion: () =>
       navigation.navigate(
         'CuentasCobrar'
-      ),
-  },
-
-  {
-    id: '6',
-    titulo: 'Clientes y Entregas',
-    descripcion:
-      'Resumen y ranking de clientes',
-    icono: 'people-outline',
-    accion: () =>
-      navigation.navigate(
-        'ClientesEntregas'
       ),
   },
 

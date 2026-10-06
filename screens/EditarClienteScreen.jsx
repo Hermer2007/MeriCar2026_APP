@@ -9,6 +9,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Switch,
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -29,7 +30,7 @@ const EditarClienteScreen = ({ navigation, route }) => {
 
   const [nombre, setNombre] = useState(
     cliente.nombre ||
-      `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim()
+    `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim()
   );
 
   const [cedula, setCedula] = useState(
@@ -52,8 +53,8 @@ const EditarClienteScreen = ({ navigation, route }) => {
     cliente.diasTrabajo || []
   );
 
-  const [observaciones, setObservaciones] = useState(
-    cliente.observaciones || ''
+  const [facturacion, setFacturacion] = useState(
+    cliente.facturacion ?? false
   );
 
   const cambiarDia = (dia) => {
@@ -91,7 +92,7 @@ const EditarClienteScreen = ({ navigation, route }) => {
       correo: correo.trim(),
       direccion: direccion.trim(),
       diasTrabajo,
-      observaciones: observaciones.trim(),
+      facturacion,
     });
 
     mostrarToast(
@@ -171,6 +172,7 @@ const EditarClienteScreen = ({ navigation, route }) => {
             <TextInput
               style={styles.input}
               placeholder="Ingrese el nombre del cliente"
+              placeholderTextColor="#999999"
               value={nombre}
               onChangeText={setNombre}
               autoCapitalize="words"
@@ -223,6 +225,50 @@ const EditarClienteScreen = ({ navigation, route }) => {
             })}
           </View>
 
+          {/* FACTURACIÓN */}
+
+          <View style={styles.facturacionCard}>
+
+            <View style={styles.facturacionIcono}>
+
+              <Ionicons
+                name="receipt-outline"
+                size={27}
+                color="#08752F"
+              />
+
+            </View>
+
+
+            <View style={styles.facturacionInfo}>
+
+              <Text style={styles.facturacionTitulo}>
+                Facturación
+              </Text>
+
+              <Text style={styles.facturacionDescripcion}>
+                Incluir a este cliente en la facturación del día.
+              </Text>
+
+            </View>
+
+
+            <Switch
+              value={facturacion}
+              onValueChange={setFacturacion}
+              trackColor={{
+                false: '#D5D5D5',
+                true: '#63C487',
+              }}
+              thumbColor={
+                facturacion
+                  ? '#08752F'
+                  : '#F4F4F4'
+              }
+            />
+
+          </View>
+
           <Text style={styles.label}>
             Cédula
             <Text style={styles.opcional}>
@@ -240,6 +286,7 @@ const EditarClienteScreen = ({ navigation, route }) => {
             <TextInput
               style={styles.input}
               placeholder="Ingrese la cédula"
+              placeholderTextColor="#999999"
               keyboardType="numeric"
               value={cedula}
               onChangeText={setCedula}
@@ -264,6 +311,7 @@ const EditarClienteScreen = ({ navigation, route }) => {
             <TextInput
               style={styles.input}
               placeholder="Ingrese el teléfono"
+              placeholderTextColor="#999999"
               keyboardType="phone-pad"
               value={telefono}
               onChangeText={setTelefono}
@@ -288,6 +336,7 @@ const EditarClienteScreen = ({ navigation, route }) => {
             <TextInput
               style={styles.input}
               placeholder="correo@ejemplo.com"
+              placeholderTextColor="#999999"
               keyboardType="email-address"
               autoCapitalize="none"
               value={correo}
@@ -313,31 +362,9 @@ const EditarClienteScreen = ({ navigation, route }) => {
             <TextInput
               style={styles.input}
               placeholder="Ingrese la dirección"
+              placeholderTextColor="#999999"
               value={direccion}
               onChangeText={setDireccion}
-              selectTextOnFocus
-            />
-          </View>
-
-          <Text style={styles.label}>
-            Observaciones
-            <Text style={styles.opcional}>
-              {' '}(opcional)
-            </Text>
-          </Text>
-
-          <View style={styles.inputContainer}>
-            <Ionicons
-              name="chatbubble-ellipses"
-              size={19}
-              color="#999999"
-            />
-
-            <TextInput
-              style={styles.input}
-              placeholder="Ingrese observaciones"
-              value={observaciones}
-              onChangeText={setObservaciones}
               selectTextOnFocus
             />
           </View>
@@ -452,6 +479,7 @@ const styles = StyleSheet.create({
     height: '100%',
     marginLeft: 8,
     fontSize: 14,
+    color: '#222222',
   },
 
   descripcionDias: {
@@ -504,5 +532,47 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 15,
+  },
+
+  facturacionCard: {
+    minHeight: 78,
+    marginTop: 18,
+    marginBottom: 4,
+    borderWidth: 1,
+    borderColor: '#DCDCDC',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+
+  facturacionIcono: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#E5F3E9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+
+  facturacionInfo: {
+    flex: 1,
+    paddingRight: 10,
+  },
+
+  facturacionTitulo: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#222222',
+    marginBottom: 3,
+  },
+
+  facturacionDescripcion: {
+    fontSize: 11,
+    lineHeight: 15,
+    color: '#777777',
   },
 });

@@ -9,6 +9,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Switch,
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -20,10 +21,10 @@ import BotonHome from '../components/BotonHome';
 
 const DIAS = ['Lunes', 'Miércoles', 'Jueves', 'Sábado', 'Domingo'];
 
-const ClienteRegistroScreen = ({navigation,route,}) => {
+const ClienteRegistroScreen = ({ navigation, route, }) => {
   const { mostrarToast } = useToast();
   const { agregarCliente } = useClientes();
-  const {vincularEntregaACliente,} = useEntregas();
+  const { vincularEntregaACliente, } = useEntregas();
 
   const insets = useSafeAreaInsets()
 
@@ -35,10 +36,10 @@ const ClienteRegistroScreen = ({navigation,route,}) => {
   const [correo, setCorreo] = useState('');
   const [direccion, setDireccion] = useState('');
   const [diasTrabajo, setDiasTrabajo] = useState([]);
-  const [observaciones, setObservaciones] = useState('');
+  const [facturacion, setFacturacion] = useState(false);
 
   const entregaTemporalId =
-  route.params?.entregaTemporalId || null;
+    route.params?.entregaTemporalId || null;
 
   const cambiarDia = (dia) => {
     setDiasTrabajo((actuales) =>
@@ -74,7 +75,7 @@ const ClienteRegistroScreen = ({navigation,route,}) => {
       correo: correo.trim(),
       direccion: direccion.trim(),
       diasTrabajo,
-      observaciones: observaciones.trim(),
+      facturacion,
     };
 
     const resultado =
@@ -238,6 +239,50 @@ const ClienteRegistroScreen = ({navigation,route,}) => {
             })}
           </View>
 
+          {/* FACTURACIÓN */}
+
+          <View style={styles.facturacionCard}>
+
+            <View style={styles.facturacionIcono}>
+
+              <Ionicons
+                name="receipt-outline"
+                size={27}
+                color="#08752F"
+              />
+
+            </View>
+
+
+            <View style={styles.facturacionInfo}>
+
+              <Text style={styles.facturacionTitulo}>
+                Facturación
+              </Text>
+
+              <Text style={styles.facturacionDescripcion}>
+                Incluir a este cliente en la facturación del día.
+              </Text>
+
+            </View>
+
+
+            <Switch
+              value={facturacion}
+              onValueChange={setFacturacion}
+              trackColor={{
+                false: '#D5D5D5',
+                true: '#63C487',
+              }}
+              thumbColor={
+                facturacion
+                  ? '#08752F'
+                  : '#F4F4F4'
+              }
+            />
+
+          </View>
+
           <Text style={styles.label}>
             Cédula
             <Text style={styles.opcional}>
@@ -334,30 +379,6 @@ const ClienteRegistroScreen = ({navigation,route,}) => {
               placeholderTextColor="#999999"
               value={direccion}
               onChangeText={setDireccion}
-              selectTextOnFocus
-            />
-          </View>
-
-          <Text style={styles.label}>
-            Observaciones
-            <Text style={styles.opcional}>
-              {' '}(opcional)
-            </Text>
-          </Text>
-
-          <View style={styles.inputContainer}>
-            <Ionicons
-              name="chatbubble-ellipses"
-              size={19}
-              color="#999999"
-            />
-
-            <TextInput
-              style={styles.input}
-              placeholder="Ingrese observaciones"
-              placeholderTextColor="#999999"
-              value={observaciones}
-              onChangeText={setObservaciones}
               selectTextOnFocus
             />
           </View>
@@ -482,11 +503,11 @@ const styles = StyleSheet.create({
   },
 
   dias: {
-  flexDirection: 'row',
-  flexWrap: 'wrap',
-  justifyContent: 'center',
-  gap: 10,
-},
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 10,
+  },
 
   diaCard: {
     width: '23%',
@@ -525,5 +546,47 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 15,
+  },
+
+  facturacionCard: {
+    minHeight: 78,
+    marginTop: 18,
+    marginBottom: 4,
+    borderWidth: 1,
+    borderColor: '#DCDCDC',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+
+  facturacionIcono: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#E5F3E9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+
+  facturacionInfo: {
+    flex: 1,
+    paddingRight: 10,
+  },
+
+  facturacionTitulo: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#222222',
+    marginBottom: 3,
+  },
+
+  facturacionDescripcion: {
+    fontSize: 11,
+    lineHeight: 15,
+    color: '#777777',
   },
 });

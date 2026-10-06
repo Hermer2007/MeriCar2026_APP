@@ -1,14 +1,16 @@
 import React, {
   useMemo,
+  useRef,
   useState,
 } from 'react';
 
 import {
+  Animated,
   FlatList,
+  PanResponder,
   StatusBar,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -17,373 +19,280 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useClientes } from '../context/ClientesContext';
 import { useEntregas } from '../context/EntregasContext';
+import { useAlert } from '../context/AlertContext';
+
 import BotonHome from '../components/BotonHome';
 
-export default function ClientesEntregasScreen({
-  navigation,
+// ============================================
+// TARJETA DESLIZABLE
+// ============================================
+
+function TarjetaFacturacion({
+  item,
+  onFacturar,
+  onHistorial,
 }) {
-  const { clientes } =
-    useClientes();
+  const desplazamiento =
+    useRef(new Animated.Value(0)).current;
 
-  const { entregas } =
-    useEntregas();
+  const LIMITE_VISUAL = 105;
+  const LIMITE_CONFIRMACION = 85;
 
-  const [
-    busqueda,
-    setBusqueda,
-  ] = useState('');
+  const bloqueado =
+    useRef(false);
 
   // ==========================================
-  // DINERO
+  // VOLVER AL CENTRO
   // ==========================================
 
-  const dinero = (
+  const volverAlCentro = () => {
+    Animated.spring(
+      desplazamiento,
+      {
+        toValue: 0,
+        useNativeDriver: true,
+        friction: 7,
+        tension: 60,
+      }
+    ).start(() => { });
+  };
+
+  // ==========================================
+  // CONFIRMAR DESLIZAMIENTO
+  // ==========================================
+
+  const confirmarDeslizamiento = (
+    direccion
+  ) => {
+    if (bloqueado.current) {
+      return;
+    }
+
+    bloqueado.current = true;
+
+    const destino =
+      direccion === 'derecha'
+        ? LIMITE_VISUAL
+        : -LIMITE_VISUAL;
+
+    Animated.spring(
+      desplazamiento,
+      {
+        toValue: destino,
+        useNativeDriver: true,
+        friction: 8,
+        tension: 70,
+      }
+    ).start(() => {
+      onFacturar(
+        item,
+        () => {
+          desplazamiento.setValue(0);
+          bloqueado.current = false;
+        }
+      );
+    });
+  };
+
+  // ==========================================
+  // PAN RESPONDER
+  // ==========================================
+
+  const panResponder =
+    useRef(
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (
+          _,
+          gesto
+        ) => {
+          return (
+            Math.abs(gesto.dx) > 8 &&
+            Math.abs(gesto.dx) >
+            Math.abs(gesto.dy)
+          );
+        },
+
+        onPanResponderMove: (
+          _,
+          gesto
+        ) => {
+          if (bloqueado.current) {
+            return;
+          }
+
+          let movimiento =
+            gesto.dx;
+
+          if (
+            movimiento >
+            LIMITE_VISUAL
+          ) {
+            movimiento =
+              LIMITE_VISUAL;
+          }
+
+          if (
+            movimiento <
+            -LIMITE_VISUAL
+          ) {
+            movimiento =
+              -LIMITE_VISUAL;
+          }
+
+          desplazamiento.setValue(
+            movimiento
+          );
+        },
+
+        onPanResponderRelease: (
+          _,
+          gesto
+        ) => {
+          if (bloqueado.current) {
+            return;
+          }
+
+          if (
+            gesto.dx >=
+            LIMITE_CONFIRMACION
+          ) {
+            confirmarDeslizamiento(
+              'derecha'
+            );
+
+            return;
+          }
+
+          if (
+            gesto.dx <=
+            -LIMITE_CONFIRMACION
+          ) {
+            confirmarDeslizamiento(
+              'izquierda'
+            );
+
+            return;
+          }
+
+          volverAlCentro();
+        },
+
+        onPanResponderTerminate: () => {
+          if (!bloqueado.current) {
+            volverAlCentro();
+          }
+        },
+      })
+    ).current;
+
+  // ==========================================
+  // EXPRESIÓN DE PRODUCTOS
+  // ==========================================
+
+  const productos =
+    Array.isArray(item.productos)
+      ? item.productos
+      : [];
+
+  const formatearNumero = (
     valor
   ) => {
     const numero =
-      Number(
-        valor || 0
-      );
+      Number(valor || 0);
 
     if (
-      numero < 0
+      Number.isInteger(numero)
     ) {
-      return `-$${Math.abs(
-        numero
-      ).toFixed(2)}`;
+      return String(numero);
     }
 
-    return `$${numero.toFixed(
-      2
-    )}`;
+    return numero
+      .toFixed(2)
+      .replace(/0+$/, '')
+      .replace(/\.$/, '');
   };
 
-  // ==========================================
-  // ENTREGAS DE CLIENTES
-  // ==========================================
+  const expresion =
+    productos.length > 0
+      ? productos
+        .map(
+          (producto) =>
+            `${formatearNumero(
+              producto.cantidad
+            )} x ${formatearNumero(
+              producto.precio
+            )}`
+        )
+        .join('  +  ')
+      : 'Sin detalle de productos';
 
-  const entregasClientes =
-    useMemo(() => {
-      return entregas.filter(
-        (entrega) =>
-          entrega.clienteId !==
-            null &&
-          entrega.clienteId !==
-            undefined
-      );
-    }, [
-      entregas,
-    ]);
-
-  // ==========================================
-  // RESUMEN GENERAL
-  // ==========================================
-
-  const resumenGeneral =
-    useMemo(() => {
-      const totalClientes =
-        clientes.length;
-
-      const totalEntregas =
-        entregasClientes.length;
-
-      const totalAbonado =
-        entregasClientes.reduce(
-          (
-            total,
-            entrega
-          ) =>
-            total +
-            Number(
-              entrega.abona ||
-                0
-            ),
-          0
-        );
-
-      const totalPendiente =
-        entregasClientes.reduce(
-          (
-            total,
-            entrega
-          ) =>
-            total +
-            Number(
-              entrega.saldoPendiente ||
-                0
-            ),
-          0
-        );
-
-      return {
-        totalClientes,
-        totalEntregas,
-        totalAbonado,
-        totalPendiente,
-      };
-    }, [
-      clientes,
-      entregasClientes,
-    ]);
-
-  // ==========================================
-  // INFORMACIÓN DE CADA CLIENTE
-  // ==========================================
-
-  const clientesConDatos =
-    useMemo(() => {
-      return clientes.map(
-        (cliente) => {
-          const historial =
-            entregasClientes.filter(
-              (entrega) =>
-                String(
-                  entrega.clienteId
-                ) ===
-                String(
-                  cliente.id
-                )
-            );
-
-          const numeroEntregas =
-            historial.length;
-
-          const totalAbonado =
-            historial.reduce(
-              (
-                total,
-                entrega
-              ) =>
-                total +
-                Number(
-                  entrega.abona ||
-                    0
-                ),
-              0
-            );
-
-          const saldoPendiente =
-            historial.reduce(
-              (
-                total,
-                entrega
-              ) =>
-                total +
-                Number(
-                  entrega.saldoPendiente ||
-                    0
-                ),
-              0
-            );
-
-          const totalEntregado =
-            totalAbonado +
-            saldoPendiente;
-
-          const nombre =
-            cliente.nombre ||
-            `${cliente.nombres || ''} ${
-              cliente.apellidos ||
-              ''
-            }`.trim() ||
-            'Cliente';
-
-          return {
-            ...cliente,
-
-            nombreMostrar:
-              nombre,
-
-            numeroEntregas,
-
-            totalAbonado,
-
-            saldoPendiente,
-
-            totalEntregado,
-          };
-        }
-      );
-    }, [
-      clientes,
-      entregasClientes,
-    ]);
-
-  // ==========================================
-  // RANKING
-  // ==========================================
-
-  const ranking =
-    useMemo(() => {
-      return [
-        ...clientesConDatos,
-      ].sort(
-        (
-          a,
-          b
-        ) => {
-          // 1. MÁS ENTREGAS
-
-          if (
-            b.numeroEntregas !==
-            a.numeroEntregas
-          ) {
-            return (
-              b.numeroEntregas -
-              a.numeroEntregas
-            );
-          }
-
-          // 2. MÁS ABONADO
-
-          if (
-            b.totalAbonado !==
-            a.totalAbonado
-          ) {
-            return (
-              b.totalAbonado -
-              a.totalAbonado
-            );
-          }
-
-          // 3. MENOS SALDO
-
-          if (
-            a.saldoPendiente !==
-            b.saldoPendiente
-          ) {
-            return (
-              a.saldoPendiente -
-              b.saldoPendiente
-            );
-          }
-
-          // 4. NOMBRE
-
-          return a.nombreMostrar.localeCompare(
-            b.nombreMostrar
-          );
-        }
-      );
-    }, [
-      clientesConDatos,
-    ]);
-
-  // ==========================================
-  // BUSCADOR
-  // ==========================================
-
-  const clientesFiltrados =
-    useMemo(() => {
-      const texto =
-        busqueda
-          .trim()
-          .toLowerCase();
-
-      if (
-        !texto
-      ) {
-        return ranking;
-      }
-
-      return ranking.filter(
-        (cliente) =>
-          `${cliente.nombreMostrar} ${
-            cliente.telefono ||
-            ''
-          }`
-            .toLowerCase()
-            .includes(
-              texto
-            )
-      );
-    }, [
-      ranking,
-      busqueda,
-    ]);
-
-  // ==========================================
-  // POSICIÓN DEL RANKING
-  // ==========================================
-
-  const obtenerPosicion = (
-    clienteId
-  ) => {
-    const posicion =
-      ranking.findIndex(
-        (cliente) =>
-          String(
-            cliente.id
-          ) ===
-          String(
-            clienteId
-          )
-      );
-
-    return posicion + 1;
-  };
-
-  // ==========================================
-  // ICONO DEL RANKING
-  // ==========================================
-
-  const obtenerRankingTexto = (
-    posicion
-  ) => {
-    if (
-      posicion === 1
-    ) {
-      return '🥇';
-    }
-
-    if (
-      posicion === 2
-    ) {
-      return '🥈';
-    }
-
-    if (
-      posicion === 3
-    ) {
-      return '🥉';
-    }
-
-    return `#${posicion}`;
-  };
-
-  // ==========================================
-  // VER HISTORIAL
-  // ==========================================
-
-  const verHistorial = (
-    cliente
-  ) => {
-    navigation.navigate(
-      'ClienteDetalle',
-      {
-        cliente,
-      }
+  const total =
+    Number(
+      item.total || 0
     );
-  };
 
   // ==========================================
-  // TARJETA CLIENTE
+  // INTERFAZ
   // ==========================================
 
-  const renderCliente = ({
-    item,
-  }) => {
-    const posicion =
-      obtenerPosicion(
-        item.id
-      );
+  return (
+    <View
+      style={
+        styles.swipeContainer
+      }
+    >
 
-    return (
-      <View
-        style={
-          styles.tarjetaCliente
-        }
+      {/* FACTURADO IZQUIERDA */}
+
+      <View style={styles.facturadoIzquierda}>
+
+        <Ionicons
+          name="checkmark-circle"
+          size={30}
+          color="#FFFFFF"
+        />
+
+        <Text style={styles.facturadoTexto}>
+          Facturado
+        </Text>
+
+      </View>
+
+
+      {/* FACTURADO DERECHA */}
+
+      <View style={styles.facturadoDerecha}>
+
+        <Ionicons
+          name="checkmark-circle"
+          size={30}
+          color="#FFFFFF"
+        />
+
+        <Text style={styles.facturadoTexto}>
+          Facturado
+        </Text>
+
+      </View>
+
+      {/* TARJETA */}
+
+      <Animated.View
+        {...panResponder.panHandlers}
+        style={[
+          styles.tarjetaCliente,
+
+          {
+            transform: [
+              {
+                translateX:
+                  desplazamiento,
+              },
+            ],
+          },
+        ]}
       >
+
         {/* CABECERA */}
 
         <View
@@ -391,6 +300,7 @@ export default function ClientesEntregasScreen({
             styles.clienteCabecera
           }
         >
+
           <View
             style={
               styles.avatar
@@ -398,44 +308,28 @@ export default function ClientesEntregasScreen({
           >
             <Ionicons
               name="person-outline"
-              size={23}
+              size={24}
               color="#08752F"
             />
           </View>
+
 
           <View
             style={
               styles.infoCliente
             }
           >
-            <View
-              style={
-                styles.nombreFila
-              }
-            >
-              <Text
-                style={
-                  styles.rankingTexto
-                }
-              >
-                {obtenerRankingTexto(
-                  posicion
-                )}
-              </Text>
 
-              <Text
-                style={
-                  styles.nombreCliente
-                }
-                numberOfLines={
-                  1
-                }
-              >
-                {
-                  item.nombreMostrar
-                }
-              </Text>
-            </View>
+            <Text
+              style={
+                styles.nombreCliente
+              }
+              numberOfLines={1}
+            >
+              {
+                item.nombreMostrar
+              }
+            </Text>
 
             <Text
               style={
@@ -445,122 +339,47 @@ export default function ClientesEntregasScreen({
               {item.telefono ||
                 'Sin teléfono'}
             </Text>
+
           </View>
 
-          <View
-            style={
-              styles.entregasBadge
-            }
-          >
-            <Text
-              style={
-                styles.entregasNumero
-              }
-            >
-              {
-                item.numeroEntregas
-              }
-            </Text>
-
-            <Text
-              style={
-                styles.entregasTexto
-              }
-            >
-              entregas
-            </Text>
-          </View>
         </View>
 
-        {/* DATOS */}
+
+        {/* DETALLE DE LA ENTREGA */}
 
         <View
           style={
-            styles.separador
-          }
-        />
-
-        <View
-          style={
-            styles.resumenCliente
+            styles.detalleContainer
           }
         >
-          <View
+
+          <Text
             style={
-              styles.columnaCliente
+              styles.expresionProductos
+            }
+            numberOfLines={2}
+          >
+            {expresion}
+          </Text>
+
+          <Text
+            style={
+              styles.signoIgual
             }
           >
-            <Text
-              style={
-                styles.labelCliente
-              }
-            >
-              Entregado
-            </Text>
+            =
+          </Text>
 
-            <Text
-              style={
-                styles.valorEntregado
-              }
-            >
-              {dinero(
-                item.totalEntregado
-              )}
-            </Text>
-          </View>
-
-          <View
+          <Text
             style={
-              styles.columnaCliente
+              styles.totalEntrega
             }
           >
-            <Text
-              style={
-                styles.labelCliente
-              }
-            >
-              Abonado
-            </Text>
+            ${total.toFixed(2)}
+          </Text>
 
-            <Text
-              style={
-                styles.valorAbonado
-              }
-            >
-              {dinero(
-                item.totalAbonado
-              )}
-            </Text>
-          </View>
-
-          <View
-            style={
-              styles.columnaCliente
-            }
-          >
-            <Text
-              style={
-                styles.labelCliente
-              }
-            >
-              Pendiente
-            </Text>
-
-            <Text
-              style={[
-                styles.valorPendiente,
-
-                item.saldoPendiente <=
-                  0 &&
-                  styles.valorSinPendiente,
-              ]}
-            >
-              {dinero(
-                item.saldoPendiente
-              )}
-            </Text>
-          </View>
         </View>
+
 
         {/* HISTORIAL */}
 
@@ -568,15 +387,12 @@ export default function ClientesEntregasScreen({
           style={
             styles.historialBoton
           }
-          activeOpacity={
-            0.7
-          }
+          activeOpacity={0.7}
           onPress={() =>
-            verHistorial(
-              item
-            )
+            onHistorial(item)
           }
         >
+
           <Text
             style={
               styles.historialTexto
@@ -590,21 +406,562 @@ export default function ClientesEntregasScreen({
             size={18}
             color="#08752F"
           />
+
         </TouchableOpacity>
-      </View>
+
+      </Animated.View>
+
+    </View>
+  );
+}
+
+
+// ============================================
+// PANTALLA
+// ============================================
+
+export default function ClientesEntregasScreen({
+  navigation,
+}) {
+
+  // ==========================================
+  // CONTEXTOS
+  // ==========================================
+
+  const { clientes } =
+    useClientes();
+
+  const {
+    entregas,
+    actualizarEntrega,
+  } = useEntregas();
+
+  const { mostrarAlert } =
+    useAlert();
+
+  // ==========================================
+  // RESUMEN GENERAL DE FACTURACIÓN
+  // ==========================================
+
+  const clientesFacturacionActiva =
+    useMemo(() => {
+
+      return clientes.filter(
+        (cliente) =>
+          cliente.facturacion === true
+      ).length;
+
+    }, [clientes]);
+
+
+  const totalFacturadoHistorico =
+    useMemo(() => {
+
+      return entregas
+        .filter(
+          (entrega) =>
+            entrega.facturada === true
+        )
+        .reduce(
+          (acumulado, entrega) =>
+            acumulado +
+            Number(entrega.total || 0),
+          0
+        );
+
+    }, [entregas]);
+
+
+  // ==========================================
+  // ESTADOS
+  // ==========================================
+
+  const [
+    procesando,
+    setProcesando,
+  ] = useState(false);
+
+
+  // ==========================================
+  // FECHA ACTUAL
+  // ==========================================
+
+  const obtenerFechaActual =
+    () => {
+
+      const ahora =
+        new Date();
+
+      const dia =
+        String(
+          ahora.getDate()
+        ).padStart(
+          2,
+          '0'
+        );
+
+      const mes =
+        String(
+          ahora.getMonth() + 1
+        ).padStart(
+          2,
+          '0'
+        );
+
+      const anio =
+        ahora.getFullYear();
+
+      return `${dia}/${mes}/${anio}`;
+    };
+
+
+  const fechaActual =
+    obtenerFechaActual();
+
+
+  // ==========================================
+  // OBTENER TIEMPO DE REGISTRO
+  // ==========================================
+
+  const obtenerTiempoRegistro = (
+    entrega
+  ) => {
+
+    if (
+      entrega.fechaCreacion
+        ?.toMillis
+    ) {
+      return entrega
+        .fechaCreacion
+        .toMillis();
+    }
+
+    if (
+      entrega.fechaCreacion
+        ?.toDate
+    ) {
+      return entrega
+        .fechaCreacion
+        .toDate()
+        .getTime();
+    }
+
+    // ----------------------------------------
+    // RESPALDO CON FECHA + HORA
+    // ----------------------------------------
+
+    if (
+      entrega.fecha &&
+      entrega.hora
+    ) {
+
+      const partesFecha =
+        String(
+          entrega.fecha
+        ).split('/');
+
+      const partesHora =
+        String(
+          entrega.hora
+        ).split(':');
+
+      if (
+        partesFecha.length === 3
+      ) {
+
+        const dia =
+          Number(
+            partesFecha[0]
+          );
+
+        const mes =
+          Number(
+            partesFecha[1]
+          ) - 1;
+
+        const anio =
+          Number(
+            partesFecha[2]
+          );
+
+        const hora =
+          Number(
+            partesHora[0] || 0
+          );
+
+        const minuto =
+          Number(
+            partesHora[1] || 0
+          );
+
+        const segundo =
+          Number(
+            partesHora[2] || 0
+          );
+
+        return new Date(
+          anio,
+          mes,
+          dia,
+          hora,
+          minuto,
+          segundo
+        ).getTime();
+      }
+    }
+
+    return 0;
+  };
+
+
+  // ==========================================
+  // ENTREGAS DEL DÍA PARA FACTURACIÓN
+  // ==========================================
+
+  const entregasFacturacion =
+    useMemo(() => {
+
+      return entregas
+
+        .filter(
+          (entrega) => {
+
+            // Debe pertenecer
+            // a un cliente registrado.
+
+            if (
+              !entrega.clienteId
+            ) {
+              return false;
+            }
+
+
+            // Debe ser una entrega
+            // de hoy.
+
+            if (
+              entrega.fecha !==
+              fechaActual
+            ) {
+              return false;
+            }
+
+
+            // Buscar cliente.
+
+            const cliente =
+              clientes.find(
+                (item) =>
+                  String(
+                    item.id
+                  ) ===
+                  String(
+                    entrega.clienteId
+                  )
+              );
+
+
+            // Cliente debe existir.
+
+            if (!cliente) {
+              return false;
+            }
+
+
+            // Debe tener facturación
+            // activada.
+
+            if (
+              cliente.facturacion !==
+              true
+            ) {
+              return false;
+            }
+
+
+            return true;
+          }
+        )
+
+        .map(
+          (entrega) => {
+
+            const cliente =
+              clientes.find(
+                (item) =>
+                  String(
+                    item.id
+                  ) ===
+                  String(
+                    entrega.clienteId
+                  )
+              );
+
+            const nombre =
+              cliente?.nombre ||
+              `${cliente?.nombres || ''} ${cliente?.apellidos ||
+                ''
+                }`.trim() ||
+              entrega.nombreCliente ||
+              'Cliente';
+
+            return {
+              ...entrega,
+
+              cliente,
+
+              nombreMostrar:
+                nombre,
+
+              telefono:
+                cliente?.telefono ||
+                '',
+            };
+          }
+        )
+
+        // Primera entrega registrada
+        // aparece primero.
+
+        .sort(
+          (a, b) =>
+            obtenerTiempoRegistro(
+              a
+            ) -
+            obtenerTiempoRegistro(
+              b
+            )
+        );
+
+    }, [
+      clientes,
+      entregas,
+      fechaActual,
+    ]);
+
+
+  // ==========================================
+  // TOTAL DEL DÍA
+  // ==========================================
+
+  const totalFacturacion =
+    entregasFacturacion.length;
+
+
+  // ==========================================
+  // YA FACTURADAS
+  // ==========================================
+
+  const cantidadFacturadas =
+    useMemo(() => {
+
+      return entregasFacturacion.filter(
+        (entrega) =>
+          entrega.facturada ===
+          true
+      ).length;
+
+    }, [
+      entregasFacturacion,
+    ]);
+
+
+  // ==========================================
+  // PENDIENTES QUE SE MUESTRAN
+  // ==========================================
+
+  const entregasPendientes =
+    useMemo(() => {
+
+      return entregasFacturacion.filter(
+        (entrega) =>
+          entrega.facturada !==
+          true
+      );
+
+    }, [
+      entregasFacturacion,
+    ]);
+
+
+  // ==========================================
+  // VER HISTORIAL
+  // ==========================================
+
+  const verHistorial = (
+    entrega
+  ) => {
+
+    if (
+      !entrega.cliente
+    ) {
+      return;
+    }
+
+    navigation.navigate(
+      'ClienteDetalle',
+      {
+        cliente:
+          entrega.cliente,
+      }
     );
   };
 
+
+  // ==========================================
+  // MARCAR COMO FACTURADA
+  // ==========================================
+
+  const marcarComoFacturada =
+    async (
+      entrega,
+      restaurarTarjeta
+    ) => {
+
+      if (procesando) {
+        restaurarTarjeta?.();
+        return;
+      }
+
+
+      mostrarAlert({
+
+        titulo:
+          'Entrega facturada correctamente',
+
+        mensaje:
+          `La entrega de ${entrega.nombreMostrar} ha sido marcada como facturada y se eliminará de la lista.`,
+
+        tipo:
+          'success',
+
+        textoConfirmar:
+          'Aceptar',
+
+        mostrarCancelar:
+          false,
+
+        onConfirmar:
+          async () => {
+
+            try {
+
+              setProcesando(
+                true
+              );
+
+
+              const resultado =
+                await actualizarEntrega({
+                  ...entrega,
+
+                  facturada:
+                    true,
+
+                  fechaFacturacion:
+                    new Date(),
+                });
+
+
+              if (!resultado) {
+
+                setProcesando(
+                  false
+                );
+
+                restaurarTarjeta?.();
+
+                mostrarAlert({
+                  titulo:
+                    'No se pudo facturar',
+                  mensaje:
+                    'Ocurrió un problema al actualizar la entrega. Intente nuevamente.',
+                  tipo:
+                    'error',
+                  textoConfirmar:
+                    'Aceptar',
+                });
+
+                return;
+              }
+
+
+              // onSnapshot actualizará
+              // automáticamente la lista.
+
+              setProcesando(
+                false
+              );
+
+            } catch (error) {
+
+              console.log(
+                'Error al facturar entrega:',
+                error
+              );
+
+              setProcesando(
+                false
+              );
+
+              restaurarTarjeta?.();
+
+              mostrarAlert({
+                titulo:
+                  'No se pudo facturar',
+                mensaje:
+                  'Ocurrió un problema al actualizar la entrega.',
+                tipo:
+                  'error',
+                textoConfirmar:
+                  'Aceptar',
+              });
+            }
+          },
+
+      });
+    };
+
+
+  // ==========================================
+  // RENDER
+  // ==========================================
+
+  const renderEntrega = ({
+    item,
+  }) => {
+
+    return (
+      <TarjetaFacturacion
+        item={item}
+        onFacturar={
+          marcarComoFacturada
+        }
+        onHistorial={
+          verHistorial
+        }
+      />
+    );
+  };
+
+
+  // ==========================================
+  // INTERFAZ
+  // ==========================================
+
   return (
+
     <View
       style={
         styles.container
       }
     >
+
       <StatusBar
         barStyle="light-content"
         backgroundColor="#08752F"
       />
+
 
       {/* HEADER */}
 
@@ -613,6 +970,7 @@ export default function ClientesEntregasScreen({
           styles.header
         }
       >
+
         <TouchableOpacity
           style={
             styles.regresar
@@ -621,42 +979,196 @@ export default function ClientesEntregasScreen({
             navigation.goBack()
           }
         >
+
           <Ionicons
             name="arrow-back"
             size={29}
             color="#FFFFFF"
           />
+
         </TouchableOpacity>
+
 
         <View
           style={
             styles.headerCentro
           }
         >
+
           <Text
             style={
               styles.tituloHeader
             }
           >
-            Clientes y Entregas
-          </Text>
-
-          <Text
-            style={
-              styles.subtituloHeader
-            }
-          >
-            Resumen general de clientes
+            Facturación del día
           </Text>
         </View>
 
-        <BotonHome navigation={navigation} />
+
+        <BotonHome
+          navigation={
+            navigation
+          }
+        />
+
       </View>
 
+
+      {/* LISTA */}
+
       <FlatList
-        data={
-          clientesFiltrados
+
+        ListHeaderComponent={
+
+          <>
+
+            {/* RESUMEN DE FACTURACIÓN */}
+
+            <View style={styles.resumenCard}>
+
+              {/* PARTE SUPERIOR */}
+
+              <View style={styles.resumenSuperior}>
+
+                {/* CLIENTES ACTIVOS */}
+
+                <View style={styles.resumenItem}>
+
+                  <View style={styles.resumenIcono}>
+                    <Ionicons
+                      name="people-outline"
+                      size={25}
+                      color="#08752F"
+                    />
+                  </View>
+
+                  <View style={styles.resumenInfo}>
+
+                    <Text style={styles.resumenLabel}>
+                      Clientes con
+                    </Text>
+
+                    <Text style={styles.resumenLabel}>
+                      facturación activada
+                    </Text>
+
+                    <Text style={styles.resumenValor}>
+                      {clientesFacturacionActiva}
+                    </Text>
+
+                  </View>
+
+                </View>
+
+
+                {/* DIVISOR */}
+
+                <View style={styles.divisorVertical} />
+
+
+                {/* FACTURADOS HOY */}
+
+                <View style={styles.resumenItem}>
+
+                  <View style={styles.resumenIcono}>
+                    <Ionicons
+                      name="receipt-outline"
+                      size={25}
+                      color="#08752F"
+                    />
+                  </View>
+
+                  <View style={styles.resumenInfo}>
+
+                    <Text style={styles.resumenLabel}>
+                      Facturados
+                    </Text>
+
+                    <Text style={styles.resumenLabel}>
+                      hoy
+                    </Text>
+
+                    <Text style={styles.resumenValor}>
+                      {cantidadFacturadas}/{totalFacturacion}
+                    </Text>
+
+                  </View>
+
+                </View>
+
+              </View>
+
+
+              {/* DIVISOR */}
+
+              <View style={styles.divisorHorizontal} />
+
+
+              {/* TOTAL HISTÓRICO */}
+
+              <View style={styles.totalFacturadoContainer}>
+
+                <View style={styles.resumenIconoGrande}>
+                  <Ionicons
+                    name="cash-outline"
+                    size={28}
+                    color="#08752F"
+                  />
+                </View>
+
+                <View style={styles.totalFacturadoInfo}>
+
+                  <Text style={styles.totalFacturadoLabel}>
+                    Total facturado
+                  </Text>
+
+                  <Text
+                    style={styles.totalFacturadoValor}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                  >
+                    ${totalFacturadoHistorico.toFixed(2)}
+                  </Text>
+
+                </View>
+
+              </View>
+
+            </View>
+
+
+            {/* CLIENTES DE HOY */}
+
+            <View style={styles.clientesHoyTitulo}>
+
+              <Ionicons
+                name="people-outline"
+                size={26}
+                color="#08752F"
+              />
+
+              <View style={styles.clientesHoyInfo}>
+
+                <Text style={styles.clientesHoyTexto}>
+                  Clientes de hoy
+                </Text>
+
+                <Text style={styles.clientesHoySubtitulo}>
+                  Entregas del día de clientes con facturación activada
+                </Text>
+
+              </View>
+
+            </View>
+
+          </>
+
         }
+
+        data={
+          entregasPendientes
+        }
+
         keyExtractor={(
           item
         ) =>
@@ -664,227 +1176,47 @@ export default function ClientesEntregasScreen({
             item.id
           )
         }
+
         renderItem={
-          renderCliente
+          renderEntrega
         }
+
         showsVerticalScrollIndicator={
           false
         }
+
         contentContainerStyle={
           styles.lista
         }
-        ListHeaderComponent={
-          <>
-            {/* ===================================
-                RESUMEN GENERAL
-            =================================== */}
 
-            <View
-              style={
-                styles.resumenGeneral
-              }
-            >
-              <View
-                style={
-                  styles.filaResumen
-                }
-              >
-                <View
-                  style={
-                    styles.resumenItem
-                  }
-                >
-                  <Text
-                    style={
-                      styles.resumenTitulo
-                    }
-                  >
-                    Clientes
-                  </Text>
-
-                  <Text
-                    style={
-                      styles.resumenNumero
-                    }
-                  >
-                    {
-                      resumenGeneral.totalClientes
-                    }
-                  </Text>
-                </View>
-
-                <View
-                  style={
-                    styles.divisorVertical
-                  }
-                />
-
-                <View
-                  style={
-                    styles.resumenItem
-                  }
-                >
-                  <Text
-                    style={
-                      styles.resumenTitulo
-                    }
-                  >
-                    Entregas
-                  </Text>
-
-                  <Text
-                    style={
-                      styles.resumenNumero
-                    }
-                  >
-                    {
-                      resumenGeneral.totalEntregas
-                    }
-                  </Text>
-                </View>
-              </View>
-
-              <View
-                style={
-                  styles.divisorHorizontal
-                }
-              />
-
-              <View
-                style={
-                  styles.filaResumen
-                }
-              >
-                <View
-                  style={
-                    styles.resumenItem
-                  }
-                >
-                  <Text
-                    style={
-                      styles.resumenTitulo
-                    }
-                  >
-                    Total abonado
-                  </Text>
-
-                  <Text
-                    style={
-                      styles.totalAbonado
-                    }
-                  >
-                    {dinero(
-                      resumenGeneral.totalAbonado
-                    )}
-                  </Text>
-                </View>
-
-                <View
-                  style={
-                    styles.resumenItemDerecha
-                  }
-                >
-                  <Text
-                    style={
-                      styles.resumenTitulo
-                    }
-                  >
-                    Saldo pendiente
-                  </Text>
-
-                  <Text
-                    style={[
-                      styles.totalPendiente,
-
-                      resumenGeneral.totalPendiente <=
-                        0 &&
-                        styles.totalSinPendiente,
-                    ]}
-                  >
-                    {dinero(
-                      resumenGeneral.totalPendiente
-                    )}
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {/* ===================================
-                BUSCADOR
-            =================================== */}
-
-            <View
-              style={
-                styles.buscadorContainer
-              }
-            >
-              <Ionicons
-                name="search-outline"
-                size={21}
-                color="#777777"
-              />
-
-              <TextInput
-                style={
-                  styles.buscador
-                }
-                placeholder="Buscar cliente..."
-                placeholderTextColor="#999999"
-                value={
-                  busqueda
-                }
-                onChangeText={
-                  setBusqueda
-                }
-              />
-            </View>
-
-            {/* ===================================
-                TÍTULO RANKING
-            =================================== */}
-
-            {ranking.length >
-              0 && (
-              <View
-                style={
-                  styles.rankingTituloContainer
-                }
-              >
-                <Ionicons
-                  name="trophy-outline"
-                  size={20}
-                  color="#08752F"
-                />
-
-                <Text
-                  style={
-                    styles.rankingTitulo
-                  }
-                >
-                  Ranking de clientes
-                </Text>
-              </View>
-            )}
-          </>
-        }
         ListEmptyComponent={
+
           <View
             style={
               styles.vacio
             }
           >
-            <Ionicons
-              name="people-outline"
-              size={55}
-              color="#BBBBBB"
-            />
+
+            <View
+              style={
+                styles.vacioIcono
+              }
+            >
+
+              <Ionicons
+                name="receipt-outline"
+                size={42}
+                color="#08752F"
+              />
+
+            </View>
 
             <Text
               style={
                 styles.vacioTitulo
               }
             >
-              No se encontraron clientes
+              Sin entregas por facturar
             </Text>
 
             <Text
@@ -892,14 +1224,19 @@ export default function ClientesEntregasScreen({
                 styles.vacioTexto
               }
             >
-              Los clientes registrados aparecerán aquí.
+              Las entregas de hoy de los clientes con facturación activada aparecerán aquí.
             </Text>
+
           </View>
+
         }
+
       />
+
     </View>
   );
 }
+
 
 // ============================================
 // ESTILOS
@@ -907,11 +1244,13 @@ export default function ClientesEntregasScreen({
 
 const styles =
   StyleSheet.create({
+
     container: {
       flex: 1,
       backgroundColor:
         '#F7F8F9',
     },
+
 
     // ========================================
     // HEADER
@@ -921,44 +1260,49 @@ const styles =
       height: 105,
       backgroundColor:
         '#08752F',
+
       justifyContent:
         'flex-end',
+
       alignItems:
         'center',
+
       paddingBottom: 14,
     },
+
 
     regresar: {
       position:
         'absolute',
+
       left: 17,
       bottom: 15,
+
       width: 45,
       height: 45,
+
       justifyContent:
         'center',
+
       alignItems:
         'center',
     },
+
 
     headerCentro: {
       alignItems:
         'center',
     },
 
+
     tituloHeader: {
       color:
         '#FFFFFF',
+
       fontSize: 20,
+
       fontWeight:
         '700',
-    },
-
-    subtituloHeader: {
-      color:
-        '#DDEEE2',
-      fontSize: 11,
-      marginTop: 2,
     },
 
     // ========================================
@@ -966,379 +1310,464 @@ const styles =
     // ========================================
 
     lista: {
-      paddingHorizontal: 16,
+      paddingHorizontal: 10,
       paddingTop: 13,
       paddingBottom: 35,
+      flexGrow: 1,
+    },
+
+
+    // ========================================
+    // SWIPE
+    // ========================================
+
+    swipeContainer: {
+      position: 'relative',
+
+      marginBottom: 12,
+
+      borderRadius: 13,
+
+      overflow: 'hidden',
+
+      backgroundColor: '#0A9A48',
+    },
+
+    facturadoIzquierda: {
+      position: 'absolute',
+
+      left: 0,
+      top: 0,
+      bottom: 0,
+
+      width: 105,
+
+      backgroundColor: '#0A9A48',
+
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+
+    facturadoDerecha: {
+      position: 'absolute',
+
+      right: 0,
+      top: 0,
+      bottom: 0,
+
+      width: 105,
+
+      backgroundColor: '#0A9A48',
+
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+
+    facturadoTexto: {
+      marginTop: 4,
+
+      color: '#FFFFFF',
+
+      fontSize: 12,
+
+      fontWeight: '700',
     },
 
     // ========================================
-    // RESUMEN GENERAL
-    // ========================================
-
-    resumenGeneral: {
-      backgroundColor:
-        '#FFFFFF',
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor:
-        '#E1E1E1',
-      paddingHorizontal: 12,
-      paddingVertical: 12,
-
-      shadowColor:
-        '#000000',
-      shadowOffset: {
-        width: 0,
-        height: 2,
-      },
-      shadowOpacity: 0.04,
-      shadowRadius: 3,
-
-      elevation: 2,
-    },
-
-    filaResumen: {
-      flexDirection:
-        'row',
-      justifyContent:
-        'space-between',
-      alignItems:
-        'center',
-    },
-
-    resumenItem: {
-      flex: 1,
-    },
-
-    resumenItemDerecha: {
-      flex: 1,
-      alignItems:
-        'flex-end',
-    },
-
-    resumenTitulo: {
-      fontSize: 10,
-      color:
-        '#8A8A8A',
-    },
-
-    resumenNumero: {
-      fontSize: 18,
-      fontWeight:
-        '800',
-      color:
-        '#08752F',
-      marginTop: 2,
-    },
-
-    totalAbonado: {
-      fontSize: 17,
-      fontWeight:
-        '800',
-      color:
-        '#08752F',
-      marginTop: 3,
-    },
-
-    totalPendiente: {
-      fontSize: 17,
-      fontWeight:
-        '800',
-      color:
-        '#D71920',
-      marginTop: 3,
-    },
-
-    totalSinPendiente: {
-      color:
-        '#08752F',
-    },
-
-    divisorVertical: {
-      width: 1,
-      height: 38,
-      backgroundColor:
-        '#E8E8E8',
-      marginHorizontal: 10,
-    },
-
-    divisorHorizontal: {
-      height: 1,
-      backgroundColor:
-        '#E8E8E8',
-      marginVertical: 10,
-    },
-
-    // ========================================
-    // BUSCADOR
-    // ========================================
-
-    buscadorContainer: {
-      height: 48,
-      backgroundColor:
-        '#FFFFFF',
-      borderWidth: 1,
-      borderColor:
-        '#E0E0E0',
-      borderRadius: 10,
-      marginTop: 12,
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
-      paddingHorizontal: 12,
-    },
-
-    buscador: {
-      flex: 1,
-      marginLeft: 8,
-      fontSize: 13,
-      color:
-        '#222222',
-    },
-
-    // ========================================
-    // RANKING
-    // ========================================
-
-    rankingTituloContainer: {
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
-      gap: 7,
-      marginTop: 16,
-      marginBottom: 8,
-    },
-
-    rankingTitulo: {
-      fontSize: 14,
-      fontWeight:
-        '700',
-      color:
-        '#333333',
-    },
-
-    // ========================================
-    // TARJETA CLIENTE
+    // TARJETA
     // ========================================
 
     tarjetaCliente: {
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#FFFFFF',
+
       borderRadius: 12,
+
       borderWidth: 1,
-      borderColor:
-        '#E1E1E1',
-      marginBottom: 12,
+
+      borderColor: '#E1E1E1',
+
       paddingHorizontal: 11,
+
       paddingTop: 12,
 
-      shadowColor:
-        '#000000',
+      shadowColor: '#000000',
+
       shadowOffset: {
         width: 0,
         height: 2,
       },
-      shadowOpacity: 0.04,
+
+      shadowOpacity: 0.05,
+
       shadowRadius: 3,
 
-      elevation: 2,
     },
+
 
     clienteCabecera: {
       flexDirection:
         'row',
+
       alignItems:
         'center',
     },
+
 
     avatar: {
       width: 42,
       height: 42,
+
       borderRadius: 21,
+
       backgroundColor:
         '#E7F5EB',
+
       justifyContent:
         'center',
+
       alignItems:
         'center',
     },
+
 
     infoCliente: {
       flex: 1,
+
       marginLeft: 10,
     },
 
-    nombreFila: {
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
-    },
-
-    rankingTexto: {
-      fontSize: 15,
-      fontWeight:
-        '800',
-      marginRight: 6,
-    },
 
     nombreCliente: {
-      flex: 1,
-      fontSize: 13,
+      fontSize: 14,
+
       fontWeight:
         '700',
+
       color:
         '#292929',
     },
 
+
     telefono: {
       fontSize: 10,
+
       color:
         '#888888',
+
       marginTop: 2,
     },
 
-    entregasBadge: {
-      minWidth: 57,
-      minHeight: 41,
-      borderRadius: 20,
-      backgroundColor:
-        '#EAF7ED',
-      alignItems:
-        'center',
-      justifyContent:
-        'center',
-      paddingHorizontal: 9,
-    },
-
-    entregasNumero: {
-      fontSize: 13,
-      fontWeight:
-        '800',
-      color:
-        '#08752F',
-    },
-
-    entregasTexto: {
-      fontSize: 8,
-      color:
-        '#08752F',
-    },
-
-    separador: {
-      height: 1,
-      backgroundColor:
-        '#EEEEEE',
-      marginTop: 11,
-    },
 
     // ========================================
-    // RESUMEN CLIENTE
+    // DETALLE DE ENTREGA
     // ========================================
 
-    resumenCliente: {
+    detalleContainer: {
+      minHeight: 47,
+
       flexDirection:
         'row',
-      justifyContent:
-        'space-between',
-      paddingVertical: 11,
+
+      alignItems:
+        'center',
+
+      marginTop: 6,
+
+      paddingVertical: 7,
     },
 
-    columnaCliente: {
-      flex: 1,
-    },
 
-    labelCliente: {
-      fontSize: 9,
-      color:
-        '#999999',
-    },
+    expresionProductos: {
+      flexShrink: 1,
 
-    valorEntregado: {
       fontSize: 12,
+
+      fontWeight:
+        '600',
+
+      color:
+        '#292929',
+
+      lineHeight: 18,
+    },
+
+
+    signoIgual: {
+      marginHorizontal: 8,
+
+      fontSize: 13,
+
       fontWeight:
         '700',
+
       color:
         '#333333',
-      marginTop: 3,
     },
 
-    valorAbonado: {
-      fontSize: 12,
+
+    totalEntrega: {
+      fontSize: 13,
+
       fontWeight:
-        '700',
-      color:
-        '#08752F',
-      marginTop: 3,
-    },
+        '800',
 
-    valorPendiente: {
-      fontSize: 12,
-      fontWeight:
-        '700',
-      color:
-        '#D71920',
-      marginTop: 3,
-    },
-
-    valorSinPendiente: {
       color:
         '#08752F',
     },
+
 
     // ========================================
     // HISTORIAL
     // ========================================
 
     historialBoton: {
-      minHeight: 39,
+      minHeight: 38,
+
       borderTopWidth: 1,
+
       borderTopColor:
         '#EEEEEE',
+
       flexDirection:
         'row',
+
       justifyContent:
         'flex-end',
+
       alignItems:
         'center',
+
       gap: 3,
     },
 
+
     historialTexto: {
       fontSize: 10,
+
       fontWeight:
         '700',
+
       color:
         '#08752F',
     },
+
 
     // ========================================
     // VACÍO
     // ========================================
 
     vacio: {
+      flex: 1,
+
       alignItems:
         'center',
-      paddingTop: 55,
+
+      justifyContent:
+        'center',
+
+      paddingHorizontal: 35,
+
+      paddingBottom: 80,
     },
 
+
+    vacioIcono: {
+      width: 78,
+
+      height: 78,
+
+      borderRadius: 39,
+
+      backgroundColor:
+        '#E7F5EB',
+
+      justifyContent:
+        'center',
+
+      alignItems:
+        'center',
+    },
+
+
     vacioTitulo: {
-      fontSize: 15,
+      fontSize: 16,
+
       fontWeight:
         '700',
+
       color:
-        '#555555',
-      marginTop: 12,
+        '#444444',
+
+      marginTop: 15,
     },
+
 
     vacioTexto: {
       fontSize: 11,
+
       color:
-        '#999999',
-      marginTop: 4,
+        '#888888',
+
+      marginTop: 6,
+
       textAlign:
         'center',
+
+      lineHeight: 17,
+    },
+
+    resumenCard: {
+      backgroundColor: '#FFFFFF',
+
+      borderRadius: 14,
+
+      borderWidth: 1,
+      borderColor: '#E1E1E1',
+
+      paddingHorizontal: 14,
+      paddingVertical: 14,
+
+      marginBottom: 18,
+
+      elevation: 2,
+
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.06,
+      shadowRadius: 4,
+    },
+
+    resumenSuperior: {
+      flexDirection: 'row',
+      alignItems: 'stretch',
+    },
+
+    resumenItem: {
+      flex: 1,
+
+      flexDirection: 'row',
+      alignItems: 'center',
+
+      paddingHorizontal: 4,
+    },
+
+    resumenIcono: {
+      width: 45,
+      height: 45,
+
+      borderRadius: 23,
+
+      backgroundColor: '#E7F5EB',
+
+      justifyContent: 'center',
+      alignItems: 'center',
+
+      marginRight: 9,
+    },
+
+    resumenInfo: {
+      flex: 1,
+    },
+
+    resumenLabel: {
+      fontSize: 10,
+      color: '#777777',
+      lineHeight: 14,
+    },
+
+    resumenValor: {
+      fontSize: 20,
+      fontWeight: '800',
+      color: '#08752F',
+
+      marginTop: 3,
+    },
+
+    divisorVertical: {
+      width: 1,
+
+      backgroundColor: '#E5E5E5',
+
+      marginHorizontal: 7,
+    },
+
+    divisorHorizontal: {
+      height: 1,
+
+      backgroundColor: '#E5E5E5',
+
+      marginVertical: 13,
+    },
+
+    totalFacturadoContainer: {
+      width: '100%',
+
+      flexDirection: 'row',
+      alignItems: 'center',
+
+      paddingHorizontal: 4,
+    },
+
+    resumenIconoGrande: {
+      width: 50,
+      height: 50,
+
+      borderRadius: 25,
+
+      backgroundColor: '#E7F5EB',
+
+      justifyContent: 'center',
+      alignItems: 'center',
+
+      marginRight: 12,
+    },
+
+    totalFacturadoInfo: {
+      flex: 1,
+    },
+
+    totalFacturadoLabel: {
+      fontSize: 11,
+      color: '#777777',
+    },
+
+    totalFacturadoValor: {
+      width: '100%',
+
+      fontSize: 25,
+      fontWeight: '800',
+
+      color: '#08752F',
+
+      marginTop: 2,
+    },
+
+    clientesHoyTitulo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+
+      marginBottom: 12,
+      paddingHorizontal: 3,
+    },
+
+    clientesHoyInfo: {
+      flex: 1,
+      marginLeft: 8,
+    },
+
+    clientesHoyTexto: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: '#292929',
+    },
+
+    clientesHoySubtitulo: {
+      fontSize: 10,
+      color: '#777777',
+
+      marginTop: 2,
     },
   });
