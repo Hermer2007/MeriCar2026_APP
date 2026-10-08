@@ -45,6 +45,7 @@ export default function OtraEntregaScreen({
     obtenerDeudasCliente,
     obtenerSaldoCliente,
     registrarAbono,
+    registrarEntregaConSaldos,
   } = useEntregas();
 
   const { mostrarToast } =
@@ -54,7 +55,7 @@ export default function OtraEntregaScreen({
     useAlert();
 
   const { usuarioActual } =
-  useUsuarios();
+    useUsuarios();
 
   const insets = useSafeAreaInsets();
 
@@ -80,9 +81,9 @@ export default function OtraEntregaScreen({
   const [nombreTemporal, setNombreTemporal] = useState('');
 
   const nombreCliente = (cliente) =>
-  cliente?.nombre ||
-  `${cliente?.nombres || ''} ${cliente?.apellidos || ''}`.trim() ||
-  'Cliente';
+    cliente?.nombre ||
+    `${cliente?.nombres || ''} ${cliente?.apellidos || ''}`.trim() ||
+    'Cliente';
 
   const clientesFiltrados =
     useMemo(() => {
@@ -99,10 +100,9 @@ export default function OtraEntregaScreen({
         (cliente) =>
           `${nombreCliente(
             cliente
-          )} ${
-            cliente.telefono ||
+          )} ${cliente.telefono ||
             ''
-          }`
+            }`
             .toLowerCase()
             .includes(
               texto
@@ -146,6 +146,45 @@ export default function OtraEntregaScreen({
     ? obtenerSaldoCliente(clienteSeleccionado.id)
     : 0;
 
+  // Selección visual de saldos antiguos (sin duplicar deudas en Firestore).
+  const [modalSumarVisible, setModalSumarVisible] = useState(false);
+  const [idsSaldosTemporal, setIdsSaldosTemporal] = useState([]);
+  const [idsSaldosAgregados, setIdsSaldosAgregados] = useState([]);
+
+  const saldosAgregados = deudasCliente.filter((deuda) =>
+    idsSaldosAgregados.includes(String(deuda.id))
+  );
+  const totalSaldosAgregados = saldosAgregados.reduce(
+    (suma, deuda) => suma + (Number(deuda.saldoPendiente) || 0), 0
+  );
+  const totalSaldosTemporal = idsSaldosTemporal.length === 0
+    ? saldoTotalCliente
+    : deudasCliente
+      .filter((deuda) => idsSaldosTemporal.includes(String(deuda.id)))
+      .reduce((suma, deuda) => suma + (Number(deuda.saldoPendiente) || 0), 0);
+
+  useEffect(() => {
+    setIdsSaldosTemporal([]);
+    setIdsSaldosAgregados([]);
+  }, [clienteSeleccionado?.id]);
+
+  const abrirModalSumar = () => {
+    setIdsSaldosTemporal([...idsSaldosAgregados]);
+    setModalSumarVisible(true);
+  };
+  const alternarSaldoTemporal = (id) => {
+    const clave = String(id);
+    setIdsSaldosTemporal((actuales) => actuales.includes(clave)
+      ? actuales.filter((item) => item !== clave)
+      : [...actuales, clave]);
+  };
+  const confirmarSaldos = () => {
+    setIdsSaldosAgregados(idsSaldosTemporal.length === 0
+      ? deudasCliente.map((deuda) => String(deuda.id))
+      : [...idsSaldosTemporal]);
+    setModalSumarVisible(false);
+  };
+
   const usaEfectivoAbono =
     metodosAbono.includes('Efectivo');
 
@@ -155,15 +194,15 @@ export default function OtraEntregaScreen({
   const efectivoAbonoNumerico =
     usaEfectivoAbono
       ? Number(
-          String(abonoEfectivo).replace(',', '.')
-        ) || 0
+        String(abonoEfectivo).replace(',', '.')
+      ) || 0
       : 0;
 
   const transferenciaAbonoNumerico =
     usaTransferenciaAbono
       ? Number(
-          String(abonoTransferencia).replace(',', '.')
-        ) || 0
+        String(abonoTransferencia).replace(',', '.')
+      ) || 0
       : 0;
 
   const totalAbonoSaldo =
@@ -300,18 +339,18 @@ export default function OtraEntregaScreen({
     const deudaSeleccionada =
       deudaSeleccionadaId
         ? deudasCliente.find(
-            (entrega) =>
-              String(entrega.id) ===
-              String(deudaSeleccionadaId)
-          )
+          (entrega) =>
+            String(entrega.id) ===
+            String(deudaSeleccionadaId)
+        )
         : null;
 
     if (
       deudaSeleccionada &&
       aCentavos(totalAbonoSaldo) >
-        aCentavos(
-          deudaSeleccionada.saldoPendiente
-        )
+      aCentavos(
+        deudaSeleccionada.saldoPendiente
+      )
     ) {
       mostrarToast(
         'El abono no puede superar el saldo de la deuda seleccionada.',
@@ -323,7 +362,7 @@ export default function OtraEntregaScreen({
     if (
       !deudaSeleccionada &&
       aCentavos(totalAbonoSaldo) >
-        aCentavos(saldoTotalCliente)
+      aCentavos(saldoTotalCliente)
     ) {
       mostrarToast(
         'El abono no puede superar el saldo pendiente total.',
@@ -337,23 +376,23 @@ export default function OtraEntregaScreen({
 
       let comprobanteGuardado = null;
 
-if (
-  transferenciaAbonoNumerico > 0 &&
-  comprobanteAbono
-) {
-  comprobanteGuardado =
-    await guardarComprobanteLocal(
-      comprobanteAbono
-    );
+      if (
+        transferenciaAbonoNumerico > 0 &&
+        comprobanteAbono
+      ) {
+        comprobanteGuardado =
+          await guardarComprobanteLocal(
+            comprobanteAbono
+          );
 
-  if (!comprobanteGuardado?.uri) {
-    mostrarToast(
-      'No se pudo guardar el comprobante.',
-      'warning'
-    );
-    return;
-  }
-}
+        if (!comprobanteGuardado?.uri) {
+          mostrarToast(
+            'No se pudo guardar el comprobante.',
+            'warning'
+          );
+          return;
+        }
+      }
 
       const resultado = await registrarAbono({
         clienteId: clienteSeleccionado.id,
@@ -365,20 +404,20 @@ if (
         comprobante:
           comprobanteGuardado
             ? {
-                uri: comprobanteGuardado.uri,
-                nombre: comprobanteGuardado.nombre,
-                usuarioId:
-                  usuarioActual?.id || null,
-                usuarioNombre:
-                  usuarioActual?.nombre || 'Usuario',
-              }
+              uri: comprobanteGuardado.uri,
+              nombre: comprobanteGuardado.nombre,
+              usuarioId:
+                usuarioActual?.id || null,
+              usuarioNombre:
+                usuarioActual?.nombre || 'Usuario',
+            }
             : null,
       });
 
       if (!resultado?.ok) {
         mostrarToast(
           resultado?.mensaje ||
-            'No se pudo registrar el abono.',
+          'No se pudo registrar el abono.',
           'warning'
         );
         return;
@@ -506,9 +545,9 @@ if (
   );
 
   const [
-  busquedaProducto,
-  setBusquedaProducto,
-] = useState('');
+    busquedaProducto,
+    setBusquedaProducto,
+  ] = useState('');
 
   const productosFiltrados = useMemo(() => {
     const texto = busquedaProducto
@@ -543,8 +582,8 @@ if (
   ]);
 
   // ==========================================
-// CENTAVOS
-// ==========================================
+  // CENTAVOS
+  // ==========================================
 
   const aCentavos = (valor) => {
     return Math.round(
@@ -595,59 +634,59 @@ if (
   };
 
   const guardarComprobanteLocal = async (
-  comprobante
-) => {
-  try {
-    if (!comprobante?.uri) {
+    comprobante
+  ) => {
+    try {
+      if (!comprobante?.uri) {
+        return null;
+      }
+
+      const carpeta =
+        `${FileSystem.documentDirectory}comprobantes/`;
+
+      const informacionCarpeta =
+        await FileSystem.getInfoAsync(carpeta);
+
+      if (!informacionCarpeta.exists) {
+        await FileSystem.makeDirectoryAsync(
+          carpeta,
+          {
+            intermediates: true,
+          }
+        );
+      }
+
+      const extension =
+        comprobante.uri
+          .split('.')
+          .pop()
+          ?.split('?')[0] || 'jpg';
+
+      const nombre =
+        `comprobante_${Date.now()}.${extension}`;
+
+      const destino =
+        `${carpeta}${nombre}`;
+
+      await FileSystem.copyAsync({
+        from: comprobante.uri,
+        to: destino,
+      });
+
+      return {
+        uri: destino,
+        nombre,
+      };
+
+    } catch (error) {
+      console.log(
+        'Error al guardar comprobante:',
+        error
+      );
+
       return null;
     }
-
-    const carpeta =
-      `${FileSystem.documentDirectory}comprobantes/`;
-
-    const informacionCarpeta =
-      await FileSystem.getInfoAsync(carpeta);
-
-    if (!informacionCarpeta.exists) {
-      await FileSystem.makeDirectoryAsync(
-        carpeta,
-        {
-          intermediates: true,
-        }
-      );
-    }
-
-    const extension =
-      comprobante.uri
-        .split('.')
-        .pop()
-        ?.split('?')[0] || 'jpg';
-
-    const nombre =
-      `comprobante_${Date.now()}.${extension}`;
-
-    const destino =
-      `${carpeta}${nombre}`;
-
-    await FileSystem.copyAsync({
-      from: comprobante.uri,
-      to: destino,
-    });
-
-    return {
-      uri: destino,
-      nombre,
-    };
-
-  } catch (error) {
-    console.log(
-      'Error al guardar comprobante:',
-      error
-    );
-
-    return null;
-  }
-};
+  };
 
   // ==========================================
   // PAGOS
@@ -777,15 +816,15 @@ if (
           (producto) =>
             producto.id === id
               ? {
-                  ...producto,
+                ...producto,
 
-                  cantidad:
-                    numeros === ''
-                      ? ''
-                      : Number(
-                          numeros
-                        ),
-                }
+                cantidad:
+                  numeros === ''
+                    ? ''
+                    : Number(
+                      numeros
+                    ),
+              }
               : producto
         )
     );
@@ -801,10 +840,10 @@ if (
           (producto) =>
             producto.id === id
               ? {
-                  ...producto,
-                  precio:
-                    texto,
-                }
+                ...producto,
+                precio:
+                  texto,
+              }
               : producto
         )
     );
@@ -838,7 +877,7 @@ if (
         return (
           acumulado +
           cantidad *
-            precio
+          precio
         );
       },
       0
@@ -847,25 +886,25 @@ if (
   const efectivoNumerico =
     usaEfectivo
       ? Number(
-          String(
-            pagoEfectivo
-          ).replace(
-            ',',
-            '.'
-          )
-        ) || 0
+        String(
+          pagoEfectivo
+        ).replace(
+          ',',
+          '.'
+        )
+      ) || 0
       : 0;
 
   const transferenciaNumerica =
     usaTransferencia
       ? Number(
-          String(
-            pagoTransferencia
-          ).replace(
-            ',',
-            '.'
-          )
-        ) || 0
+        String(
+          pagoTransferencia
+        ).replace(
+          ',',
+          '.'
+        )
+      ) || 0
       : 0;
 
   const abonoNumerico =
@@ -874,9 +913,10 @@ if (
       aCentavos(transferenciaNumerica)
     ) / 100;
 
+  const totalACobrar = (aCentavos(total) + aCentavos(totalSaldosAgregados)) / 100;
   const saldoPendiente =
     (
-      aCentavos(total) -
+      aCentavos(totalACobrar) -
       aCentavos(abonoNumerico)
     ) / 100;
 
@@ -887,30 +927,185 @@ if (
   const guardarEntrega = async (
     confirmarSinPago = false
   ) => {
-      const productosSeleccionados =
-        productosEntrega.filter(
-          (producto) =>
+    const productosSeleccionados =
+      productosEntrega.filter(
+        (producto) =>
+          Number(
+            producto.cantidad
+          ) > 0
+      );
+
+    if (
+      productosSeleccionados.length ===
+      0
+    ) {
+      mostrarToast(
+        'Seleccione al menos un producto.',
+        'warning'
+      );
+
+      return;
+    }
+
+    const precioInvalido =
+      productosSeleccionados.some(
+        (producto) => {
+          const precio =
             Number(
-              producto.cantidad
-            ) > 0
-        );
+              String(
+                producto.precio
+              ).replace(
+                ',',
+                '.'
+              )
+            );
 
-      if (
-        productosSeleccionados.length ===
-        0
-      ) {
-        mostrarToast(
-          'Seleccione al menos un producto.',
-          'warning'
-        );
+          return (
+            Number.isNaN(
+              precio
+            ) ||
+            precio <= 0
+          );
+        }
+      );
 
-        return;
-      }
+    if (
+      precioInvalido
+    ) {
+      mostrarToast(
+        'Revise los precios de los productos.',
+        'warning'
+      );
 
-      const precioInvalido =
-        productosSeleccionados.some(
-          (producto) => {
-            const precio =
+      return;
+    }
+
+    if (
+      metodosPago.length === 0 &&
+      !confirmarSinPago
+    ) {
+      mostrarAlert({
+        titulo:
+          'Sin método de pago seleccionado',
+        mensaje:
+          'Esta entrega se registrará como no pagada.',
+        tipo:
+          'warning',
+        textoCancelar:
+          'Cancelar',
+        textoConfirmar:
+          'Aceptar',
+        mostrarCancelar:
+          true,
+        onConfirmar: () => {
+          guardarEntrega(true);
+        },
+      });
+
+      return;
+    }
+
+    // ======================================
+    // EVITAR ABONO MAYOR AL TOTAL
+    // ======================================
+
+    if (
+      aCentavos(abonoNumerico) >
+      aCentavos(totalACobrar)
+    ) {
+      mostrarToast(
+        'El abono no puede superar el total a cobrar.',
+        'warning'
+      );
+
+      return;
+    }
+
+    if (
+      comprobanteTransferencia &&
+      !usaTransferencia
+    ) {
+      mostrarToast(
+        'El comprobante requiere el método de pago Transferencia.',
+        'warning'
+      );
+
+      return;
+    }
+
+    if (
+      comprobanteTransferencia &&
+      aCentavos(transferenciaNumerica) <= 0
+    ) {
+      mostrarToast(
+        'Ingrese el monto por transferencia.',
+        'warning'
+      );
+
+      return;
+    }
+
+    const momentoRegistro =
+      obtenerFechaHora();
+
+    const tieneComprobante =
+      Boolean(comprobanteTransferencia);
+
+    const nuevaEntrega = {
+      clienteId:
+        clienteSeleccionado?.id ||
+        null,
+
+      tipo:
+        clienteSeleccionado
+          ? 'CLIENTE'
+          : 'OTRA_ENTREGA',
+
+      origenEntrega:
+        clienteSeleccionado
+          ? 'CLIENTE'
+          : 'OTRA_ENTREGA',
+
+      nombreTemporal:
+        clienteSeleccionado
+          ? null
+          : nombreTemporal.trim() || null,
+
+      nombreCliente:
+        clienteSeleccionado
+          ? nombreCliente(
+            clienteSeleccionado
+          )
+          : nombreTemporal.trim() ||
+          'Cliente no registrado',
+
+      convertidoACliente: false,
+
+      clienteConvertidoId: null,
+
+      fechaConversionCliente: null,
+
+      fecha:
+        momentoRegistro.fecha,
+
+      hora:
+        momentoRegistro.hora,
+
+      productos:
+        productosSeleccionados.map(
+          (producto) => ({
+            id:
+              producto.id,
+
+            nombre:
+              producto.nombre,
+
+            cantidad:
+              Number(
+                producto.cantidad
+              ),
+
+            precio:
               Number(
                 String(
                   producto.precio
@@ -918,292 +1113,144 @@ if (
                   ',',
                   '.'
                 )
-              );
-
-            return (
-              Number.isNaN(
-                precio
-              ) ||
-              precio <= 0
-            );
-          }
-        );
-
-      if (
-        precioInvalido
-      ) {
-        mostrarToast(
-          'Revise los precios de los productos.',
-          'warning'
-        );
-
-        return;
-      }
-
-      if (
-        metodosPago.length === 0 &&
-        !confirmarSinPago
-      ) {
-        mostrarAlert({
-          titulo:
-            'Sin método de pago seleccionado',
-          mensaje:
-            'Esta entrega se registrará como no pagada.',
-          tipo:
-            'warning',
-          textoCancelar:
-            'Cancelar',
-          textoConfirmar:
-            'Aceptar',
-          mostrarCancelar:
-            true,
-          onConfirmar: () => {
-            guardarEntrega(true);
-          },
-        });
-
-        return;
-      }
-
-      // ======================================
-      // EVITAR ABONO MAYOR AL TOTAL
-      // ======================================
-
-      if (
-        aCentavos(abonoNumerico) >
-        aCentavos(total)
-      ) {
-        mostrarToast(
-          'El abono no puede superar el total de la entrega.',
-          'warning'
-        );
-
-        return;
-      }
-      
-      if (
-        comprobanteTransferencia &&
-        !usaTransferencia
-      ) {
-        mostrarToast(
-          'El comprobante requiere el método de pago Transferencia.',
-          'warning'
-        );
-
-        return;
-      }
-
-      if (
-        comprobanteTransferencia &&
-        aCentavos(transferenciaNumerica) <= 0
-      ) {
-        mostrarToast(
-          'Ingrese el monto por transferencia.',
-          'warning'
-        );
-
-        return;
-      }
-
-      const momentoRegistro =
-        obtenerFechaHora();
-
-      const tieneComprobante =
-        Boolean(comprobanteTransferencia);
-
-      const nuevaEntrega = {
-        clienteId:
-          clienteSeleccionado?.id ||
-          null,
-
-        tipo:
-          clienteSeleccionado
-            ? 'CLIENTE'
-            : 'OTRA_ENTREGA',
-
-        origenEntrega:
-          clienteSeleccionado
-            ? 'CLIENTE'
-            : 'OTRA_ENTREGA',
-
-        nombreTemporal:
-          clienteSeleccionado
-            ? null
-            : nombreTemporal.trim() || null,
-
-        nombreCliente:
-          clienteSeleccionado
-            ? nombreCliente(
-                clienteSeleccionado
-              )
-            : nombreTemporal.trim() ||
-              'Cliente no registrado',
-
-        convertidoACliente: false,
-
-        clienteConvertidoId: null,
-
-        fechaConversionCliente: null,
-
-        fecha:
-          momentoRegistro.fecha,
-
-        hora:
-          momentoRegistro.hora,
-
-        productos:
-          productosSeleccionados.map(
-            (producto) => ({
-              id:
-                producto.id,
-
-              nombre:
-                producto.nombre,
-
-              cantidad:
-                Number(
-                  producto.cantidad
-                ),
-
-              precio:
-                Number(
-                  String(
-                    producto.precio
-                  ).replace(
-                    ',',
-                    '.'
-                  )
-                ),
-            })
-          ),
-
-        total:
-          Number(
-            total.toFixed(
-              2
-            )
-          ),
-
-        abona:
-          Number(
-            abonoNumerico.toFixed(
-              2
-            )
-          ),
-
-        saldoPendiente:
-          Number(
-            saldoPendiente.toFixed(
-              2
-            )
-          ),
-
-        metodosPago,
-
-        pagoEfectivo: Number(
-          efectivoNumerico.toFixed(2)
+              ),
+          })
         ),
 
-        pagoTransferencia: Number(
-          transferenciaNumerica.toFixed(2)
+      total:
+        Number(
+          total.toFixed(
+            2
+          )
         ),
 
-        tieneComprobanteTransferencia:
-          tieneComprobante,
+      abona:
+        Number(
+          abonoNumerico.toFixed(
+            2
+          )
+        ),
 
-        comprobanteTransferencia:
-          null,
+      saldoPendiente:
+        Number(
+          saldoPendiente.toFixed(
+            2
+          )
+        ),
 
-        comprobanteTransferenciaRuta:
-          null,
+      metodosPago,
 
-        comprobanteTransferenciaFecha:
-          null,
+      pagoEfectivo: Number(
+        efectivoNumerico.toFixed(2)
+      ),
 
-        comprobanteTomadoPorId:
-          tieneComprobante
-            ? usuarioActual?.id || null
-            : null,
+      pagoTransferencia: Number(
+        transferenciaNumerica.toFixed(2)
+      ),
 
-        comprobanteTomadoPorNombre:
-          tieneComprobante
-            ? usuarioActual?.nombre || 'Usuario'
-            : null,
+      tieneComprobanteTransferencia:
+        tieneComprobante,
 
-        transferenciaConfirmada:
-          transferenciaNumerica > 0
-            ? tieneComprobante
-              ? true
-              : false
-            : null,
+      comprobanteTransferencia:
+        null,
 
-        transferenciaConDiferencia:
-          false,
+      comprobanteTransferenciaRuta:
+        null,
 
-        fechaConfirmacionTransferencia:
-          tieneComprobante
-            ? new Date()
-            : null,
+      comprobanteTransferenciaFecha:
+        null,
 
-        numeroEdiciones: 0,
-      };
+      comprobanteTomadoPorId:
+        tieneComprobante
+          ? usuarioActual?.id || null
+          : null,
 
-      try {
+      comprobanteTomadoPorNombre:
+        tieneComprobante
+          ? usuarioActual?.nombre || 'Usuario'
+          : null,
 
-        if (tieneComprobante) {
-          const comprobanteGuardado =
-            await guardarComprobanteLocal(
-              comprobanteTransferencia
-            );
+      transferenciaConfirmada:
+        transferenciaNumerica > 0
+          ? tieneComprobante
+            ? true
+            : false
+          : null,
 
-          if (!comprobanteGuardado?.uri) {
-            mostrarToast(
-              'No se pudo guardar el comprobante.',
-              'error'
-            );
+      transferenciaConDiferencia:
+        false,
 
-            return;
-          }
+      fechaConfirmacionTransferencia:
+        tieneComprobante
+          ? new Date()
+          : null,
 
-          nuevaEntrega.comprobanteTransferencia =
-            comprobanteGuardado.uri;
+      numeroEdiciones: 0,
+    };
 
-          nuevaEntrega.comprobanteTransferenciaRuta =
-            comprobanteGuardado.nombre;
+    try {
 
-          nuevaEntrega.comprobanteTransferenciaFecha =
-            new Date();
-        }
-
-        const resultado =
-          await agregarEntrega(
-            nuevaEntrega
+      if (tieneComprobante) {
+        const comprobanteGuardado =
+          await guardarComprobanteLocal(
+            comprobanteTransferencia
           );
 
-        if (!resultado) {
+        if (!comprobanteGuardado?.uri) {
           mostrarToast(
-            'No se pudo registrar la entrega.',
+            'No se pudo guardar el comprobante.',
             'error'
           );
 
           return;
         }
 
-        mostrarToast(
-          'Entrega registrada correctamente.',
-          'success'
-        );
+        nuevaEntrega.comprobanteTransferencia =
+          comprobanteGuardado.uri;
 
-        navigation.goBack();
+        nuevaEntrega.comprobanteTransferenciaRuta =
+          comprobanteGuardado.nombre;
 
-      } catch (error) {
-
-        mostrarToast(
-          'No se pudo registrar la entrega.',
-          'error'
-        );
+        nuevaEntrega.comprobanteTransferenciaFecha =
+          new Date();
       }
-    };
+
+      if (saldosAgregados.length > 0) {
+        if (!clienteSeleccionado?.id) {
+          mostrarToast('Seleccione un cliente registrado para combinar saldos.', 'warning');
+          return;
+        }
+        const resultado = await registrarEntregaConSaldos({
+          nuevaEntrega,
+          idsDeudas: saldosAgregados.map((deuda) => String(deuda.id)),
+          comprobante: nuevaEntrega.comprobanteTransferencia
+            ? { uri: nuevaEntrega.comprobanteTransferencia, nombre: nuevaEntrega.comprobanteTransferenciaRuta }
+            : null,
+        });
+        if (!resultado?.ok) {
+          mostrarToast(resultado?.mensaje || 'No se pudo registrar el cobro combinado.', 'error');
+          return;
+        }
+        mostrarToast('Entrega y saldos registrados correctamente.', 'success');
+      } else {
+        const resultado = await agregarEntrega(nuevaEntrega);
+        if (!resultado) {
+          mostrarToast('No se pudo registrar la entrega.', 'error');
+          return;
+        }
+        mostrarToast('Entrega registrada correctamente.', 'success');
+      }
+
+      navigation.goBack();
+
+    } catch (error) {
+
+      mostrarToast(
+        'No se pudo registrar la entrega.',
+        'error'
+      );
+    }
+  };
 
   return (
     <View
@@ -1415,7 +1462,7 @@ if (
 
             {mostrarResultados &&
               busqueda.trim() !==
-                '' && (
+              '' && (
                 <View
                   style={
                     styles.resultados
@@ -1572,11 +1619,11 @@ if (
                   styles.productoFila,
 
                   Number(producto.cantidad) > 0 &&
-                    styles.productoFilaSeleccionado,
+                  styles.productoFilaSeleccionado,
 
                   index ===
-                    productosFiltrados.length - 1 &&
-                    styles.ultimaFila,
+                  productosFiltrados.length - 1 &&
+                  styles.ultimaFila,
                 ]}
               >
                 <View
@@ -1730,40 +1777,50 @@ if (
         </View>
 
         {saldoTotalCliente > 0 && (
-          <View style={styles.saldoAnteriorContainer}>
-            <View style={styles.saldoAnteriorInfo}>
-              <View style={styles.saldoAnteriorTituloFila}>
-                <Ionicons
-                  name="alert-circle-outline"
-                  size={20}
-                  color="#D71920"
-                />
-
-                <Text style={styles.saldoAnteriorLabel}>
-                  Saldo pendiente:
-                </Text>
+          <>
+            {saldosAgregados.length === 0 && (
+              <View style={[styles.saldoAnteriorContainer, { flexDirection: 'column', alignItems: 'stretch' }]}>
+                <View style={styles.saldoAnteriorInfo}>
+                  <View style={styles.saldoAnteriorTituloFila}>
+                    <Ionicons name="alert-circle-outline" size={20} color="#D71920" />
+                    <Text style={styles.saldoAnteriorLabel}>Saldo pendiente:</Text>
+                  </View>
+                  <Text style={styles.saldoAnteriorValor}>${Number(saldoTotalCliente).toFixed(2)}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TouchableOpacity style={[styles.botonAbonarSaldo, { flex: 1 }]} onPress={abrirModalAbono}>
+                    <Ionicons name="wallet-outline" size={17} color="#D71920" />
+                    <Text style={styles.botonAbonarSaldoTexto}>Abonar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.botonAbonarSaldo, { flex: 1 }]} onPress={abrirModalSumar}>
+                    <Ionicons name="add-circle-outline" size={17} color="#D71920" />
+                    <Text style={styles.botonAbonarSaldoTexto}>Sumar al total</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-
-              <Text style={styles.saldoAnteriorValor}>
-                ${Number(saldoTotalCliente).toFixed(2)}
-              </Text>
-            </View>
-
-            <TouchableOpacity
-              style={styles.botonAbonarSaldo}
-              onPress={abrirModalAbono}
-            >
-              <Ionicons
-                name="wallet-outline"
-                size={18}
-                color="#D71920"
-              />
-
-              <Text style={styles.botonAbonarSaldoTexto}>
-                Abonar
-              </Text>
-            </TouchableOpacity>
-          </View>
+            )}
+            {saldosAgregados.length > 0 && (
+              <View style={styles.saldosResumenAzul}>
+                <View style={styles.saldosResumenEncabezado}>
+                  <Ionicons name="list-outline" size={21} color="#0879C8" />
+                  <Text style={styles.saldosResumenTitulo}>Saldos agregados al total</Text>
+                  <TouchableOpacity onPress={() => setIdsSaldosAgregados([])}>
+                    <Ionicons name="close" size={22} color="#0879C8" />
+                  </TouchableOpacity>
+                </View>
+                {saldosAgregados.map((deuda) => (
+                  <View key={deuda.id} style={styles.saldoResumenRenglon}>
+                    <Text style={{ color: '#1E4D79' }}>▦  {deuda.fecha || 'Sin fecha'}</Text>
+                    <Text style={{ fontWeight: '600' }}>${Number(deuda.saldoPendiente).toFixed(2)}</Text>
+                  </View>
+                ))}
+                <View style={styles.saldoResumenRenglon}>
+                  <Text>Total de saldos agregados:</Text>
+                  <Text style={styles.saldosResumenTotal}>${totalSaldosAgregados.toFixed(2)}</Text>
+                </View>
+              </View>
+            )}
+          </>
         )}
 
         <Text
@@ -1779,7 +1836,7 @@ if (
             styles.metodo,
 
             usaEfectivo &&
-              styles.metodoActivo,
+            styles.metodoActivo,
           ]}
           onPress={() =>
             seleccionarMetodoPago(
@@ -1838,7 +1895,7 @@ if (
             styles.metodo,
 
             usaTransferencia &&
-              styles.metodoActivo,
+            styles.metodoActivo,
           ]}
           onPress={() =>
             seleccionarMetodoPago(
@@ -1865,54 +1922,54 @@ if (
           />
         </TouchableOpacity>
 
-                {usaTransferencia && (
-                  <View style={styles.pagoContainer}>
-                  <View style={styles.tituloTransferenciaFila}>
-                    <QRTransferencia />
+        {usaTransferencia && (
+          <View style={styles.pagoContainer}>
+            <View style={styles.tituloTransferenciaFila}>
+              <QRTransferencia />
 
-                    <Text>
-                      Monto por transferencia
-                    </Text>
-                  </View>
+              <Text>
+                Monto por transferencia
+              </Text>
+            </View>
 
-                    <TextInput
-                      style={
-                        styles.pagoInput
-                      }
-                      value={
-                        pagoTransferencia
-                      }
-                      onChangeText={
-                        setPagoTransferencia
-                      }
-                      keyboardType="decimal-pad"
-                      placeholder="0.00"
-                      selectTextOnFocus
-                    />
-                  </View>
-                )}
+            <TextInput
+              style={
+                styles.pagoInput
+              }
+              value={
+                pagoTransferencia
+              }
+              onChangeText={
+                setPagoTransferencia
+              }
+              keyboardType="decimal-pad"
+              placeholder="0.00"
+              selectTextOnFocus
+            />
+          </View>
+        )}
 
-                {usaTransferencia &&
-                  Number(pagoTransferencia || 0) > 0 &&
-                  !comprobanteTransferencia && (
-                    <View style={styles.avisoTransferenciaPendiente}>
-                      <Text style={styles.avisoTransferenciaIcono}>
-                        ⚠️
-                      </Text>
+        {usaTransferencia &&
+          Number(pagoTransferencia || 0) > 0 &&
+          !comprobanteTransferencia && (
+            <View style={styles.avisoTransferenciaPendiente}>
+              <Text style={styles.avisoTransferenciaIcono}>
+                ⚠️
+              </Text>
 
-                      <Text style={styles.avisoTransferenciaPendienteTexto}>
-                        Transferencia pendiente de confirmación. Este valor no se incluirá
-                        en el total diario hasta ser confirmado.
-                      </Text>
-                    </View>
-                  )}
+              <Text style={styles.avisoTransferenciaPendienteTexto}>
+                Transferencia pendiente de confirmación. Este valor no se incluirá
+                en el total diario hasta ser confirmado.
+              </Text>
+            </View>
+          )}
 
         {usaTransferencia && (
           <View style={styles.comprobanteContainer}>
 
-              <Text style={styles.pagoAbonoLabel}>
-                Monto por transferencia
-              </Text>
+            <Text style={styles.pagoAbonoLabel}>
+              Monto por transferencia
+            </Text>
 
             {!comprobanteTransferencia ? (
 
@@ -1986,6 +2043,25 @@ if (
           </View>
         )}
 
+        {saldosAgregados.length > 0 && (
+          <View style={{ marginTop: 12, marginBottom: 12, gap: 9 }}>
+            <View style={styles.resumenFila}>
+              <Text style={styles.resumenLabel}>Total productos de hoy:</Text>
+              <Text style={styles.total}>${total.toFixed(2)}</Text>
+            </View>
+            <View style={styles.resumenFila}>
+              <Text style={styles.resumenLabel}>Saldos agregados:</Text>
+              <Text style={{ color: '#0879C8', fontWeight: '700', fontSize: 17 }}>${totalSaldosAgregados.toFixed(2)}</Text>
+            </View>
+            <View style={{ backgroundColor: '#E7F7ED', borderRadius: 11, borderWidth: 1, borderColor: '#CBEAD6', padding: 13 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ color: '#08752F', fontSize: 17, fontWeight: '700' }}>Total a cobrar:</Text>
+                <Text style={{ color: '#08752F', fontSize: 21, fontWeight: '800' }}>${totalACobrar.toFixed(2)}</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
         <View
           style={
             styles.resumenFila
@@ -2029,8 +2105,8 @@ if (
               styles.saldo,
 
               saldoPendiente <=
-                0 &&
-                styles.saldoCero,
+              0 &&
+              styles.saldoCero,
             ]}
           >
             $
@@ -2057,6 +2133,55 @@ if (
           </Text>
         </TouchableOpacity>
       </ScrollView>
+      <Modal visible={modalSumarVisible} transparent animationType="fade" onRequestClose={() => setModalSumarVisible(false)}>
+        <View style={styles.modalFondo}>
+          <View style={styles.modalAbono}>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderTitulo}>
+                <Ionicons name="wallet-outline" size={23} color="#D71920" />
+                <Text style={styles.modalTitulo}>Seleccionar saldos a sumar</Text>
+              </View>
+              <TouchableOpacity onPress={() => setModalSumarVisible(false)}>
+                <Ionicons name="close" size={26} color="#666666" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.modalSaldoTotal}>
+              <Text style={styles.modalSaldoLabel}>Saldo total disponible:</Text>
+              <Text style={styles.modalSaldoValor}>${Number(saldoTotalCliente).toFixed(2)}</Text>
+            </View>
+            <Text style={styles.modalAyuda}>Seleccione los saldos que desea sumar al total de la nueva entrega. Si no selecciona ninguno, se sumarán todos.</Text>
+            <ScrollView style={styles.listaDeudas} contentContainerStyle={styles.listaDeudasContenido}>
+              {deudasCliente.map((deuda) => {
+                const marcada = idsSaldosTemporal.includes(String(deuda.id));
+                return (
+                  <TouchableOpacity key={deuda.id} style={[styles.deudaTarjeta, marcada && styles.deudaTarjetaSeleccionada]} onPress={() => alternarSaldoTemporal(deuda.id)}>
+                    <Ionicons name={marcada ? 'checkbox' : 'square-outline'} size={23} color="#D71920" />
+                    <View style={[styles.deudaFechaFila, { flex: 1, marginLeft: 8 }]}>
+                      <Ionicons name="calendar-outline" size={17} color="#D71920" />
+                      <Text style={styles.deudaFecha}>{deuda.fecha || 'Sin fecha'}</Text>
+                    </View>
+                    <Text style={styles.deudaSaldo}>${Number(deuda.saldoPendiente).toFixed(2)}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+              <View style={styles.totalSumarVerde}>
+                <Text style={{ color: '#08752F', fontWeight: '600' }}>Total a sumar:</Text>
+                <Text style={{ color: '#08752F', fontSize: 24, fontWeight: '800' }}>${totalSaldosTemporal.toFixed(2)}</Text>
+                <Text style={{ color: '#66766B' }}>{idsSaldosTemporal.length === 0 ? 'Todos los saldos' : `${idsSaldosTemporal.length} saldo(s) seleccionado(s)`}</Text>
+              </View>
+            </ScrollView>
+            <View style={styles.modalBotones}>
+              <TouchableOpacity style={styles.botonCancelarAbono} onPress={() => setModalSumarVisible(false)}>
+                <Text style={styles.botonCancelarAbonoTexto}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.botonConfirmarAbono} onPress={confirmarSaldos}>
+                <Text style={styles.botonConfirmarAbonoTexto}>{idsSaldosTemporal.length === 0 ? 'Sumar todos' : 'Sumar al total'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <Modal
         visible={modalAbonoVisible}
         transparent
@@ -2121,7 +2246,7 @@ if (
                     style={[
                       styles.deudaTarjeta,
                       seleccionada &&
-                        styles.deudaTarjetaSeleccionada,
+                      styles.deudaTarjetaSeleccionada,
                     ]}
                     onPress={() =>
                       seleccionarDeudaAbono(entrega.id)
@@ -2156,7 +2281,7 @@ if (
                 style={[
                   styles.metodoAbono,
                   usaEfectivoAbono &&
-                    styles.metodoAbonoActivo,
+                  styles.metodoAbonoActivo,
                 ]}
                 onPress={() =>
                   seleccionarMetodoAbono('Efectivo')
@@ -2187,7 +2312,7 @@ if (
 
               {usaEfectivoAbono && (
                 <View style={styles.pagoAbonoContainer}>
-                  
+
                   <Text style={styles.pagoAbonoLabel}>
                     Monto en efectivo
                   </Text>
@@ -2208,7 +2333,7 @@ if (
                 style={[
                   styles.metodoAbono,
                   usaTransferenciaAbono &&
-                    styles.metodoAbonoActivo,
+                  styles.metodoAbonoActivo,
                 ]}
                 onPress={() =>
                   seleccionarMetodoAbono('Transferencia')
@@ -2255,7 +2380,7 @@ if (
                       onChangeText={setAbonoTransferencia}
                       keyboardType="decimal-pad"
                       placeholder="0.00"
-                      placeholderTextColor="#999999" 
+                      placeholderTextColor="#999999"
                     />
                   </View>
 
@@ -2370,7 +2495,7 @@ if (
                 style={[
                   styles.botonConfirmarAbono,
                   guardandoAbono &&
-                    styles.botonAbonoDeshabilitado,
+                  styles.botonAbonoDeshabilitado,
                 ]}
                 onPress={guardarAbonoSaldo}
                 disabled={guardandoAbono}
@@ -2818,6 +2943,13 @@ const styles =
         '700',
     },
 
+    saldosResumenAzul: { backgroundColor: '#F0F8FF', borderColor: '#C5E4FF', borderWidth: 1, borderRadius: 10, marginTop: 10, marginBottom: 8, overflow: 'hidden' },
+    saldosResumenEncabezado: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#E1F2FF', padding: 12 },
+    saldosResumenTitulo: { flex: 1, color: '#1269B1', fontSize: 13, fontWeight: '700' },
+    saldoResumenRenglon: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 13, paddingVertical: 9, borderTopWidth: 1, borderTopColor: '#D9EAF7' },
+    saldosResumenTotal: { color: '#0969B3', fontWeight: '800', fontSize: 16 },
+    totalSumarVerde: { backgroundColor: '#EFF9F3', borderRadius: 10, padding: 12, marginTop: 12, marginBottom: 8, gap: 4 },
+
     saldoAnteriorContainer: {
       minHeight: 72,
       borderWidth: 1,
@@ -3186,68 +3318,68 @@ const styles =
     },
 
     comprobanteSeleccionado: {
-  minHeight: 78,
-  borderWidth: 1,
-  borderColor: '#D7ECDD',
-  backgroundColor: '#F7FBF8',
-  borderRadius: 12,
-  padding: 9,
-  flexDirection: 'row',
-  alignItems: 'center',
-},
+      minHeight: 78,
+      borderWidth: 1,
+      borderColor: '#D7ECDD',
+      backgroundColor: '#F7FBF8',
+      borderRadius: 12,
+      padding: 9,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
 
-comprobanteMiniatura: {
-  width: 58,
-  height: 58,
-  borderRadius: 10,
-  backgroundColor: '#E5E7EB',
-},
+    comprobanteMiniatura: {
+      width: 58,
+      height: 58,
+      borderRadius: 10,
+      backgroundColor: '#E5E7EB',
+    },
 
-comprobanteInfo: {
-  flex: 1,
-  marginLeft: 12,
-  marginRight: 10,
-  justifyContent: 'center',
-},
+    comprobanteInfo: {
+      flex: 1,
+      marginLeft: 12,
+      marginRight: 10,
+      justifyContent: 'center',
+    },
 
-comprobanteTituloFila: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  gap: 7,
-},
+    comprobanteTituloFila: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 7,
+    },
 
-comprobanteAgregadoTitulo: {
-  fontSize: 14,
-  fontWeight: '700',
-  color: '#333333',
-},
+    comprobanteAgregadoTitulo: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: '#333333',
+    },
 
-comprobanteNombreArchivo: {
-  fontSize: 11,
-  color: '#777777',
-  marginTop: 3,
-},
+    comprobanteNombreArchivo: {
+      fontSize: 11,
+      color: '#777777',
+      marginTop: 3,
+    },
 
-eliminarComprobante: {
-  width: 48,
-  height: 48,
-  borderRadius: 10,
-  backgroundColor: '#FFF0F0',
-  justifyContent: 'center',
-  alignItems: 'center',
-},
+    eliminarComprobante: {
+      width: 48,
+      height: 48,
+      borderRadius: 10,
+      backgroundColor: '#FFF0F0',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
 
-eliminarComprobante: {
-  position: 'absolute',
-  right: 10,
-  bottom: 10,
-  width: 36,
-  height: 36,
-  borderRadius: 18,
-  alignItems: 'center',
-  justifyContent: 'center',
-  backgroundColor: '#FFFFFF',
-},
+    eliminarComprobante: {
+      position: 'absolute',
+      right: 10,
+      bottom: 10,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#FFFFFF',
+    },
 
     eliminarComprobante: {
       width: 36,
