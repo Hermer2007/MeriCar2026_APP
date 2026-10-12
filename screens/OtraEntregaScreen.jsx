@@ -42,6 +42,7 @@ export default function OtraEntregaScreen({
 
   const {
     agregarEntrega,
+    obtenerEntregasCliente,
     obtenerDeudasCliente,
     obtenerSaldoCliente,
     registrarAbono,
@@ -85,6 +86,35 @@ export default function OtraEntregaScreen({
     `${cliente?.nombres || ''} ${cliente?.apellidos || ''}`.trim() ||
     'Cliente';
 
+  // Consulta la última entrega del cliente, sin modificar el formulario actual.
+  const verUltimaEntrega = () => {
+    if (!clienteSeleccionado?.id) return;
+
+    const entregasCliente = obtenerEntregasCliente(clienteSeleccionado.id);
+    if (!entregasCliente.length) {
+      mostrarToast('Este cliente todavía no tiene entregas registradas.', 'warning');
+      return;
+    }
+
+    const fechaHora = (entrega) => {
+      const fecha = String(entrega.fecha || '');
+      const hora = String(entrega.hora || '00:00:00');
+      const valor = Date.parse(`${fecha}T${hora}`);
+      if (Number.isFinite(valor)) return valor;
+      const alternativo = Date.parse(fecha);
+      return Number.isFinite(alternativo) ? alternativo : 0;
+    };
+
+    const ultimaEntrega = [...entregasCliente].sort(
+      (a, b) => fechaHora(b) - fechaHora(a)
+    )[0];
+
+    navigation.navigate('EditarEntrega', {
+      cliente: clienteSeleccionado,
+      entrega: ultimaEntrega,
+    });
+  };
+
   const clientesFiltrados =
     useMemo(() => {
       const texto =
@@ -101,7 +131,7 @@ export default function OtraEntregaScreen({
           `${nombreCliente(
             cliente
           )} ${cliente.telefono ||
-            ''
+          ''
             }`
             .toLowerCase()
             .includes(
@@ -1405,23 +1435,33 @@ export default function OtraEntregaScreen({
               </Text>
             </View>
 
-            <TouchableOpacity
-              onPress={() => {
-                setClienteSeleccionado(
-                  null
-                );
+            <View style={styles.accionesCliente}>
+              <TouchableOpacity
+                style={styles.botonVerUltimaEntrega}
+                onPress={verUltimaEntrega}
+                accessibilityRole="button"
+                accessibilityLabel="Ver última entrega del cliente"
+              >
+                <Ionicons name="eye-outline" size={23} color="#08752F" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  setClienteSeleccionado(
+                    null
+                  );
 
-                setBusqueda(
-                  ''
-                );
-              }}
-            >
-              <Ionicons
-                name="close-circle"
-                size={25}
-                color="#D71920"
-              />
-            </TouchableOpacity>
+                  setBusqueda(
+                    ''
+                  );
+                }}
+              >
+                <Ionicons
+                  name="close-circle"
+                  size={25}
+                  color="#D71920"
+                />
+              </TouchableOpacity>
+            </View>
           </View>
         ) : (
           <>
@@ -2681,6 +2721,17 @@ const styles =
         'center',
       justifyContent:
         'space-between',
+    },
+
+    accionesCliente: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    botonVerUltimaEntrega: {
+      padding: 5,
+      borderRadius: 8,
+      backgroundColor: '#E0F2E6',
     },
 
     clienteNombre: {

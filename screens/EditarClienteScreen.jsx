@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -25,6 +25,20 @@ const EditarClienteScreen = ({ navigation, route }) => {
 
   const { editarCliente } = useClientes();
   const { mostrarToast } = useToast();
+  const scrollFormularioRef = useRef(null);
+
+  // Mantiene visible el campo seleccionado al abrir el teclado.
+  const mostrarCampoSobreTeclado = (event) => {
+    const campoNativo = event.nativeEvent.target;
+    setTimeout(() => {
+      scrollFormularioRef.current?.scrollResponderScrollNativeHandleToKeyboard(
+        campoNativo,
+        110,
+        true
+      );
+    }, 250);
+  };
+
 
   const insets = useSafeAreaInsets()
 
@@ -138,9 +152,10 @@ const EditarClienteScreen = ({ navigation, route }) => {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
+          ref={scrollFormularioRef}
           contentContainerStyle={[
             styles.contenido,
             {
@@ -148,6 +163,7 @@ const EditarClienteScreen = ({ navigation, route }) => {
             },
           ]}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.icono}>
@@ -178,6 +194,7 @@ const EditarClienteScreen = ({ navigation, route }) => {
             />
 
             <TextInput
+              onFocus={mostrarCampoSobreTeclado}
               style={styles.input}
               placeholder="Ingrese el nombre del cliente"
               placeholderTextColor="#999999"
@@ -293,6 +310,7 @@ const EditarClienteScreen = ({ navigation, route }) => {
                 />
 
                 <TextInput
+                  onFocus={mostrarCampoSobreTeclado}
                   style={styles.input}
                   placeholder="Ingrese el nombre para facturación"
                   placeholderTextColor="#999999"
@@ -324,6 +342,7 @@ const EditarClienteScreen = ({ navigation, route }) => {
             />
 
             <TextInput
+              onFocus={mostrarCampoSobreTeclado}
               style={styles.input}
               placeholder="Ingrese la cédula"
               placeholderTextColor="#999999"
@@ -349,6 +368,7 @@ const EditarClienteScreen = ({ navigation, route }) => {
             />
 
             <TextInput
+              onFocus={mostrarCampoSobreTeclado}
               style={styles.input}
               placeholder="Ingrese el teléfono"
               placeholderTextColor="#999999"
@@ -374,6 +394,7 @@ const EditarClienteScreen = ({ navigation, route }) => {
             />
 
             <TextInput
+              onFocus={mostrarCampoSobreTeclado}
               style={styles.input}
               placeholder="correo@ejemplo.com"
               placeholderTextColor="#999999"
@@ -400,6 +421,7 @@ const EditarClienteScreen = ({ navigation, route }) => {
             />
 
             <TextInput
+              onFocus={mostrarCampoSobreTeclado}
               style={styles.input}
               placeholder="Ingrese la dirección"
               placeholderTextColor="#999999"

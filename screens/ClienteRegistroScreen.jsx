@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -23,6 +23,20 @@ const DIAS = ['Lunes', 'Miércoles', 'Jueves', 'Sábado', 'Domingo'];
 
 const ClienteRegistroScreen = ({ navigation, route, }) => {
   const { mostrarToast } = useToast();
+  const scrollFormularioRef = useRef(null);
+
+  // Mantiene visible el campo seleccionado al abrir el teclado.
+  const mostrarCampoSobreTeclado = (event) => {
+    const campoNativo = event.nativeEvent.target;
+    setTimeout(() => {
+      scrollFormularioRef.current?.scrollResponderScrollNativeHandleToKeyboard(
+        campoNativo,
+        110,
+        true
+      );
+    }, 250);
+  };
+
   const { agregarCliente } = useClientes();
   const { vincularEntregaACliente, } = useEntregas();
 
@@ -148,9 +162,10 @@ const ClienteRegistroScreen = ({ navigation, route, }) => {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
+          ref={scrollFormularioRef}
           contentContainerStyle={[
             styles.contenido,
             {
@@ -158,6 +173,7 @@ const ClienteRegistroScreen = ({ navigation, route, }) => {
             },
           ]}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.icono}>
@@ -189,6 +205,7 @@ const ClienteRegistroScreen = ({ navigation, route, }) => {
             />
 
             <TextInput
+              onFocus={mostrarCampoSobreTeclado}
               style={styles.input}
               placeholder="Ingrese el nombre del cliente"
               placeholderTextColor="#999999"
@@ -304,6 +321,7 @@ const ClienteRegistroScreen = ({ navigation, route, }) => {
                 />
 
                 <TextInput
+                  onFocus={mostrarCampoSobreTeclado}
                   style={styles.input}
                   placeholder="Ingrese el nombre para facturación"
                   placeholderTextColor="#999999"
@@ -335,6 +353,7 @@ const ClienteRegistroScreen = ({ navigation, route, }) => {
             />
 
             <TextInput
+              onFocus={mostrarCampoSobreTeclado}
               style={styles.input}
               placeholder="Ingrese la cédula"
               placeholderTextColor="#999999"
@@ -360,6 +379,7 @@ const ClienteRegistroScreen = ({ navigation, route, }) => {
             />
 
             <TextInput
+              onFocus={mostrarCampoSobreTeclado}
               style={styles.input}
               placeholder="Ingrese el teléfono"
               placeholderTextColor="#999999"
@@ -385,6 +405,7 @@ const ClienteRegistroScreen = ({ navigation, route, }) => {
             />
 
             <TextInput
+              onFocus={mostrarCampoSobreTeclado}
               style={styles.input}
               placeholder="correo@ejemplo.com"
               placeholderTextColor="#999999"
@@ -411,6 +432,7 @@ const ClienteRegistroScreen = ({ navigation, route, }) => {
             />
 
             <TextInput
+              onFocus={mostrarCampoSobreTeclado}
               style={styles.input}
               placeholder="Ingrese la dirección"
               placeholderTextColor="#999999"
