@@ -1,3 +1,5 @@
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../firebase/config';
 import React, {
   createContext,
   useContext,
@@ -19,6 +21,9 @@ import { db } from '../firebase/config';
 const ProductosContext = createContext();
 
 export const ProductosProvider = ({ children }) => {
+  const [firebaseUid, setFirebaseUid] = useState(null);
+  useEffect(() => onAuthStateChanged(auth, user => setFirebaseUid(user?.uid || null)), []);
+
 
   const [productos, setProductos] = useState([]);
 
@@ -27,6 +32,8 @@ export const ProductosProvider = ({ children }) => {
   // ==========================================
 
   useEffect(() => {
+    if (!firebaseUid) return;
+
 
     const referenciaProductos = collection(
       db,
@@ -57,7 +64,7 @@ export const ProductosProvider = ({ children }) => {
 
     return () => cancelarEscucha();
 
-  }, []);
+  }, [firebaseUid]);
 
   // ==========================================
   // AGREGAR PRODUCTO

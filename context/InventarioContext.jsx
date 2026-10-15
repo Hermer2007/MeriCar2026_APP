@@ -1,3 +1,5 @@
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../firebase/config';
 import React, {
   createContext,
   useContext,
@@ -20,6 +22,9 @@ const InventarioContext = createContext();
 export const InventarioProvider = ({
   children,
 }) => {
+  const [firebaseUid, setFirebaseUid] = useState(null);
+  useEffect(() => onAuthStateChanged(auth, user => setFirebaseUid(user?.uid || null)), []);
+
 
   const [inventario, setInventario] =
     useState([]);
@@ -29,6 +34,8 @@ export const InventarioProvider = ({
   // ==========================================
 
   useEffect(() => {
+    if (!firebaseUid) return;
+
 
     const referenciaInventario =
       collection(
@@ -66,7 +73,7 @@ export const InventarioProvider = ({
     return () =>
       cancelarEscucha();
 
-  }, []);
+  }, [firebaseUid]);
 
   // ==========================================
   // REGISTRAR O ACTUALIZAR STOCK

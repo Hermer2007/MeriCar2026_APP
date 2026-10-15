@@ -12,6 +12,17 @@ import { UsuariosProvider } from './context/UsuariosContext';
 import { ToastProvider } from './context/ToastContext';
 import { AlertProvider } from './context/AlertContext';
 
+console.log('DIAGNÓSTICO DE PROVIDERS:', {
+  UsuariosProvider,
+  ProductosProvider,
+  InventarioProvider,
+  ClientesProvider,
+  EntregasProvider,
+  ToastProvider,
+  AlertProvider,
+  AppNavigator,
+});
+
 export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

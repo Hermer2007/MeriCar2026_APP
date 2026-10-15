@@ -1,3 +1,5 @@
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../firebase/config';
 import React, {
   createContext,
   useContext,
@@ -19,6 +21,9 @@ import { db } from '../firebase/config';
 const ClientesContext = createContext();
 
 export const ClientesProvider = ({ children }) => {
+  const [firebaseUid, setFirebaseUid] = useState(null);
+  useEffect(() => onAuthStateChanged(auth, user => setFirebaseUid(user?.uid || null)), []);
+
 
   const [clientes, setClientes] = useState([]);
 
@@ -27,6 +32,8 @@ export const ClientesProvider = ({ children }) => {
   // ==========================================
 
   useEffect(() => {
+    if (!firebaseUid) return;
+
 
     const referenciaClientes = collection(
       db,
@@ -57,7 +64,7 @@ export const ClientesProvider = ({ children }) => {
 
     return () => cancelarEscucha();
 
-  }, []);
+  }, [firebaseUid]);
 
   // ==========================================
   // AGREGAR CLIENTE

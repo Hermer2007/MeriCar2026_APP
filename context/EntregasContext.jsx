@@ -1,3 +1,5 @@
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../firebase/config';
 import React, {
 
   createContext,
@@ -53,6 +55,9 @@ export const EntregasProvider = ({
   children,
 
 }) => {
+  const [firebaseUid, setFirebaseUid] = useState(null);
+  useEffect(() => onAuthStateChanged(auth, user => setFirebaseUid(user?.uid || null)), []);
+
 
 
 
@@ -85,6 +90,8 @@ export const EntregasProvider = ({
 
 
   useEffect(() => {
+    if (!firebaseUid) return;
+
 
 
 
@@ -178,7 +185,7 @@ export const EntregasProvider = ({
 
 
 
-  }, []);
+  }, [firebaseUid]);
 
 
 
@@ -191,6 +198,8 @@ export const EntregasProvider = ({
 
 
   useEffect(() => {
+    if (!firebaseUid) return;
+
 
 
 
@@ -284,7 +293,7 @@ export const EntregasProvider = ({
 
 
 
-  }, []);
+  }, [firebaseUid]);
 
 
 

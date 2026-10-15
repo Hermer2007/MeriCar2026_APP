@@ -3,6 +3,7 @@ import React, { useRef, useState } from 'react';
 import {
   Keyboard,
   KeyboardAvoidingView,
+  ScrollView,
   Modal,
   Platform,
   StatusBar,
@@ -142,6 +143,11 @@ export default function LoginScreen({ navigation }) {
         'error'
       );
 
+      return;
+    }
+
+    if (usuarioEncontrado.error === 'USAR_CORREO') {
+      mostrarToast('Ingrese su correo electrónico para iniciar sesión.', 'warning');
       return;
     }
 
@@ -947,14 +953,20 @@ const cerrarRecuperacion =
       behavior={
         Platform.OS === 'ios'
           ? 'padding'
-          : undefined
+          : 'height'
       }
     >
       <TouchableWithoutFeedback
         onPress={Keyboard.dismiss}
         accessible={false}
       >
-        <View style={styles.container}>
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.loginScrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+        >
           <StatusBar
             barStyle="light-content"
             backgroundColor="#08752F"
@@ -1745,13 +1757,18 @@ const cerrarRecuperacion =
               </TouchableWithoutFeedback>
             </KeyboardAvoidingView>
           </Modal>
-        </View>
+        </ScrollView>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+
+  loginScrollContent: {
+    flexGrow: 1,
+    paddingBottom: 32,
+  },
 
   container: {
     flex: 1,
