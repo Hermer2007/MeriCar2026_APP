@@ -223,6 +223,11 @@ export const UsuariosProvider = ({
   // ==========================================
 
   useEffect(() => {
+    if (!usuarioActual || !auth.currentUser) {
+      setUsuarios([]);
+      return;
+    }
+
     const referencia =
       collection(
         db,
@@ -254,13 +259,18 @@ export const UsuariosProvider = ({
     return () => {
       cancelarEscucha();
     };
-  }, []);
+  }, [usuarioActual?.id]);
 
   // ==========================================
   // ESCUCHAR SOLICITUDES
   // ==========================================
 
   useEffect(() => {
+    if (!usuarioActual || !auth.currentUser) {
+      setSolicitudes([]);
+      return;
+    }
+
     const referencia =
       collection(
         db,
@@ -306,7 +316,7 @@ export const UsuariosProvider = ({
     return () => {
       cancelarEscucha();
     };
-  }, []);
+  }, [usuarioActual?.id]);
 
   // ==========================================
   // REGISTRAR NUEVA SOLICITUD
@@ -467,9 +477,9 @@ export const UsuariosProvider = ({
       (item) =>
         item.correo
           ?.toLowerCase() ===
-          correoLimpio &&
+        correoLimpio &&
         item.estado ===
-          'PENDIENTE'
+        'PENDIENTE'
     );
   };
 
@@ -489,10 +499,10 @@ export const UsuariosProvider = ({
       (item) =>
         item.usuario
           ?.toLowerCase() ===
-          busqueda ||
+        busqueda ||
         item.correo
           ?.toLowerCase() ===
-          busqueda
+        busqueda
     );
   };
 
@@ -650,7 +660,7 @@ export const UsuariosProvider = ({
 
         const nuevoEstado =
           usuario.estado ===
-          'ACTIVO'
+            'ACTIVO'
             ? 'INHABILITADO'
             : 'ACTIVO';
 
@@ -1103,9 +1113,9 @@ export const UsuariosProvider = ({
           .filter(
             (usuario) =>
               usuario.estado ===
-                'INHABILITADO' &&
+              'INHABILITADO' &&
               usuario.solicitaHabilitacion ===
-                true
+              true
           )
           .map(
             (usuario) =>
@@ -1161,9 +1171,9 @@ export const UsuariosProvider = ({
           .filter(
             (usuario) =>
               usuario.estado ===
-                'INHABILITADO' &&
+              'INHABILITADO' &&
               usuario.solicitaHabilitacion ===
-                true
+              true
           )
           .map(
             (usuario) =>
@@ -1190,150 +1200,54 @@ export const UsuariosProvider = ({
   // AUTENTICAR USUARIO
   // ==========================================
 
-  const autenticarUsuario =
-    async (
-      username,
-      password
-    ) => {
-      try {
-        const valor =
-          username
-            .trim()
-            .toLowerCase();
+  const autenticarUsuario = async (username, password) => {
+    const correo = String(username || '').trim().toLowerCase();
 
-        const usuarioEncontrado =
-          usuarios.find(
-            (item) =>
-              item.usuario
-                ?.toLowerCase() ===
-                valor ||
-              item.correo
-                ?.toLowerCase() ===
-                valor
-          );
+    // Firestore no permite consultar perfiles antes de autenticar.
+    if (!correo.includes('@')) {
+      return { error: 'USAR_CORREO' };
+    }
 
-        if (!usuarioEncontrado) {
-          return null;
-        }
+    autenticandoManualRef.current = true;
+    try {
+      const credencial = await signInWithEmailAndPassword(
+        auth,
+        correo,
+        password
+      );
 
-        if (
-          usuarioEncontrado.estado ===
-          'PENDIENTE'
-        ) {
-          return {
-            error:
-              'PENDIENTE',
-          };
-        }
+      const documentoUsuario = await getDoc(
+        doc(db, 'usuarios', credencial.user.uid)
+      );
 
-        if (
-          usuarioEncontrado.estado ===
-          'RECHAZADO'
-        ) {
-          return {
-            error:
-              'RECHAZADO',
-          };
-        }
-
-        if (
-          usuarioEncontrado.estado ===
-          'INHABILITADO'
-        ) {
-          return {
-            error:
-              'INHABILITADO',
-          };
-        }
-
-        if (
-          usuarioEncontrado.estado !==
-          'ACTIVO'
-        ) {
-          return {
-            error:
-              'NO_ACTIVO',
-          };
-        }
-
-        const correo =
-          usuarioEncontrado.correo;
-
-        autenticandoManualRef.current =
-          true;
-
-        try {
-          const credencial =
-            await signInWithEmailAndPassword(
-              auth,
-              correo,
-              password
-            );
-
-          const referenciaUsuario =
-            doc(
-              db,
-              'usuarios',
-              credencial.user.uid
-            );
-
-          const documentoUsuario =
-            await getDoc(
-              referenciaUsuario
-            );
-
-          if (
-            !documentoUsuario.exists()
-          ) {
-            await signOut(auth);
-
-            return {
-              error:
-                'NO_ACTIVO',
-            };
-          }
-
-          const datosUsuario = {
-            id: documentoUsuario.id,
-            ...documentoUsuario.data(),
-          };
-
-          if (
-            datosUsuario.estado !==
-            'ACTIVO'
-          ) {
-            await signOut(auth);
-
-            return {
-              error:
-                datosUsuario.estado ||
-                'NO_ACTIVO',
-            };
-          }
-
-          await AsyncStorage.setItem(
-            'mericar_fecha_sesion',
-            obtenerFechaActual()
-          );
-
-          await AsyncStorage.removeItem(
-            'mericar_app_bloqueada'
-          );
-
-          return datosUsuario;
-        } finally {
-          autenticandoManualRef.current =
-            false;
-        }
-      } catch (error) {
-        console.log(
-          'Error al iniciar sesión:',
-          error.code
-        );
-
-        return null;
+      if (!documentoUsuario.exists()) {
+        await signOut(auth);
+        return { error: 'NO_ACTIVO' };
       }
-    };
+
+      const datosUsuario = {
+        id: documentoUsuario.id,
+        ...documentoUsuario.data(),
+      };
+
+      if (datosUsuario.estado !== 'ACTIVO') {
+        await signOut(auth);
+        return { error: datosUsuario.estado || 'NO_ACTIVO' };
+      }
+
+      await AsyncStorage.setItem(
+        'mericar_fecha_sesion',
+        obtenerFechaActual()
+      );
+      await AsyncStorage.removeItem('mericar_app_bloqueada');
+      return datosUsuario;
+    } catch (error) {
+      console.log('Error al iniciar sesión:', error.code, error.message);
+      return null;
+    } finally {
+      autenticandoManualRef.current = false;
+    }
+  };
 
   // ==========================================
   // INICIAR SESIÓN EN CONTEXT
